@@ -32,11 +32,28 @@ export const HotspotConnectInstructions = ({
 
   const steps = Platform.OS === 'ios' ? iosSteps : androidSteps;
 
-  const openWifiSettings = () => {
+  const openWifiSettings = async () => {
     if (Platform.OS === 'ios') {
-      Linking.openURL('App-Prefs:WIFI');
+      // Deep-link directly to WiFi settings
+      // iOS will show "Back to SwingLink" in the top-left
+      try {
+        const wifiUrl = 'App-Prefs:WIFI';
+        const canOpen = await Linking.canOpenURL(wifiUrl);
+        if (canOpen) {
+          await Linking.openURL(wifiUrl);
+        } else {
+          await Linking.openSettings();
+        }
+      } catch {
+        await Linking.openSettings();
+      }
     } else {
-      Linking.sendIntent('android.settings.WIFI_SETTINGS');
+      // Android - open WiFi settings
+      try {
+        await Linking.sendIntent('android.settings.WIFI_SETTINGS');
+      } catch {
+        await Linking.openSettings();
+      }
     }
   };
 

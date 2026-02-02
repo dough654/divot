@@ -32,13 +32,29 @@ export const HotspotEnableInstructions = ({
 
   const steps = Platform.OS === 'ios' ? iosSteps : androidSteps;
 
-  const openSettings = () => {
+  const openSettings = async () => {
     if (Platform.OS === 'ios') {
-      // iOS doesn't have a direct hotspot settings URL, open general settings
-      Linking.openURL('App-Prefs:MOBILE_DATA');
+      // Deep-link directly to Personal Hotspot settings
+      // iOS will show "Back to SwingLink" in the top-left
+      try {
+        const hotspotUrl = 'App-Prefs:INTERNET_TETHERING';
+        const canOpen = await Linking.canOpenURL(hotspotUrl);
+        if (canOpen) {
+          await Linking.openURL(hotspotUrl);
+        } else {
+          // Fallback to general settings
+          await Linking.openSettings();
+        }
+      } catch {
+        await Linking.openSettings();
+      }
     } else {
-      // Android - open hotspot settings
-      Linking.openSettings();
+      // Android - try to open hotspot/tethering settings directly
+      try {
+        await Linking.sendIntent('android.settings.TETHERING_SETTINGS');
+      } catch {
+        await Linking.openSettings();
+      }
     }
   };
 
