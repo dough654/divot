@@ -41,7 +41,7 @@ export const QRCodeDisplay = ({
       )}
 
       <Text style={[styles.instruction, isDark && styles.instructionDark]}>
-        Scan this QR code with the viewer device
+        Scan QR code or enter code manually on viewer
       </Text>
     </View>
   );

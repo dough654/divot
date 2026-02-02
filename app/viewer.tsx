@@ -1,9 +1,10 @@
 import { StyleSheet, View, Text } from 'react-native';
-import { useState, useEffect, useCallback } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { RemoteVideoView } from '@/src/components/video';
-import { QRCodeScanner } from '@/src/components/pairing';
+import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
 import { ConnectionStatus, HotspotSetupGuide } from '@/src/components/connection';
 import { Button } from '@/src/components/ui';
 import { useSignaling } from '@/src/hooks/use-signaling';
@@ -20,6 +21,8 @@ export default function ViewerScreen() {
   const [isScanning, setIsScanning] = useState(true);
   const [scannedPayload, setScannedPayload] = useState<QRCodePayload | null>(null);
   const [showHotspotGuide, setShowHotspotGuide] = useState(false);
+  const [useManualEntry, setUseManualEntry] = useState(false);
+  const isProcessingScan = useRef(false);
 
   // Hooks
   const {
@@ -48,6 +51,9 @@ export default function ViewerScreen() {
 
   // Handle QR code scan
   const handleScan = useCallback(async (data: string) => {
+    // Prevent multiple scans from processing
+    if (isProcessingScan.current) return;
+
     if (!isValidSwingLinkQR(data)) {
       console.log('Invalid QR code scanned');
       return;
@@ -56,6 +62,7 @@ export default function ViewerScreen() {
     const payload = decodeQRPayload(data);
     if (!payload) return;
 
+    isProcessingScan.current = true;
     setIsScanning(false);
     setScannedPayload(payload);
     setConnectionStep('exchanging-signaling');
@@ -63,9 +70,8 @@ export default function ViewerScreen() {
     // Connect to signaling server and join room
     await connectSignaling();
 
-    // Extract room code from session ID (first part before dash)
-    const roomToJoin = payload.sessionId.split('-')[0];
-    const joined = await joinRoom(roomToJoin);
+    // The sessionId in the QR payload is the room code
+    const joined = await joinRoom(payload.sessionId);
 
     if (!joined) {
       setConnectionStep('failed');
@@ -102,18 +108,47 @@ export default function ViewerScreen() {
   }, [isConnected]);
 
   const handleRescan = useCallback(() => {
+    isProcessingScan.current = false;
     setIsScanning(true);
     setScannedPayload(null);
     setConnectionStep('scanning-qr');
     setShowHotspotGuide(false);
+    setUseManualEntry(false);
   }, []);
+
+  // Handle manual code entry
+  const handleManualCodeSubmit = useCallback(async (code: string) => {
+    if (isProcessingScan.current) return;
+
+    isProcessingScan.current = true;
+    setIsScanning(false);
+
+    // Create a minimal payload with just the room code
+    const payload: QRCodePayload = {
+      sessionId: code,
+      mode: 'auto',
+    };
+    setScannedPayload(payload);
+    setConnectionStep('exchanging-signaling');
+
+    // Connect to signaling server and join room
+    await connectSignaling();
+    const joined = await joinRoom(code);
+
+    if (!joined) {
+      setConnectionStep('failed');
+      return;
+    }
+
+    setConnectionStep('establishing-webrtc');
+  }, [connectSignaling, joinRoom]);
 
   const styles = createStyles(isDark);
 
   // Show hotspot guide if needed
   if (showHotspotGuide && scannedPayload) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <HotspotSetupGuide
           hotspotSsid={scannedPayload.hotspotSsid}
           hotspotPassword={scannedPayload.hotspotPassword}
@@ -131,13 +166,13 @@ export default function ViewerScreen() {
             isDark={isDark}
           />
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Video or Scanner */}
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Video or Scanner or Manual Entry */}
       <View style={styles.mainContent}>
         {isConnected || remoteStream ? (
           <RemoteVideoView
@@ -145,11 +180,20 @@ export default function ViewerScreen() {
             isConnecting={connectionStep === 'establishing-webrtc'}
           />
         ) : isScanning ? (
-          <QRCodeScanner
-            onScan={handleScan}
-            isScanning={isScanning}
-            isDark={isDark}
-          />
+          useManualEntry ? (
+            <ManualCodeEntry
+              onSubmit={handleManualCodeSubmit}
+              onSwitchToScanner={() => setUseManualEntry(false)}
+              isSubmitting={connectionStep === 'exchanging-signaling'}
+              isDark={isDark}
+            />
+          ) : (
+            <QRCodeScanner
+              onScan={handleScan}
+              isScanning={isScanning}
+              isDark={isDark}
+            />
+          )
         ) : (
           <View style={styles.connectingContainer}>
             <Text style={[styles.connectingText, isDark && styles.connectingTextDark]}>
@@ -166,12 +210,22 @@ export default function ViewerScreen() {
 
       {/* Actions */}
       <View style={styles.actions}>
+        {isScanning && !useManualEntry && (
+          <Button
+            title="Enter Code Manually"
+            onPress={() => setUseManualEntry(true)}
+            variant="secondary"
+            icon="keypad-outline"
+            isDark={isDark}
+          />
+        )}
+
         {connectionStep === 'failed' && (
           <Button
-            title="Scan Again"
+            title="Try Again"
             onPress={handleRescan}
             variant="primary"
-            icon="qr-code"
+            icon="refresh"
             isDark={isDark}
           />
         )}
@@ -187,7 +241,7 @@ export default function ViewerScreen() {
           </View>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
