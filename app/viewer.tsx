@@ -128,6 +128,11 @@ export default function ViewerScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Connection Status - top bar */}
+      <View style={styles.topBar}>
+        <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} compact />
+      </View>
+
       {/* Video or Scanner or Manual Entry */}
       <View style={styles.mainContent}>
         {isConnected || remoteStream ? (
@@ -159,13 +164,8 @@ export default function ViewerScreen() {
         )}
       </View>
 
-      {/* Connection Status */}
-      <View style={styles.statusContainer}>
-        <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} />
-      </View>
-
       {/* Actions */}
-      <View style={styles.actions}>
+      <View style={styles.bottomBar}>
         {isScanning && !useManualEntry && (
           <Button
             title="Enter Code Manually"
@@ -206,10 +206,16 @@ const createStyles = (isDark: boolean) =>
     container: {
       flex: 1,
       backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
-      padding: 16,
+    },
+    topBar: {
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 8,
     },
     mainContent: {
       flex: 1,
+      marginHorizontal: 12,
+      marginBottom: 8,
       borderRadius: 16,
       overflow: 'hidden',
     },
@@ -218,7 +224,6 @@ const createStyles = (isDark: boolean) =>
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: isDark ? '#0a0a1e' : '#e0e0e0',
-      borderRadius: 16,
     },
     connectingText: {
       fontSize: 18,
@@ -227,11 +232,9 @@ const createStyles = (isDark: boolean) =>
     connectingTextDark: {
       color: '#888',
     },
-    statusContainer: {
-      marginTop: 16,
-    },
-    actions: {
-      marginTop: 16,
+    bottomBar: {
+      paddingHorizontal: 12,
+      paddingVertical: 12,
     },
     qualityInfo: {
       alignItems: 'center',

@@ -2,7 +2,6 @@ import { StyleSheet, View, Text, Pressable, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { LocalVideoView } from '@/src/components/video';
@@ -16,7 +15,7 @@ import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { formatRoomCode } from '@/src/utils';
 import type { ConnectionStep } from '@/src/types';
 
-const QR_BUTTON_CLICKED_KEY = '@swinglink/qr_button_clicked';
+const MIN_LOADING_TIME_MS = 1500;
 
 export default function CameraScreen() {
   const colorScheme = useColorScheme();
@@ -25,6 +24,8 @@ export default function CameraScreen() {
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
   const [showQRModal, setShowQRModal] = useState(false);
   const [isPulsing, setIsPulsing] = useState(true);
+  const [isButtonLoading, setIsButtonLoading] = useState(true);
+  const loadingStartTime = useState(() => Date.now())[0];
 
   // Hooks
   const {
@@ -71,16 +72,20 @@ export default function CameraScreen() {
       })
     : null;
 
-  // Check if user has clicked QR button before
+
+  // Handle minimum loading time for smooth transition
   useEffect(() => {
-    const checkFirstVisit = async () => {
-      const hasClicked = await AsyncStorage.getItem(QR_BUTTON_CLICKED_KEY);
-      if (hasClicked === 'true') {
-        setIsPulsing(false);
-      }
-    };
-    checkFirstVisit();
-  }, []);
+    if (roomCode) {
+      const elapsed = Date.now() - loadingStartTime;
+      const remaining = Math.max(0, MIN_LOADING_TIME_MS - elapsed);
+
+      const timer = setTimeout(() => {
+        setIsButtonLoading(false);
+      }, remaining);
+
+      return () => clearTimeout(timer);
+    }
+  }, [roomCode, loadingStartTime]);
 
   // Start camera and connection on mount
   useEffect(() => {
@@ -131,11 +136,10 @@ export default function CameraScreen() {
     }
   }, [isConnected]);
 
-  const handleQRButtonPress = async () => {
+  const handleQRButtonPress = () => {
     setShowQRModal(true);
     if (isPulsing) {
       setIsPulsing(false);
-      await AsyncStorage.setItem(QR_BUTTON_CLICKED_KEY, 'true');
     }
   };
 
@@ -143,7 +147,12 @@ export default function CameraScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Video Preview - takes most of the screen */}
+      {/* Connection Status - top bar */}
+      <View style={styles.topBar}>
+        <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} compact />
+      </View>
+
+      {/* Video Preview - full width */}
       <View style={styles.videoContainer}>
         <LocalVideoView
           stream={localStream}
@@ -157,21 +166,17 @@ export default function CameraScreen() {
         )}
       </View>
 
-      {/* Bottom bar with status and QR button */}
+      {/* Bottom bar with QR button */}
       <View style={styles.bottomBar}>
-        {/* Connection Status - compact */}
-        <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} compact />
-
         {/* QR Code Button */}
-        {roomCode && !isConnected && (
-          <View style={styles.qrButtonContainer}>
-            <QRCodeButton
-              roomCode={formatRoomCode(roomCode)}
-              onPress={handleQRButtonPress}
-              isPulsing={isPulsing}
-              isDark={isDark}
-            />
-          </View>
+        {!isConnected && (
+          <QRCodeButton
+            roomCode={roomCode ? formatRoomCode(roomCode) : null}
+            onPress={handleQRButtonPress}
+            isPulsing={isPulsing}
+            isLoading={isButtonLoading}
+            isDark={isDark}
+          />
         )}
 
         {/* Connected indicator */}
@@ -238,9 +243,14 @@ const createStyles = (isDark: boolean) =>
       flex: 1,
       backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
     },
+    topBar: {
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
     videoContainer: {
       flex: 1,
-      margin: 12,
+      marginHorizontal: 12,
       marginBottom: 8,
       borderRadius: 16,
       overflow: 'hidden',
@@ -260,11 +270,7 @@ const createStyles = (isDark: boolean) =>
     },
     bottomBar: {
       paddingHorizontal: 12,
-      paddingBottom: 12,
-      gap: 8,
-    },
-    qrButtonContainer: {
-      marginTop: 4,
+      paddingVertical: 12,
     },
     connectedBadge: {
       flexDirection: 'row',

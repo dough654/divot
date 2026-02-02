@@ -125,14 +125,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
   },
-  compactContainerDark: {
-    backgroundColor: '#2a2a4e',
-  },
+  compactContainerDark: {},
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',

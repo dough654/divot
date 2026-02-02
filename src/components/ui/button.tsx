@@ -90,12 +90,12 @@ export const Button = ({
 
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
+    minHeight: 64,
   },
   buttonOutline: {
     borderWidth: 2,
