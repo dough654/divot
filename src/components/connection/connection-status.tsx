@@ -7,6 +7,8 @@ export type ConnectionStatusProps = {
   step: ConnectionStep;
   quality?: ConnectionQuality | null;
   isDark?: boolean;
+  /** Compact mode for tighter layouts */
+  compact?: boolean;
 };
 
 const stepInfo: Record<ConnectionStep, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
@@ -39,6 +41,7 @@ export const ConnectionStatus = ({
   step,
   quality,
   isDark = false,
+  compact = false,
 }: ConnectionStatusProps) => {
   const info = stepInfo[step];
   const isConnected = step === 'connected';
@@ -50,6 +53,34 @@ export const ConnectionStatus = ({
     if (isFailed) return '#f44336';
     return isDark ? '#888' : '#666';
   };
+
+  if (compact) {
+    return (
+      <View style={[styles.compactContainer, isDark && styles.compactContainerDark]}>
+        <Ionicons
+          name={info.icon}
+          size={16}
+          color={getStatusColor()}
+        />
+        <Text style={[styles.compactLabel, isDark && styles.compactLabelDark, isConnected && styles.labelConnected]}>
+          {info.label}
+        </Text>
+        {isConnected && quality && (
+          <>
+            <View
+              style={[
+                styles.qualityDot,
+                { backgroundColor: qualityColors[qualityRating] },
+              ]}
+            />
+            <Text style={[styles.compactQuality, isDark && styles.qualityTextDark]}>
+              {quality.latencyMs}ms
+            </Text>
+          </>
+        )}
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
@@ -90,6 +121,18 @@ const styles = StyleSheet.create({
   containerDark: {
     backgroundColor: '#2a2a4e',
   },
+  compactContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  compactContainerDark: {
+    backgroundColor: '#2a2a4e',
+  },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -100,6 +143,13 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   labelDark: {
+    color: '#888',
+  },
+  compactLabel: {
+    fontSize: 13,
+    color: '#666',
+  },
+  compactLabelDark: {
     color: '#888',
   },
   labelConnected: {
@@ -124,5 +174,10 @@ const styles = StyleSheet.create({
   },
   qualityTextDark: {
     color: '#888',
+  },
+  compactQuality: {
+    fontSize: 11,
+    color: '#666',
+    fontFamily: 'SpaceMono',
   },
 });

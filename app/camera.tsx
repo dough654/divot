@@ -2,10 +2,11 @@ import { StyleSheet, View, Text, Pressable, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { LocalVideoView } from '@/src/components/video';
-import { QRCodeDisplay } from '@/src/components/pairing';
+import { QRCodeDisplay, QRCodeButton } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import { useLocalMediaStream } from '@/src/hooks/use-local-media-stream';
 import { useSignaling } from '@/src/hooks/use-signaling';
@@ -15,12 +16,15 @@ import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { formatRoomCode } from '@/src/utils';
 import type { ConnectionStep } from '@/src/types';
 
+const QR_BUTTON_CLICKED_KEY = '@swinglink/qr_button_clicked';
+
 export default function CameraScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
-  const [showPerformanceTip, setShowPerformanceTip] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [isPulsing, setIsPulsing] = useState(true);
 
   // Hooks
   const {
@@ -66,6 +70,17 @@ export default function CameraScreen() {
         signalingUrl: 'https://swinglink-signaling.fly.dev',
       })
     : null;
+
+  // Check if user has clicked QR button before
+  useEffect(() => {
+    const checkFirstVisit = async () => {
+      const hasClicked = await AsyncStorage.getItem(QR_BUTTON_CLICKED_KEY);
+      if (hasClicked === 'true') {
+        setIsPulsing(false);
+      }
+    };
+    checkFirstVisit();
+  }, []);
 
   // Start camera and connection on mount
   useEffect(() => {
@@ -116,11 +131,19 @@ export default function CameraScreen() {
     }
   }, [isConnected]);
 
+  const handleQRButtonPress = async () => {
+    setShowQRModal(true);
+    if (isPulsing) {
+      setIsPulsing(false);
+      await AsyncStorage.setItem(QR_BUTTON_CLICKED_KEY, 'true');
+    }
+  };
+
   const styles = createStyles(isDark);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Video Preview */}
+      {/* Video Preview - takes most of the screen */}
       <View style={styles.videoContainer}>
         <LocalVideoView
           stream={localStream}
@@ -134,93 +157,73 @@ export default function CameraScreen() {
         )}
       </View>
 
-      {/* Connection Status */}
-      <View style={styles.statusContainer}>
-        <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} />
-      </View>
+      {/* Bottom bar with status and QR button */}
+      <View style={styles.bottomBar}>
+        {/* Connection Status - compact */}
+        <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} compact />
 
-      {/* QR Code */}
-      <View style={styles.pairingContainer}>
-        {qrPayload ? (
-          <QRCodeDisplay
-            value={qrPayload}
-            roomCode={formatRoomCode(roomCode!)}
-            size={160}
-            isDark={isDark}
-          />
-        ) : (
-          <View style={styles.loadingContainer}>
-            <Text style={[styles.loadingText, isDark && styles.loadingTextDark]}>
-              Generating QR code...
-            </Text>
+        {/* QR Code Button */}
+        {roomCode && !isConnected && (
+          <View style={styles.qrButtonContainer}>
+            <QRCodeButton
+              roomCode={formatRoomCode(roomCode)}
+              onPress={handleQRButtonPress}
+              isPulsing={isPulsing}
+              isDark={isDark}
+            />
+          </View>
+        )}
+
+        {/* Connected indicator */}
+        {isConnected && (
+          <View style={[styles.connectedBadge, isDark && styles.connectedBadgeDark]}>
+            <Ionicons name="videocam" size={18} color="#4CAF50" />
+            <Text style={styles.connectedText}>Streaming to viewer</Text>
           </View>
         )}
       </View>
 
-      {/* Performance tip button */}
-      {!isConnected && connectionStep === 'displaying-qr' && (
-        <Pressable
-          style={[styles.tipButton, isDark && styles.tipButtonDark]}
-          onPress={() => setShowPerformanceTip(true)}
-        >
-          <Ionicons name="flash" size={18} color="#FF9800" />
-          <Text style={styles.tipButtonText}>Want the best performance?</Text>
-        </Pressable>
-      )}
-
-      {/* Performance tip modal */}
+      {/* QR Code Modal */}
       <Modal
-        visible={showPerformanceTip}
+        visible={showQRModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowPerformanceTip(false)}
+        onRequestClose={() => setShowQRModal(false)}
       >
         <Pressable
           style={styles.modalOverlay}
-          onPress={() => setShowPerformanceTip(false)}
+          onPress={() => setShowQRModal(false)}
         >
           <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="flash" size={24} color="#FF9800" />
-              <Text style={[styles.modalTitle, isDark && styles.modalTitleDark]}>
-                Best Performance Tip
+            {/* QR Code */}
+            {qrPayload && (
+              <QRCodeDisplay
+                value={qrPayload}
+                roomCode={formatRoomCode(roomCode!)}
+                size={180}
+                isDark={isDark}
+              />
+            )}
+
+            {/* Performance Tip */}
+            <View style={[styles.tipSection, isDark && styles.tipSectionDark]}>
+              <View style={styles.tipHeader}>
+                <Ionicons name="flash" size={18} color="#FF9800" />
+                <Text style={[styles.tipTitle, isDark && styles.tipTitleDark]}>
+                  Best Performance Tip
+                </Text>
+              </View>
+              <Text style={[styles.tipText, isDark && styles.tipTextDark]}>
+                For lowest latency: Enable this phone's hotspot, connect the viewer to it, then scan.
               </Text>
             </View>
 
-            <Text style={[styles.modalText, isDark && styles.modalTextDark]}>
-              For the lowest latency and most reliable connection:
-            </Text>
-
-            <View style={styles.tipSteps}>
-              <View style={styles.tipStep}>
-                <Text style={styles.tipStepNumber}>1</Text>
-                <Text style={[styles.tipStepText, isDark && styles.tipStepTextDark]}>
-                  Enable this phone's mobile hotspot
-                </Text>
-              </View>
-              <View style={styles.tipStep}>
-                <Text style={styles.tipStepNumber}>2</Text>
-                <Text style={[styles.tipStepText, isDark && styles.tipStepTextDark]}>
-                  Connect the viewer device to your hotspot
-                </Text>
-              </View>
-              <View style={styles.tipStep}>
-                <Text style={styles.tipStepNumber}>3</Text>
-                <Text style={[styles.tipStepText, isDark && styles.tipStepTextDark]}>
-                  Then scan the QR code or enter the room code
-                </Text>
-              </View>
-            </View>
-
-            <Text style={[styles.modalSubtext, isDark && styles.modalSubtextDark]}>
-              This creates a direct device-to-device connection without going through a WiFi router.
-            </Text>
-
+            {/* Close button */}
             <Pressable
-              style={styles.modalCloseButton}
-              onPress={() => setShowPerformanceTip(false)}
+              style={styles.closeButton}
+              onPress={() => setShowQRModal(false)}
             >
-              <Text style={styles.modalCloseButtonText}>Got it</Text>
+              <Text style={styles.closeButtonText}>Done</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -234,11 +237,11 @@ const createStyles = (isDark: boolean) =>
     container: {
       flex: 1,
       backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
-      padding: 16,
     },
     videoContainer: {
       flex: 1,
-      maxHeight: '40%',
+      margin: 12,
+      marginBottom: 8,
       borderRadius: 16,
       overflow: 'hidden',
     },
@@ -255,131 +258,90 @@ const createStyles = (isDark: boolean) =>
       textAlign: 'center',
       fontSize: 14,
     },
-    statusContainer: {
-      marginTop: 16,
+    bottomBar: {
+      paddingHorizontal: 12,
+      paddingBottom: 12,
+      gap: 8,
     },
-    pairingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: 16,
+    qrButtonContainer: {
+      marginTop: 4,
     },
-    loadingContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    loadingText: {
-      fontSize: 16,
-      color: '#666',
-    },
-    loadingTextDark: {
-      color: '#888',
-    },
-    tipButton: {
+    connectedBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      backgroundColor: '#FFF3E0',
+      backgroundColor: '#e8f5e9',
       borderRadius: 8,
-      marginTop: 16,
+      paddingVertical: 10,
+      marginTop: 4,
     },
-    tipButtonDark: {
-      backgroundColor: '#3a2a1a',
+    connectedBadgeDark: {
+      backgroundColor: '#1a3a1a',
     },
-    tipButtonText: {
-      color: '#FF9800',
+    connectedText: {
       fontSize: 14,
       fontWeight: '500',
+      color: '#4CAF50',
     },
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 20,
     },
     modalContent: {
       backgroundColor: '#ffffff',
-      borderRadius: 16,
-      padding: 24,
+      borderRadius: 20,
+      padding: 20,
       width: '100%',
-      maxWidth: 360,
+      maxWidth: 340,
+      alignItems: 'center',
     },
     modalContentDark: {
       backgroundColor: '#2a2a4e',
     },
-    modalHeader: {
+    tipSection: {
+      width: '100%',
+      backgroundColor: '#FFF8E1',
+      borderRadius: 12,
+      padding: 12,
+      marginTop: 16,
+    },
+    tipSectionDark: {
+      backgroundColor: '#3a2a1a',
+    },
+    tipHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      marginBottom: 16,
+      gap: 8,
+      marginBottom: 6,
     },
-    modalTitle: {
-      fontSize: 20,
-      fontWeight: '600',
-      color: '#1a1a2e',
-    },
-    modalTitleDark: {
-      color: '#ffffff',
-    },
-    modalText: {
-      fontSize: 14,
-      color: '#666',
-      marginBottom: 16,
-      lineHeight: 20,
-    },
-    modalTextDark: {
-      color: '#aaa',
-    },
-    tipSteps: {
-      gap: 12,
-      marginBottom: 16,
-    },
-    tipStep: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-    },
-    tipStepNumber: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: '#FF9800',
-      color: '#ffffff',
+    tipTitle: {
       fontSize: 14,
       fontWeight: '600',
-      textAlign: 'center',
-      lineHeight: 24,
+      color: '#F57C00',
     },
-    tipStepText: {
-      flex: 1,
-      fontSize: 14,
-      color: '#333',
-      lineHeight: 20,
+    tipTitleDark: {
+      color: '#FFB74D',
     },
-    tipStepTextDark: {
-      color: '#ccc',
-    },
-    modalSubtext: {
+    tipText: {
       fontSize: 13,
-      color: '#888',
-      fontStyle: 'italic',
-      marginBottom: 20,
+      color: '#795548',
       lineHeight: 18,
     },
-    modalSubtextDark: {
-      color: '#777',
+    tipTextDark: {
+      color: '#BCAAA4',
     },
-    modalCloseButton: {
+    closeButton: {
+      marginTop: 16,
       backgroundColor: '#4CAF50',
       paddingVertical: 12,
+      paddingHorizontal: 32,
       borderRadius: 8,
-      alignItems: 'center',
     },
-    modalCloseButtonText: {
+    closeButtonText: {
       color: '#ffffff',
       fontSize: 16,
       fontWeight: '600',
