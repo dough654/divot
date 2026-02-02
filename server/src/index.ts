@@ -1,12 +1,27 @@
+import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-const io = new Server(PORT, {
+const httpServer = createServer((req, res) => {
+  if (req.url === '/health' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok', timestamp: Date.now() }));
+    return;
+  }
+  res.writeHead(404);
+  res.end();
+});
+
+const io = new Server(httpServer, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
   },
+});
+
+io.engine.on('connection_error', (err) => {
+  console.log('[Engine] Connection error:', err.code, err.message, err.context);
 });
 
 // Room code characters (excluding ambiguous characters)
@@ -144,4 +159,6 @@ io.on('connection', (socket: Socket) => {
   });
 });
 
-console.log(`🚀 SwingLink signaling server running on port ${PORT}`);
+httpServer.listen(PORT, () => {
+  console.log(`🚀 SwingLink signaling server running on port ${PORT}`);
+});

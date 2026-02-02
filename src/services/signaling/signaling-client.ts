@@ -30,7 +30,11 @@ export const createSignalingClient = (
   config: Partial<SignalingClientConfig> = {},
   callbacks: SignalingClientCallbacks = {}
 ) => {
-  const finalConfig = { ...DEFAULT_CONFIG, ...config };
+  const finalConfig = {
+    serverUrl: config.serverUrl ?? DEFAULT_CONFIG.serverUrl,
+    reconnectionAttempts: config.reconnectionAttempts ?? DEFAULT_CONFIG.reconnectionAttempts,
+    reconnectionDelay: config.reconnectionDelay ?? DEFAULT_CONFIG.reconnectionDelay,
+  };
   let socket: Socket | null = null;
   let currentRoom: string | null = null;
   let connectionState: SignalingConnectionState = 'disconnected';
@@ -52,18 +56,31 @@ export const createSignalingClient = (
 
       updateConnectionState('connecting');
 
+      console.log('[Signaling] Connecting to:', finalConfig.serverUrl);
+
       socket = io(finalConfig.serverUrl, {
         reconnectionAttempts: finalConfig.reconnectionAttempts,
         reconnectionDelay: finalConfig.reconnectionDelay,
-        transports: ['websocket'],
+        transports: ['polling', 'websocket'],
+        timeout: 30000,
+      });
+
+      socket.io.on('error', (error) => {
+        console.log('[Signaling] Transport error:', error);
+      });
+
+      socket.io.on('ping', () => {
+        console.log('[Signaling] Ping');
       });
 
       socket.on('connect', () => {
+        console.log('[Signaling] Connected! Socket ID:', socket?.id);
         updateConnectionState('connected');
         resolve();
       });
 
       socket.on('connect_error', (error) => {
+        console.log('[Signaling] Connection error:', error.message);
         updateConnectionState('error');
         callbacks.onError?.({
           code: 'CONNECTION_ERROR',

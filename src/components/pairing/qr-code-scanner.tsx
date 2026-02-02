@@ -1,5 +1,6 @@
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
+import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 export type QRCodeScannerProps = {
@@ -10,7 +11,7 @@ export type QRCodeScannerProps = {
 
 /**
  * QR code scanner for reading pairing codes.
- * Handles camera permissions and barcode detection.
+ * Uses expo-camera for barcode detection.
  */
 export const QRCodeScanner = ({
   onScan,
@@ -18,8 +19,19 @@ export const QRCodeScanner = ({
   isDark = false,
 }: QRCodeScannerProps) => {
   const [permission, requestPermission] = useCameraPermissions();
+  const [scannerReady, setScannerReady] = useState(false);
+
+  // Delay enabling scanner to avoid race conditions
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log('[QRScanner] Enabling scanner after delay');
+      setScannerReady(true);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleBarCodeScanned = (result: BarcodeScanningResult) => {
+    console.log('[QRScanner] Scanned:', result.type, result.data?.substring(0, 50));
     if (isScanning && result.data) {
       onScan(result.data);
     }
@@ -49,6 +61,8 @@ export const QRCodeScanner = ({
     );
   }
 
+  console.log('[QRScanner] Rendering camera, isScanning:', isScanning, 'platform:', Platform.OS);
+
   return (
     <View style={styles.container}>
       <CameraView
@@ -57,7 +71,7 @@ export const QRCodeScanner = ({
         barcodeScannerSettings={{
           barcodeTypes: ['qr'],
         }}
-        onBarcodeScanned={isScanning ? handleBarCodeScanned : undefined}
+        onBarcodeScanned={scannerReady && isScanning ? handleBarCodeScanned : undefined}
       >
         <View style={styles.overlay}>
           <View style={styles.scanArea}>

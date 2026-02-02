@@ -4,9 +4,19 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "dev": "expo start --dev-client",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "build:android": "npx eas-cli build --platform android --profile development",
+    "build:ios": "npx eas-cli build --platform ios --profile development",
+    "build:android:preview": "npx eas-cli build --platform android --profile preview",
+    "build:ios:preview": "npx eas-cli build --platform ios --profile preview",
+    "build:android:prod": "npx eas-cli build --platform android --profile production",
+    "build:ios:prod": "npx eas-cli build --platform ios --profile production",
+    "eas:configure": "npx eas-cli build:configure",
+    "eas:login": "npx eas-cli login"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^13.0.0",
