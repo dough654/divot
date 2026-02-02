@@ -19,67 +19,52 @@ export const QRCodeButton = ({
   isPulsing,
   isDark = false,
 }: QRCodeButtonProps) => {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isPulsing) {
-      const pulseAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.02,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-
       const glowAnimation = Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {
             toValue: 1,
-            duration: 800,
+            duration: 1000,
             useNativeDriver: false,
           }),
           Animated.timing(glowAnim, {
             toValue: 0,
-            duration: 800,
+            duration: 1000,
             useNativeDriver: false,
           }),
         ])
       );
 
-      pulseAnimation.start();
       glowAnimation.start();
 
       return () => {
-        pulseAnimation.stop();
         glowAnimation.stop();
       };
     } else {
-      pulseAnim.setValue(1);
       glowAnim.setValue(0);
     }
-  }, [isPulsing, pulseAnim, glowAnim]);
+  }, [isPulsing, glowAnim]);
 
   const borderColor = glowAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [isDark ? '#3a3a5e' : '#e0e0e0', '#4CAF50'],
   });
 
+  const borderWidth = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 3],
+  });
+
   return (
     <Animated.View
       style={[
         styles.animatedWrapper,
-        {
-          transform: [{ scale: pulseAnim }],
+        isPulsing && {
           borderColor,
-          borderWidth: isPulsing ? 2 : 0,
+          borderWidth,
         },
       ]}
     >
