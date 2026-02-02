@@ -17,10 +17,10 @@ export const HotspotEnableInstructions = ({
   isDark = false,
 }: HotspotEnableInstructionsProps) => {
   const iosSteps = [
-    'Go to Settings > Personal Hotspot',
+    'Open Settings, then tap "Personal Hotspot"',
     'Turn on "Allow Others to Join"',
-    'Note your WiFi password (you\'ll share it with the viewer)',
-    'Return here and tap "Hotspot is Enabled"',
+    'Note the Wi-Fi Password shown on that screen',
+    'Come back here and tap "Hotspot is Enabled"',
   ];
 
   const androidSteps = [
@@ -34,20 +34,9 @@ export const HotspotEnableInstructions = ({
 
   const openSettings = async () => {
     if (Platform.OS === 'ios') {
-      // Deep-link directly to Personal Hotspot settings
-      // iOS will show "Back to SwingLink" in the top-left
-      try {
-        const hotspotUrl = 'App-Prefs:INTERNET_TETHERING';
-        const canOpen = await Linking.canOpenURL(hotspotUrl);
-        if (canOpen) {
-          await Linking.openURL(hotspotUrl);
-        } else {
-          // Fallback to general settings
-          await Linking.openSettings();
-        }
-      } catch {
-        await Linking.openSettings();
-      }
+      // iOS doesn't allow deep-linking to specific Settings pages anymore
+      // Just open the main Settings app
+      await Linking.openSettings();
     } else {
       // Android - try to open hotspot/tethering settings directly
       try {

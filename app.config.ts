@@ -68,5 +68,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     signalingServerUrl: process.env.SIGNALING_SERVER_URL || 'https://swinglink-signaling.fly.dev',
+    eas: {
+      projectId: '35da25d9-0965-4058-8a6e-cfe1a9a385d1',
+    },
   },
 });
