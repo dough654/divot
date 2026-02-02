@@ -49,6 +49,21 @@ export default function ViewerScreen() {
     enabled: isConnected,
   });
 
+  // Connect to the signaling server and join the room
+  const proceedWithConnection = useCallback(async (roomCode: string) => {
+    setConnectionStep('exchanging-signaling');
+
+    await connectSignaling();
+    const joined = await joinRoom(roomCode);
+
+    if (!joined) {
+      setConnectionStep('failed');
+      return;
+    }
+
+    setConnectionStep('establishing-webrtc');
+  }, [connectSignaling, joinRoom]);
+
   // Handle QR code scan
   const handleScan = useCallback(async (data: string) => {
     // Prevent multiple scans from processing
@@ -65,21 +80,17 @@ export default function ViewerScreen() {
     isProcessingScan.current = true;
     setIsScanning(false);
     setScannedPayload(payload);
-    setConnectionStep('exchanging-signaling');
 
-    // Connect to signaling server and join room
-    await connectSignaling();
-
-    // The sessionId in the QR payload is the room code
-    const joined = await joinRoom(payload.sessionId);
-
-    if (!joined) {
-      setConnectionStep('failed');
+    // If hotspot mode, show credentials first and wait for user to connect
+    if (payload.mode === 'hotspot' && payload.hotspotSsid) {
+      setShowHotspotGuide(true);
+      setConnectionStep('connecting-to-hotspot');
       return;
     }
 
-    setConnectionStep('establishing-webrtc');
-  }, [connectSignaling, joinRoom]);
+    // Auto mode - proceed immediately
+    await proceedWithConnection(payload.sessionId);
+  }, [proceedWithConnection]);
 
   // Handle offer from camera
   useEffect(() => {
@@ -145,6 +156,13 @@ export default function ViewerScreen() {
 
   const styles = createStyles(isDark);
 
+  // Handle user confirming they've connected to the hotspot
+  const handleHotspotConnected = useCallback(async () => {
+    if (!scannedPayload) return;
+    setShowHotspotGuide(false);
+    await proceedWithConnection(scannedPayload.sessionId);
+  }, [scannedPayload, proceedWithConnection]);
+
   // Show hotspot guide if needed
   if (showHotspotGuide && scannedPayload) {
     return (
@@ -157,12 +175,16 @@ export default function ViewerScreen() {
         />
         <View style={styles.actions}>
           <Button
-            title="I'm Connected"
-            onPress={() => {
-              setShowHotspotGuide(false);
-              setConnectionStep('connecting-to-hotspot');
-            }}
+            title="I'm Connected to Hotspot"
+            onPress={handleHotspotConnected}
             variant="primary"
+            isDark={isDark}
+          />
+          <View style={styles.actionSpacer} />
+          <Button
+            title="Cancel"
+            onPress={handleRescan}
+            variant="secondary"
             isDark={isDark}
           />
         </View>
@@ -276,6 +298,9 @@ const createStyles = (isDark: boolean) =>
     },
     actions: {
       marginTop: 16,
+    },
+    actionSpacer: {
+      height: 12,
     },
     qualityInfo: {
       alignItems: 'center',
