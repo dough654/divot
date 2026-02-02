@@ -5,13 +5,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useColorScheme } from '@/components/useColorScheme';
 import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
-import { ConnectionStatus, HotspotConnectInstructions } from '@/src/components/connection';
+import { ConnectionStatus } from '@/src/components/connection';
 import { Button } from '@/src/components/ui';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
-import type { ConnectionStep, QRCodePayload } from '@/src/types';
+import type { ConnectionStep } from '@/src/types';
 
 export default function ViewerScreen() {
   const colorScheme = useColorScheme();
@@ -19,8 +19,6 @@ export default function ViewerScreen() {
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('scanning-qr');
   const [isScanning, setIsScanning] = useState(true);
-  const [scannedPayload, setScannedPayload] = useState<QRCodePayload | null>(null);
-  const [showHotspotGuide, setShowHotspotGuide] = useState(false);
   const [useManualEntry, setUseManualEntry] = useState(false);
   const isProcessingScan = useRef(false);
 
@@ -79,16 +77,7 @@ export default function ViewerScreen() {
 
     isProcessingScan.current = true;
     setIsScanning(false);
-    setScannedPayload(payload);
 
-    // If hotspot mode, show credentials first and wait for user to connect
-    if (payload.mode === 'hotspot' && payload.hotspotSsid) {
-      setShowHotspotGuide(true);
-      setConnectionStep('connecting-to-hotspot');
-      return;
-    }
-
-    // Auto mode - proceed immediately
     await proceedWithConnection(payload.sessionId);
   }, [proceedWithConnection]);
 
@@ -121,9 +110,7 @@ export default function ViewerScreen() {
   const handleRescan = useCallback(() => {
     isProcessingScan.current = false;
     setIsScanning(true);
-    setScannedPayload(null);
     setConnectionStep('scanning-qr');
-    setShowHotspotGuide(false);
     setUseManualEntry(false);
   }, []);
 
@@ -134,49 +121,10 @@ export default function ViewerScreen() {
     isProcessingScan.current = true;
     setIsScanning(false);
 
-    // Create a minimal payload with just the room code
-    const payload: QRCodePayload = {
-      sessionId: code,
-      mode: 'auto',
-    };
-    setScannedPayload(payload);
-    setConnectionStep('exchanging-signaling');
-
-    // Connect to signaling server and join room
-    await connectSignaling();
-    const joined = await joinRoom(code);
-
-    if (!joined) {
-      setConnectionStep('failed');
-      return;
-    }
-
-    setConnectionStep('establishing-webrtc');
-  }, [connectSignaling, joinRoom]);
+    await proceedWithConnection(code);
+  }, [proceedWithConnection]);
 
   const styles = createStyles(isDark);
-
-  // Handle user confirming they've connected to the hotspot
-  const handleHotspotConnected = useCallback(async () => {
-    if (!scannedPayload) return;
-    setShowHotspotGuide(false);
-    await proceedWithConnection(scannedPayload.sessionId);
-  }, [scannedPayload, proceedWithConnection]);
-
-  // Show hotspot connect instructions if needed
-  if (showHotspotGuide && scannedPayload) {
-    return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
-        <View style={styles.instructionsContainer}>
-          <HotspotConnectInstructions
-            onConnected={handleHotspotConnected}
-            onCancel={handleRescan}
-            isDark={isDark}
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -260,10 +208,6 @@ const createStyles = (isDark: boolean) =>
       backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
       padding: 16,
     },
-    instructionsContainer: {
-      flex: 1,
-      justifyContent: 'center',
-    },
     mainContent: {
       flex: 1,
       borderRadius: 16,
@@ -288,9 +232,6 @@ const createStyles = (isDark: boolean) =>
     },
     actions: {
       marginTop: 16,
-    },
-    actionSpacer: {
-      height: 12,
     },
     qualityInfo: {
       alignItems: 'center',

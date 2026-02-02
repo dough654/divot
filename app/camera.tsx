@@ -1,32 +1,26 @@
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { LocalVideoView } from '@/src/components/video';
 import { QRCodeDisplay } from '@/src/components/pairing';
-import { ConnectionStatus, HotspotEnableInstructions } from '@/src/components/connection';
-import { Button } from '@/src/components/ui';
+import { ConnectionStatus } from '@/src/components/connection';
 import { useLocalMediaStream } from '@/src/hooks/use-local-media-stream';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { formatRoomCode } from '@/src/utils';
-import type { ConnectionStep, ConnectionMode } from '@/src/types';
-
-const STORAGE_KEY_CONNECTION_MODE = '@swinglink/connection_mode';
+import type { ConnectionStep } from '@/src/types';
 
 export default function CameraScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
-  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('auto');
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  const [hotspotEnabled, setHotspotEnabled] = useState(false);
-  const [showHotspotInstructions, setShowHotspotInstructions] = useState(false);
+  const [showPerformanceTip, setShowPerformanceTip] = useState(false);
 
   // Hooks
   const {
@@ -64,40 +58,17 @@ export default function CameraScreen() {
     enabled: isConnected,
   });
 
-  // Load connection mode setting
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const savedMode = await AsyncStorage.getItem(STORAGE_KEY_CONNECTION_MODE);
-        if (savedMode === 'hotspot') {
-          setConnectionMode('hotspot');
-          setShowHotspotInstructions(true);
-        }
-      } catch (error) {
-        console.error('Failed to load connection mode:', error);
-      } finally {
-        setIsLoadingSettings(false);
-      }
-    };
-    loadSettings();
-  }, []);
-
-  // QR code payload - includes mode so viewer knows to show hotspot connect instructions
+  // QR code payload
   const qrPayload = roomCode
     ? encodeQRPayload({
         sessionId: roomCode,
-        mode: connectionMode,
+        mode: 'auto',
         signalingUrl: 'https://swinglink-signaling.fly.dev',
       })
     : null;
 
-  // Start camera and connection
+  // Start camera and connection on mount
   useEffect(() => {
-    if (isLoadingSettings) return;
-
-    // In hotspot mode, wait for user to confirm hotspot is enabled
-    if (connectionMode === 'hotspot' && !hotspotEnabled) return;
-
     const initialize = async () => {
       setConnectionStep('generating-session');
       await startStream();
@@ -108,7 +79,7 @@ export default function CameraScreen() {
       }
     };
     initialize();
-  }, [isLoadingSettings, connectionMode, hotspotEnabled]);
+  }, []);
 
   // Handle peer joined - create and send offer
   useEffect(() => {
@@ -145,43 +116,7 @@ export default function CameraScreen() {
     }
   }, [isConnected]);
 
-  const handleHotspotEnabled = useCallback(() => {
-    setHotspotEnabled(true);
-    setShowHotspotInstructions(false);
-  }, []);
-
-  const handleCancelHotspot = useCallback(async () => {
-    // Switch to auto mode
-    setConnectionMode('auto');
-    setShowHotspotInstructions(false);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_CONNECTION_MODE, 'auto');
-    } catch (error) {
-      console.error('Failed to save connection mode:', error);
-    }
-  }, []);
-
-  const handleSwitchToHotspot = useCallback(() => {
-    setConnectionMode('hotspot');
-    setShowHotspotInstructions(true);
-  }, []);
-
   const styles = createStyles(isDark);
-
-  // Show hotspot enable instructions if needed
-  if (showHotspotInstructions) {
-    return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
-        <View style={styles.instructionsContainer}>
-          <HotspotEnableInstructions
-            onEnabled={handleHotspotEnabled}
-            onCancel={handleCancelHotspot}
-            isDark={isDark}
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -202,13 +137,6 @@ export default function CameraScreen() {
       {/* Connection Status */}
       <View style={styles.statusContainer}>
         <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} />
-        {connectionMode === 'hotspot' && hotspotEnabled && (
-          <View style={[styles.modeIndicator, isDark && styles.modeIndicatorDark]}>
-            <Text style={[styles.modeIndicatorText, isDark && styles.modeIndicatorTextDark]}>
-              Hotspot Mode Active
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* QR Code */}
@@ -223,24 +151,80 @@ export default function CameraScreen() {
         ) : (
           <View style={styles.loadingContainer}>
             <Text style={[styles.loadingText, isDark && styles.loadingTextDark]}>
-              {isLoadingSettings ? 'Loading settings...' : 'Generating QR code...'}
+              Generating QR code...
             </Text>
           </View>
         )}
       </View>
 
-      {/* Actions */}
-      {!isConnected && connectionMode === 'auto' && connectionStep === 'displaying-qr' && (
-        <View style={styles.actions}>
-          <Button
-            title="Use Hotspot Instead"
-            onPress={handleSwitchToHotspot}
-            variant="outline"
-            icon="phone-portrait"
-            isDark={isDark}
-          />
-        </View>
+      {/* Performance tip button */}
+      {!isConnected && connectionStep === 'displaying-qr' && (
+        <Pressable
+          style={[styles.tipButton, isDark && styles.tipButtonDark]}
+          onPress={() => setShowPerformanceTip(true)}
+        >
+          <Ionicons name="flash" size={18} color="#FF9800" />
+          <Text style={styles.tipButtonText}>Want the best performance?</Text>
+        </Pressable>
       )}
+
+      {/* Performance tip modal */}
+      <Modal
+        visible={showPerformanceTip}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPerformanceTip(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowPerformanceTip(false)}
+        >
+          <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="flash" size={24} color="#FF9800" />
+              <Text style={[styles.modalTitle, isDark && styles.modalTitleDark]}>
+                Best Performance Tip
+              </Text>
+            </View>
+
+            <Text style={[styles.modalText, isDark && styles.modalTextDark]}>
+              For the lowest latency and most reliable connection:
+            </Text>
+
+            <View style={styles.tipSteps}>
+              <View style={styles.tipStep}>
+                <Text style={styles.tipStepNumber}>1</Text>
+                <Text style={[styles.tipStepText, isDark && styles.tipStepTextDark]}>
+                  Enable this phone's mobile hotspot
+                </Text>
+              </View>
+              <View style={styles.tipStep}>
+                <Text style={styles.tipStepNumber}>2</Text>
+                <Text style={[styles.tipStepText, isDark && styles.tipStepTextDark]}>
+                  Connect the viewer device to your hotspot
+                </Text>
+              </View>
+              <View style={styles.tipStep}>
+                <Text style={styles.tipStepNumber}>3</Text>
+                <Text style={[styles.tipStepText, isDark && styles.tipStepTextDark]}>
+                  Then scan the QR code or enter the room code
+                </Text>
+              </View>
+            </View>
+
+            <Text style={[styles.modalSubtext, isDark && styles.modalSubtextDark]}>
+              This creates a direct device-to-device connection without going through a WiFi router.
+            </Text>
+
+            <Pressable
+              style={styles.modalCloseButton}
+              onPress={() => setShowPerformanceTip(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>Got it</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -251,10 +235,6 @@ const createStyles = (isDark: boolean) =>
       flex: 1,
       backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
       padding: 16,
-    },
-    instructionsContainer: {
-      flex: 1,
-      justifyContent: 'center',
     },
     videoContainer: {
       flex: 1,
@@ -278,25 +258,6 @@ const createStyles = (isDark: boolean) =>
     statusContainer: {
       marginTop: 16,
     },
-    modeIndicator: {
-      marginTop: 8,
-      paddingVertical: 6,
-      paddingHorizontal: 12,
-      backgroundColor: '#e8f5e9',
-      borderRadius: 8,
-      alignSelf: 'flex-start',
-    },
-    modeIndicatorDark: {
-      backgroundColor: '#1a3a1a',
-    },
-    modeIndicatorText: {
-      fontSize: 12,
-      color: '#4CAF50',
-      fontWeight: '500',
-    },
-    modeIndicatorTextDark: {
-      color: '#4CAF50',
-    },
     pairingContainer: {
       flex: 1,
       justifyContent: 'center',
@@ -314,7 +275,113 @@ const createStyles = (isDark: boolean) =>
     loadingTextDark: {
       color: '#888',
     },
-    actions: {
+    tipButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: '#FFF3E0',
+      borderRadius: 8,
       marginTop: 16,
+    },
+    tipButtonDark: {
+      backgroundColor: '#3a2a1a',
+    },
+    tipButtonText: {
+      color: '#FF9800',
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: '#ffffff',
+      borderRadius: 16,
+      padding: 24,
+      width: '100%',
+      maxWidth: 360,
+    },
+    modalContentDark: {
+      backgroundColor: '#2a2a4e',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: '#1a1a2e',
+    },
+    modalTitleDark: {
+      color: '#ffffff',
+    },
+    modalText: {
+      fontSize: 14,
+      color: '#666',
+      marginBottom: 16,
+      lineHeight: 20,
+    },
+    modalTextDark: {
+      color: '#aaa',
+    },
+    tipSteps: {
+      gap: 12,
+      marginBottom: 16,
+    },
+    tipStep: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    tipStepNumber: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: '#FF9800',
+      color: '#ffffff',
+      fontSize: 14,
+      fontWeight: '600',
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    tipStepText: {
+      flex: 1,
+      fontSize: 14,
+      color: '#333',
+      lineHeight: 20,
+    },
+    tipStepTextDark: {
+      color: '#ccc',
+    },
+    modalSubtext: {
+      fontSize: 13,
+      color: '#888',
+      fontStyle: 'italic',
+      marginBottom: 20,
+      lineHeight: 18,
+    },
+    modalSubtextDark: {
+      color: '#777',
+    },
+    modalCloseButton: {
+      backgroundColor: '#4CAF50',
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    modalCloseButtonText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontWeight: '600',
     },
   });

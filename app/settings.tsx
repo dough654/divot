@@ -1,131 +1,56 @@
-import { StyleSheet, View, Text, Switch, Pressable } from 'react-native';
-import { useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StyleSheet, View, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useColorScheme } from '@/components/useColorScheme';
 
-const STORAGE_KEY_CONNECTION_MODE = '@swinglink/connection_mode';
-
-type ConnectionMode = 'auto' | 'hotspot';
-
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('auto');
 
   const styles = createStyles(isDark);
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const savedMode = await AsyncStorage.getItem(STORAGE_KEY_CONNECTION_MODE);
-      if (savedMode === 'auto' || savedMode === 'hotspot') {
-        setConnectionMode(savedMode);
-      }
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-    }
-  };
-
-  const handleConnectionModeChange = async (useHotspot: boolean) => {
-    const newMode: ConnectionMode = useHotspot ? 'hotspot' : 'auto';
-    setConnectionMode(newMode);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_CONNECTION_MODE, newMode);
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-    }
-  };
-
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Connection</Text>
+        <Text style={styles.sectionTitle}>About</Text>
 
-        <View style={styles.settingRow}>
-          <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Always Use Hotspot</Text>
-            <Text style={styles.settingDescription}>
-              Skip local WiFi discovery and go straight to hotspot mode
-            </Text>
-          </View>
-          <Switch
-            value={connectionMode === 'hotspot'}
-            onValueChange={handleConnectionModeChange}
-            trackColor={{ false: '#767577', true: '#4CAF50' }}
-            thumbColor={connectionMode === 'hotspot' ? '#ffffff' : '#f4f3f4'}
-          />
+        <View style={styles.infoCard}>
+          <Text style={styles.appName}>SwingLink</Text>
+          <Text style={styles.version}>Version 1.0.0</Text>
+          <Text style={styles.description}>
+            P2P video streaming for golfers. One device films, the other views in real-time.
+          </Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Connection Modes</Text>
+        <Text style={styles.sectionTitle}>Tips</Text>
 
-        <Pressable
-          style={[
-            styles.modeCard,
-            connectionMode === 'auto' && styles.modeCardSelected,
-          ]}
-          onPress={() => handleConnectionModeChange(false)}
-        >
-          <View style={styles.modeHeader}>
-            <Ionicons
-              name="wifi"
-              size={24}
-              color={connectionMode === 'auto' ? '#4CAF50' : isDark ? '#888' : '#666'}
-            />
-            <Text style={[styles.modeTitle, connectionMode === 'auto' && styles.modeTitleSelected]}>
-              Auto Mode
-            </Text>
-            {connectionMode === 'auto' && (
-              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-            )}
+        <View style={styles.tipCard}>
+          <View style={styles.tipHeader}>
+            <Ionicons name="flash" size={20} color="#FF9800" />
+            <Text style={styles.tipTitle}>Best Performance</Text>
           </View>
-          <Text style={styles.modeDescription}>
-            Tries local WiFi first (5 second timeout), then falls back to hotspot if devices can't
-            connect directly.
+          <Text style={styles.tipText}>
+            For the lowest latency, have the camera device enable its mobile hotspot and connect
+            the viewer device to it. This creates a direct connection without going through a
+            WiFi router.
           </Text>
-        </Pressable>
+        </View>
 
-        <Pressable
-          style={[
-            styles.modeCard,
-            connectionMode === 'hotspot' && styles.modeCardSelected,
-          ]}
-          onPress={() => handleConnectionModeChange(true)}
-        >
-          <View style={styles.modeHeader}>
-            <Ionicons
-              name="phone-portrait"
-              size={24}
-              color={connectionMode === 'hotspot' ? '#4CAF50' : isDark ? '#888' : '#666'}
-            />
-            <Text style={[styles.modeTitle, connectionMode === 'hotspot' && styles.modeTitleSelected]}>
-              Hotspot Mode
-            </Text>
-            {connectionMode === 'hotspot' && (
-              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-            )}
+        <View style={styles.tipCard}>
+          <View style={styles.tipHeader}>
+            <Ionicons name="wifi" size={20} color="#4CAF50" />
+            <Text style={styles.tipTitle}>Same Network</Text>
           </View>
-          <Text style={styles.modeDescription}>
-            Always uses phone hotspot for the best, most reliable connection. Recommended for golf
-            courses with unreliable WiFi.
+          <Text style={styles.tipText}>
+            Both devices need to be on the same WiFi network (or hotspot) to establish
+            a connection. The app uses peer-to-peer streaming - no video goes to the cloud.
           </Text>
-        </Pressable>
+        </View>
       </View>
-
-      <View style={styles.infoSection}>
-        <Ionicons name="information-circle-outline" size={20} color={isDark ? '#888' : '#666'} />
-        <Text style={styles.infoText}>
-          Hotspot mode provides dedicated bandwidth and lower latency, but requires one device to
-          enable its mobile hotspot.
-        </Text>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -147,71 +72,49 @@ const createStyles = (isDark: boolean) =>
       letterSpacing: 1,
       marginBottom: 16,
     },
-    settingRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    infoCard: {
       backgroundColor: isDark ? '#2a2a4e' : '#ffffff',
       borderRadius: 12,
-      padding: 16,
+      padding: 20,
+      alignItems: 'center',
     },
-    settingInfo: {
-      flex: 1,
-      marginRight: 16,
-    },
-    settingLabel: {
-      fontSize: 16,
-      fontWeight: '600',
+    appName: {
+      fontSize: 24,
+      fontWeight: '700',
       color: isDark ? '#ffffff' : '#1a1a2e',
       marginBottom: 4,
     },
-    settingDescription: {
-      fontSize: 13,
+    version: {
+      fontSize: 14,
       color: isDark ? '#888' : '#666',
-      lineHeight: 18,
+      marginBottom: 12,
     },
-    modeCard: {
+    description: {
+      fontSize: 14,
+      color: isDark ? '#aaa' : '#555',
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    tipCard: {
       backgroundColor: isDark ? '#2a2a4e' : '#ffffff',
       borderRadius: 12,
       padding: 16,
       marginBottom: 12,
-      borderWidth: 2,
-      borderColor: 'transparent',
     },
-    modeCardSelected: {
-      borderColor: '#4CAF50',
-    },
-    modeHeader: {
+    tipHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 8,
       gap: 10,
+      marginBottom: 8,
     },
-    modeTitle: {
-      flex: 1,
+    tipTitle: {
       fontSize: 16,
       fontWeight: '600',
       color: isDark ? '#ffffff' : '#1a1a2e',
     },
-    modeTitleSelected: {
-      color: '#4CAF50',
-    },
-    modeDescription: {
-      fontSize: 13,
+    tipText: {
+      fontSize: 14,
       color: isDark ? '#888' : '#666',
-      lineHeight: 18,
-    },
-    infoSection: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      backgroundColor: isDark ? '#2a2a4e' : '#e8f5e9',
-      borderRadius: 12,
-      padding: 16,
-      gap: 12,
-    },
-    infoText: {
-      flex: 1,
-      fontSize: 13,
-      color: isDark ? '#888' : '#666',
-      lineHeight: 18,
+      lineHeight: 20,
     },
   });
