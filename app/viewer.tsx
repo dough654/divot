@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useColorScheme } from '@/components/useColorScheme';
 import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
-import { ConnectionStatus, HotspotSetupGuide } from '@/src/components/connection';
+import { ConnectionStatus, HotspotConnectInstructions } from '@/src/components/connection';
 import { Button } from '@/src/components/ui';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
@@ -163,28 +163,14 @@ export default function ViewerScreen() {
     await proceedWithConnection(scannedPayload.sessionId);
   }, [scannedPayload, proceedWithConnection]);
 
-  // Show hotspot guide if needed
+  // Show hotspot connect instructions if needed
   if (showHotspotGuide && scannedPayload) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <HotspotSetupGuide
-          hotspotSsid={scannedPayload.hotspotSsid}
-          hotspotPassword={scannedPayload.hotspotPassword}
-          isCamera={false}
-          isDark={isDark}
-        />
-        <View style={styles.actions}>
-          <Button
-            title="I'm Connected to Hotspot"
-            onPress={handleHotspotConnected}
-            variant="primary"
-            isDark={isDark}
-          />
-          <View style={styles.actionSpacer} />
-          <Button
-            title="Cancel"
-            onPress={handleRescan}
-            variant="secondary"
+        <View style={styles.instructionsContainer}>
+          <HotspotConnectInstructions
+            onConnected={handleHotspotConnected}
+            onCancel={handleRescan}
             isDark={isDark}
           />
         </View>
@@ -273,6 +259,10 @@ const createStyles = (isDark: boolean) =>
       flex: 1,
       backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
       padding: 16,
+    },
+    instructionsContainer: {
+      flex: 1,
+      justifyContent: 'center',
     },
     mainContent: {
       flex: 1,

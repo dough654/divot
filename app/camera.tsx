@@ -6,8 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from '@/components/useColorScheme';
 import { LocalVideoView } from '@/src/components/video';
 import { QRCodeDisplay } from '@/src/components/pairing';
-import { ConnectionStatus, HotspotCredentialsForm } from '@/src/components/connection';
-import type { HotspotCredentials } from '@/src/components/connection';
+import { ConnectionStatus, HotspotEnableInstructions } from '@/src/components/connection';
 import { Button } from '@/src/components/ui';
 import { useLocalMediaStream } from '@/src/hooks/use-local-media-stream';
 import { useSignaling } from '@/src/hooks/use-signaling';
@@ -26,8 +25,8 @@ export default function CameraScreen() {
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
   const [connectionMode, setConnectionMode] = useState<ConnectionMode>('auto');
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
-  const [hotspotCredentials, setHotspotCredentials] = useState<HotspotCredentials | null>(null);
-  const [showCredentialsForm, setShowCredentialsForm] = useState(false);
+  const [hotspotEnabled, setHotspotEnabled] = useState(false);
+  const [showHotspotInstructions, setShowHotspotInstructions] = useState(false);
 
   // Hooks
   const {
@@ -72,7 +71,7 @@ export default function CameraScreen() {
         const savedMode = await AsyncStorage.getItem(STORAGE_KEY_CONNECTION_MODE);
         if (savedMode === 'hotspot') {
           setConnectionMode('hotspot');
-          setShowCredentialsForm(true);
+          setShowHotspotInstructions(true);
         }
       } catch (error) {
         console.error('Failed to load connection mode:', error);
@@ -83,25 +82,21 @@ export default function CameraScreen() {
     loadSettings();
   }, []);
 
-  // QR code payload - changes based on connection mode
+  // QR code payload - includes mode so viewer knows to show hotspot connect instructions
   const qrPayload = roomCode
     ? encodeQRPayload({
         sessionId: roomCode,
         mode: connectionMode,
         signalingUrl: 'https://swinglink-signaling.fly.dev',
-        ...(connectionMode === 'hotspot' && hotspotCredentials ? {
-          hotspotSsid: hotspotCredentials.ssid,
-          hotspotPassword: hotspotCredentials.password,
-        } : {}),
       })
     : null;
 
-  // Start camera and connection - but wait for settings if in hotspot mode
+  // Start camera and connection
   useEffect(() => {
     if (isLoadingSettings) return;
 
-    // In hotspot mode, wait for credentials before initializing
-    if (connectionMode === 'hotspot' && !hotspotCredentials) return;
+    // In hotspot mode, wait for user to confirm hotspot is enabled
+    if (connectionMode === 'hotspot' && !hotspotEnabled) return;
 
     const initialize = async () => {
       setConnectionStep('generating-session');
@@ -113,7 +108,7 @@ export default function CameraScreen() {
       }
     };
     initialize();
-  }, [isLoadingSettings, connectionMode, hotspotCredentials]);
+  }, [isLoadingSettings, connectionMode, hotspotEnabled]);
 
   // Handle peer joined - create and send offer
   useEffect(() => {
@@ -150,15 +145,15 @@ export default function CameraScreen() {
     }
   }, [isConnected]);
 
-  const handleHotspotCredentialsSubmit = useCallback((credentials: HotspotCredentials) => {
-    setHotspotCredentials(credentials);
-    setShowCredentialsForm(false);
+  const handleHotspotEnabled = useCallback(() => {
+    setHotspotEnabled(true);
+    setShowHotspotInstructions(false);
   }, []);
 
   const handleCancelHotspot = useCallback(async () => {
     // Switch to auto mode
     setConnectionMode('auto');
-    setShowCredentialsForm(false);
+    setShowHotspotInstructions(false);
     try {
       await AsyncStorage.setItem(STORAGE_KEY_CONNECTION_MODE, 'auto');
     } catch (error) {
@@ -166,15 +161,20 @@ export default function CameraScreen() {
     }
   }, []);
 
+  const handleSwitchToHotspot = useCallback(() => {
+    setConnectionMode('hotspot');
+    setShowHotspotInstructions(true);
+  }, []);
+
   const styles = createStyles(isDark);
 
-  // Show hotspot credentials form if needed
-  if (showCredentialsForm && connectionMode === 'hotspot') {
+  // Show hotspot enable instructions if needed
+  if (showHotspotInstructions) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <View style={styles.formContainer}>
-          <HotspotCredentialsForm
-            onSubmit={handleHotspotCredentialsSubmit}
+        <View style={styles.instructionsContainer}>
+          <HotspotEnableInstructions
+            onEnabled={handleHotspotEnabled}
             onCancel={handleCancelHotspot}
             isDark={isDark}
           />
@@ -202,10 +202,10 @@ export default function CameraScreen() {
       {/* Connection Status */}
       <View style={styles.statusContainer}>
         <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} />
-        {connectionMode === 'hotspot' && hotspotCredentials && (
+        {connectionMode === 'hotspot' && hotspotEnabled && (
           <View style={[styles.modeIndicator, isDark && styles.modeIndicatorDark]}>
             <Text style={[styles.modeIndicatorText, isDark && styles.modeIndicatorTextDark]}>
-              Hotspot: {hotspotCredentials.ssid}
+              Hotspot Mode Active
             </Text>
           </View>
         )}
@@ -234,7 +234,7 @@ export default function CameraScreen() {
         <View style={styles.actions}>
           <Button
             title="Use Hotspot Instead"
-            onPress={() => setShowCredentialsForm(true)}
+            onPress={handleSwitchToHotspot}
             variant="outline"
             icon="phone-portrait"
             isDark={isDark}
@@ -252,7 +252,7 @@ const createStyles = (isDark: boolean) =>
       backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
       padding: 16,
     },
-    formContainer: {
+    instructionsContainer: {
       flex: 1,
       justifyContent: 'center',
     },
