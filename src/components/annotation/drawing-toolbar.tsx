@@ -32,6 +32,8 @@ type DrawingToolbarProps = {
   activeTool: DrawingTool;
   /** Current angle drawing phase. */
   anglePhase: AnglePhase;
+  /** Whether the annotated frame can be saved (annotations exist). */
+  canSave: boolean;
   /** Called when a color swatch is tapped. */
   onColorSelect: (color: string) => void;
   /** Called when undo is tapped. */
@@ -40,6 +42,8 @@ type DrawingToolbarProps = {
   onClear: () => void;
   /** Called when a tool is selected. */
   onToolSelect: (tool: DrawingTool) => void;
+  /** Called when save/export is tapped. */
+  onSave: () => void;
 };
 
 /**
@@ -53,10 +57,12 @@ export const DrawingToolbar = ({
   canUndo,
   activeTool,
   anglePhase,
+  canSave,
   onColorSelect,
   onUndo,
   onClear,
   onToolSelect,
+  onSave,
 }: DrawingToolbarProps) => {
   const phaseHint = ANGLE_PHASE_HINTS[anglePhase];
 
@@ -99,6 +105,14 @@ export const DrawingToolbar = ({
         </View>
 
         <View style={styles.actionRow}>
+          <Pressable
+            style={[styles.actionButton, !canSave && styles.actionButtonDisabled]}
+            onPress={onSave}
+            disabled={!canSave}
+          >
+            <Ionicons name="download-outline" size={20} color={canSave ? '#fff' : '#666'} />
+          </Pressable>
+
           <Pressable
             style={[styles.actionButton, !canUndo && styles.actionButtonDisabled]}
             onPress={onUndo}

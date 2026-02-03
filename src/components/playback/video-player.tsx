@@ -6,6 +6,7 @@ import Slider from '@react-native-community/slider';
 import { DrawingOverlay } from '@/src/components/annotation/drawing-overlay';
 import { DrawingToolbar } from '@/src/components/annotation/drawing-toolbar';
 import { useDrawing } from '@/src/hooks/use-drawing';
+import { captureAnnotatedFrame } from '@/src/services/annotation/frame-capture';
 
 export type VideoPlayerProps = {
   /** URI of the video to play. */
@@ -42,6 +43,7 @@ export const VideoPlayer = ({
   clipId,
 }: VideoPlayerProps) => {
   const videoRef = useRef<Video>(null);
+  const videoContainerRef = useRef<View>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -49,6 +51,8 @@ export const VideoPlayer = ({
   const [isSeeking, setIsSeeking] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isDrawMode, setIsDrawMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const wasPlayingBeforeSeek = useRef(false);
   const lastSeekTime = useRef(0);
   const pendingSeek = useRef<number | null>(null);
@@ -105,6 +109,26 @@ export const VideoPlayer = ({
       setIsDrawMode(true);
     }
   }, [isDrawMode, isPlaying, drawingEnabled]);
+
+  const handleSaveFrame = useCallback(async () => {
+    if (!videoContainerRef.current) return;
+
+    setIsSaving(true);
+    setSaveMessage(null);
+
+    try {
+      // Wait one frame for the toolbar to hide before capturing
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await captureAnnotatedFrame(videoContainerRef);
+      setSaveMessage('Saved to gallery');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Save failed';
+      setSaveMessage(message);
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveMessage(null), 2000);
+    }
+  }, []);
 
   const handleSeekStart = useCallback(async () => {
     setIsSeeking(true);
@@ -209,6 +233,7 @@ export const VideoPlayer = ({
   return (
     <View style={styles.container}>
       <Pressable
+        ref={videoContainerRef}
         style={styles.videoContainer}
         onPress={isDrawMode ? undefined : togglePlayPause}
         disabled={isDrawMode}
@@ -237,7 +262,7 @@ export const VideoPlayer = ({
         )}
 
         {/* Drawing toolbar - absolutely positioned inside video container */}
-        {isDrawMode && (
+        {isDrawMode && !isSaving && (
           <View style={styles.toolbarContainer}>
             <DrawingToolbar
               activeColor={drawing.color}
@@ -245,11 +270,20 @@ export const VideoPlayer = ({
               canUndo={drawing.annotations.length > 0 || drawing.anglePhase !== 'idle'}
               activeTool={drawing.activeTool}
               anglePhase={drawing.anglePhase}
+              canSave={drawing.annotations.length > 0}
               onColorSelect={drawing.setColor}
               onUndo={drawing.undo}
               onClear={drawing.clearAll}
               onToolSelect={drawing.setActiveTool}
+              onSave={handleSaveFrame}
             />
+          </View>
+        )}
+
+        {/* Save feedback message */}
+        {saveMessage && (
+          <View style={styles.saveMessageOverlay}>
+            <Text style={styles.saveMessageText}>{saveMessage}</Text>
           </View>
         )}
 
@@ -437,5 +471,19 @@ const styles = StyleSheet.create({
   },
   drawButtonActive: {
     backgroundColor: '#4CAF50',
+  },
+  saveMessageOverlay: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  saveMessageText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
