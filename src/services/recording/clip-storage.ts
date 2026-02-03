@@ -72,6 +72,16 @@ export type SaveClipOptions = {
 };
 
 /**
+ * Converts a path to a file URI if needed.
+ */
+const toFileUri = (path: string): string => {
+  if (path.startsWith('file://')) {
+    return path;
+  }
+  return `file://${path}`;
+};
+
+/**
  * Saves a recorded clip to the app's storage.
  * Copies the video file to the clips directory and updates metadata.
  */
@@ -86,7 +96,9 @@ export const saveClip = async (options: SaveClipOptions): Promise<Clip> => {
   const destinationFile = new File(clipsDir, filename);
 
   // Copy the source video file to our clips directory
-  const sourceFile = new File(sourcePath);
+  // VisionCamera returns raw paths on Android, need to convert to file:// URI
+  const sourceUri = toFileUri(sourcePath);
+  const sourceFile = new File(sourceUri);
   sourceFile.copy(destinationFile);
 
   // Get file info for size

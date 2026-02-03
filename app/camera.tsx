@@ -19,10 +19,13 @@ import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useVisionCamera } from '@/src/hooks/use-vision-camera';
+import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
+import { TransferProgressModal } from '@/src/components/clip-sync';
 import { formatRoomCode } from '@/src/utils';
 import type { ConnectionStep } from '@/src/types';
+import type { Clip } from '@/src/types/recording';
 
 const MIN_LOADING_TIME_MS = 1500;
 
@@ -43,6 +46,8 @@ export default function CameraScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [lastRecordedClip, setLastRecordedClip] = useState<Clip | null>(null);
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   const recorderRef = useRef<VisionCameraRecorderRef>(null);
   const recordingStartTimeRef = useRef<number | null>(null);
@@ -85,6 +90,7 @@ export default function CameraScreen() {
     handleAnswer,
     handleIceCandidate,
     isConnected,
+    dataChannel,
   } = useWebRTCConnection({
     localStream,
     onIceCandidate: sendIceCandidate,
@@ -93,6 +99,16 @@ export default function CameraScreen() {
   const { quality } = useConnectionQuality({
     peerConnection,
     enabled: isConnected,
+  });
+
+  // Clip sync
+  const {
+    isReady: isSyncReady,
+    progress: syncProgress,
+    sendClip,
+    cancelTransfer,
+  } = useClipSync({
+    dataChannel,
   });
 
   // QR code payload
@@ -244,11 +260,13 @@ export default function CameraScreen() {
         setIsRecording(false);
 
         try {
-          await saveClip({
+          const clip = await saveClip({
             path: video.path,
             duration,
             fps: 30, // Default for now
           });
+
+          setLastRecordedClip(clip);
 
           Alert.alert(
             'Recording Saved',
@@ -287,6 +305,33 @@ export default function CameraScreen() {
       toggleWebRTCCamera();
     }
   }, [cameraMode, toggleVisionCamera, toggleWebRTCCamera]);
+
+  // Sync last recorded clip to viewer
+  const handleSyncClip = useCallback(async () => {
+    if (!lastRecordedClip) {
+      Alert.alert('No Clip', 'Record a clip first');
+      return;
+    }
+    if (!isSyncReady) {
+      Alert.alert('Not Connected', 'Connect to a viewer device first');
+      return;
+    }
+
+    setShowSyncModal(true);
+    try {
+      await sendClip(lastRecordedClip);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Sync failed';
+      Alert.alert('Sync Failed', errorMsg);
+    }
+  }, [lastRecordedClip, isSyncReady, sendClip]);
+
+  const handleSyncDismiss = useCallback(() => {
+    setShowSyncModal(false);
+    if (syncProgress.state === 'complete') {
+      setLastRecordedClip(null); // Clear after successful sync
+    }
+  }, [syncProgress.state]);
 
   const styles = createStyles(isDark);
 
@@ -395,6 +440,30 @@ export default function CameraScreen() {
               />
             </View>
 
+            {/* Sync to viewer button - shows when clip available and connected */}
+            {lastRecordedClip && !isRecording && (
+              <Pressable
+                style={[
+                  styles.syncButton,
+                  isSyncReady ? styles.syncButtonReady : styles.syncButtonDisabled,
+                ]}
+                onPress={handleSyncClip}
+                disabled={!isSyncReady}
+              >
+                <Ionicons
+                  name="cloud-upload"
+                  size={20}
+                  color={isSyncReady ? '#fff' : '#888'}
+                />
+                <Text style={[
+                  styles.syncButtonText,
+                  !isSyncReady && styles.syncButtonTextDisabled,
+                ]}>
+                  {isSyncReady ? 'Sync to Viewer' : 'Connect viewer to sync'}
+                </Text>
+              </Pressable>
+            )}
+
             {/* Exit recording mode button */}
             <Pressable
               style={[styles.exitRecordingButton, isDark && styles.exitRecordingButtonDark]}
@@ -455,6 +524,14 @@ export default function CameraScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* Sync Progress Modal */}
+      <TransferProgressModal
+        visible={showSyncModal}
+        progress={syncProgress}
+        onCancel={cancelTransfer}
+        onDismiss={handleSyncDismiss}
+      />
     </SafeAreaView>
   );
 }
@@ -558,6 +635,29 @@ const createStyles = (isDark: boolean) =>
     recordingControls: {
       alignItems: 'center',
       paddingVertical: 16,
+    },
+    syncButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderRadius: 8,
+      paddingVertical: 12,
+      marginBottom: 8,
+    },
+    syncButtonReady: {
+      backgroundColor: '#2196F3',
+    },
+    syncButtonDisabled: {
+      backgroundColor: isDark ? '#2a2a4e' : '#e0e0e0',
+    },
+    syncButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#fff',
+    },
+    syncButtonTextDisabled: {
+      color: '#888',
     },
     exitRecordingButton: {
       flexDirection: 'row',

@@ -1,17 +1,21 @@
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'expo-router';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
+import { TransferProgressModal } from '@/src/components/clip-sync';
 import { Button } from '@/src/components/ui';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
+import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import type { ConnectionStep } from '@/src/types';
+import type { Clip } from '@/src/types/recording';
 
 export default function ViewerScreen() {
   const colorScheme = useColorScheme();
@@ -38,6 +42,7 @@ export default function ViewerScreen() {
     handleOffer,
     handleIceCandidate,
     isConnected,
+    dataChannel,
   } = useWebRTCConnection({
     onIceCandidate: sendIceCandidate,
   });
@@ -46,6 +51,34 @@ export default function ViewerScreen() {
     peerConnection,
     enabled: isConnected,
   });
+
+  const router = useRouter();
+  const [showTransferModal, setShowTransferModal] = useState(false);
+
+  // Handle incoming clip transfers
+  const handleClipReceived = useCallback((clip: Clip) => {
+    setShowTransferModal(false);
+    Alert.alert(
+      'Clip Received',
+      `"${clip.name || 'Swing Recording'}" saved to your clips.`,
+      [
+        { text: 'View Now', onPress: () => router.push(`/playback/${clip.id}`) },
+        { text: 'Later', style: 'cancel' },
+      ]
+    );
+  }, [router]);
+
+  const { progress: syncProgress, cancelTransfer } = useClipSync({
+    dataChannel,
+    onClipReceived: handleClipReceived,
+  });
+
+  // Show transfer modal when receiving
+  useEffect(() => {
+    if (syncProgress.state === 'receiving') {
+      setShowTransferModal(true);
+    }
+  }, [syncProgress.state]);
 
   // Connect to the signaling server and join the room
   const proceedWithConnection = useCallback(async (roomCode: string) => {
@@ -197,6 +230,14 @@ export default function ViewerScreen() {
           </View>
         )}
       </View>
+
+      {/* Transfer Progress Modal */}
+      <TransferProgressModal
+        visible={showTransferModal}
+        progress={syncProgress}
+        onCancel={cancelTransfer}
+        onDismiss={() => setShowTransferModal(false)}
+      />
     </SafeAreaView>
   );
 }

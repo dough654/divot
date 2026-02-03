@@ -21,6 +21,19 @@ export type PeerConnectionCallbacks = {
   onConnectionStateChange?: (state: string) => void;
   onTrack?: (stream: MediaStream) => void;
   onNegotiationNeeded?: () => void;
+  onDataChannel?: (channel: DataChannel) => void;
+};
+
+// DataChannel type for data transfers
+export type DataChannel = {
+  label: string;
+  readyState: 'connecting' | 'open' | 'closing' | 'closed';
+  send: (data: string) => void;
+  close: () => void;
+  onopen: (() => void) | null;
+  onclose: (() => void) | null;
+  onerror: ((event: { error: Error }) => void) | null;
+  onmessage: ((event: { data: string }) => void) | null;
 };
 
 // Extended type to include event handlers that exist at runtime but not in types
@@ -30,7 +43,9 @@ type ExtendedRTCPeerConnection = RTCPeerConnection & {
   onconnectionstatechange: (() => void) | null;
   ontrack: ((event: { streams: MediaStream[]; track: MediaStreamTrack }) => void) | null;
   onnegotiationneeded: (() => void) | null;
+  ondatachannel: ((event: { channel: DataChannel }) => void) | null;
   connectionState: string;
+  createDataChannel: (label: string, options?: { ordered?: boolean }) => DataChannel;
 };
 
 /**
@@ -78,6 +93,13 @@ export const createPeerConnection = (
   // Set up negotiation needed handler
   peerConnection.onnegotiationneeded = () => {
     callbacks.onNegotiationNeeded?.();
+  };
+
+  // Set up data channel handler (for receiving channels)
+  peerConnection.ondatachannel = (event) => {
+    if (callbacks.onDataChannel) {
+      callbacks.onDataChannel(event.channel);
+    }
   };
 
   return peerConnection;
@@ -201,4 +223,15 @@ export const stopMediaStream = (stream: MediaStream): void => {
   stream.getTracks().forEach((track) => {
     track.stop();
   });
+};
+
+/**
+ * Creates a data channel on the peer connection.
+ */
+export const createDataChannel = (
+  peerConnection: RTCPeerConnection,
+  label: string
+): DataChannel => {
+  const pc = peerConnection as ExtendedRTCPeerConnection;
+  return pc.createDataChannel(label, { ordered: true }) as unknown as DataChannel;
 };

@@ -8,6 +8,8 @@ import {
   setRemoteDescription,
   addIceCandidate,
   closePeerConnection,
+  createDataChannel,
+  DataChannel,
 } from '@/src/services/webrtc';
 import type {
   WebRTCConnectionStatus,
@@ -22,11 +24,13 @@ export type UseWebRTCConnectionOptions = {
   localStream?: MediaStream | null;
   onRemoteStream?: (stream: MediaStream) => void;
   onIceCandidate?: (candidate: IceCandidateInfo) => void;
+  onDataChannel?: (channel: DataChannel) => void;
 };
 
 export type UseWebRTCConnectionResult = {
   peerConnection: RTCPeerConnection | null;
   remoteStream: MediaStream | null;
+  dataChannel: DataChannel | null;
   status: WebRTCConnectionStatus;
   createOffer: () => Promise<SDPInfo | null>;
   handleOffer: (sdp: SDPInfo) => Promise<SDPInfo | null>;
@@ -47,19 +51,44 @@ const initialStatus: WebRTCConnectionStatus = {
  * Hook for managing a WebRTC peer connection.
  * Handles connection lifecycle, stream attachment, and ICE candidates.
  */
+const DATA_CHANNEL_LABEL = 'clip-sync';
+
 export const useWebRTCConnection = (
   options: UseWebRTCConnectionOptions = {}
 ): UseWebRTCConnectionResult => {
-  const { localStream, onRemoteStream, onIceCandidate } = options;
+  const { localStream, onRemoteStream, onIceCandidate, onDataChannel } = options;
 
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [status, setStatus] = useState<WebRTCConnectionStatus>(initialStatus);
+  const [dataChannel, setDataChannel] = useState<DataChannel | null>(null);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const dataChannelRef = useRef<DataChannel | null>(null);
   const pendingCandidatesRef = useRef<IceCandidateInfo[]>([]);
 
+  // Set up data channel event handlers
+  const setupDataChannel = useCallback((channel: DataChannel) => {
+    channel.onopen = () => {
+      setDataChannel(channel);
+      dataChannelRef.current = channel;
+      onDataChannel?.(channel);
+    };
+
+    channel.onclose = () => {
+      setDataChannel(null);
+      dataChannelRef.current = null;
+    };
+
+    // If already open, trigger immediately
+    if (channel.readyState === 'open') {
+      setDataChannel(channel);
+      dataChannelRef.current = channel;
+      onDataChannel?.(channel);
+    }
+  }, [onDataChannel]);
+
   // Initialize peer connection
-  const initializePeerConnection = useCallback(() => {
+  const initializePeerConnection = useCallback((isInitiator: boolean) => {
     if (peerConnectionRef.current) {
       return peerConnectionRef.current;
     }
@@ -87,6 +116,12 @@ export const useWebRTCConnection = (
           setRemoteStream(stream);
           onRemoteStream?.(stream);
         },
+        onDataChannel: (channel) => {
+          // Receiver side - incoming data channel
+          if (channel.label === DATA_CHANNEL_LABEL) {
+            setupDataChannel(channel);
+          }
+        },
       }
     );
 
@@ -97,8 +132,14 @@ export const useWebRTCConnection = (
       addStreamToPeerConnection(pc, localStream);
     }
 
+    // Create data channel if initiator (before offer)
+    if (isInitiator) {
+      const channel = createDataChannel(pc, DATA_CHANNEL_LABEL);
+      setupDataChannel(channel);
+    }
+
     return pc;
-  }, [localStream, onIceCandidate, onRemoteStream]);
+  }, [localStream, onIceCandidate, onRemoteStream, setupDataChannel]);
 
   // Add local stream when it becomes available
   useEffect(() => {
@@ -109,7 +150,8 @@ export const useWebRTCConnection = (
 
   const handleCreateOffer = useCallback(async (): Promise<SDPInfo | null> => {
     try {
-      const pc = initializePeerConnection();
+      // Camera/initiator creates offer and data channel
+      const pc = initializePeerConnection(true);
       const offer = await createOffer(pc);
 
       setStatus((prev) => ({
@@ -127,7 +169,8 @@ export const useWebRTCConnection = (
   const handleOffer = useCallback(
     async (sdp: SDPInfo): Promise<SDPInfo | null> => {
       try {
-        const pc = initializePeerConnection();
+        // Viewer/receiver creates answer, receives data channel
+        const pc = initializePeerConnection(false);
         const answer = await createAnswer(pc, sdp);
 
         // Process any pending ICE candidates
@@ -201,6 +244,8 @@ export const useWebRTCConnection = (
     }
 
     setRemoteStream(null);
+    setDataChannel(null);
+    dataChannelRef.current = null;
     setStatus(initialStatus);
     pendingCandidatesRef.current = [];
   }, []);
@@ -217,6 +262,7 @@ export const useWebRTCConnection = (
   return {
     peerConnection: peerConnectionRef.current,
     remoteStream,
+    dataChannel,
     status,
     createOffer: handleCreateOffer,
     handleOffer,
