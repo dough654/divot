@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { StyleSheet } from 'react-native';
-import Svg, { Polyline, Line, Image as SvgImage } from 'react-native-svg';
-import type { Annotation, AnnotationLine, Point } from '@/src/types/annotation';
+import Svg, { Polyline, Line, Ellipse, Image as SvgImage } from 'react-native-svg';
+import type { Annotation, AnnotationLine, EllipseAnnotation, Point } from '@/src/types/annotation';
 import { AngleAnnotationRenderer } from './angle-annotation-renderer';
 
 type StaticAnnotationOverlayProps = {
@@ -63,6 +63,26 @@ const LineRenderer = ({
   );
 };
 
+const EllipseRenderer = ({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: EllipseAnnotation;
+  width: number;
+  height: number;
+}) => (
+  <Ellipse
+    cx={annotation.center.x * width}
+    cy={annotation.center.y * height}
+    rx={annotation.radiusX * width}
+    ry={annotation.radiusY * height}
+    stroke={annotation.color}
+    strokeWidth={annotation.strokeWidth}
+    fill="none"
+  />
+);
+
 /**
  * Static (non-interactive) SVG overlay for rendering annotations.
  * Used during frame capture — on iOS, captureRef captures the SVG directly.
@@ -94,6 +114,16 @@ export const StaticAnnotationOverlay = forwardRef<Svg, StaticAnnotationOverlayPr
           if (annotation.type === 'angle') {
             return (
               <AngleAnnotationRenderer
+                key={annotation.id}
+                annotation={annotation}
+                width={width}
+                height={height}
+              />
+            );
+          }
+          if (annotation.type === 'ellipse') {
+            return (
+              <EllipseRenderer
                 key={annotation.id}
                 annotation={annotation}
                 width={width}

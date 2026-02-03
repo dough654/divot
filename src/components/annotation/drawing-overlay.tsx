@@ -1,8 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 import { useRef, useCallback } from 'react';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Polyline, Line } from 'react-native-svg';
-import type { Annotation, AnnotationLine, Point } from '@/src/types/annotation';
+import Svg, { Polyline, Line, Ellipse } from 'react-native-svg';
+import type { Annotation, AnnotationLine, EllipseAnnotation, Point } from '@/src/types/annotation';
 import { AngleAnnotationRenderer } from './angle-annotation-renderer';
 
 type DrawingOverlayProps = {
@@ -72,6 +72,29 @@ const LineAnnotationRenderer = ({
 };
 
 /**
+ * Renders a single ellipse annotation.
+ */
+const EllipseAnnotationRenderer = ({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: EllipseAnnotation;
+  width: number;
+  height: number;
+}) => (
+  <Ellipse
+    cx={annotation.center.x * width}
+    cy={annotation.center.y * height}
+    rx={annotation.radiusX * width}
+    ry={annotation.radiusY * height}
+    stroke={annotation.color}
+    strokeWidth={annotation.strokeWidth}
+    fill="none"
+  />
+);
+
+/**
  * Transparent SVG overlay for drawing annotations on video frames.
  * Uses react-native-gesture-handler Pan gesture for touch input.
  * Coordinates are normalized (0-1) so annotations are resolution-independent.
@@ -136,6 +159,16 @@ export const DrawingOverlay = ({
               if (annotation.type === 'angle') {
                 return (
                   <AngleAnnotationRenderer
+                    key={annotation.id}
+                    annotation={annotation}
+                    width={width}
+                    height={height}
+                  />
+                );
+              }
+              if (annotation.type === 'ellipse') {
+                return (
+                  <EllipseAnnotationRenderer
                     key={annotation.id}
                     annotation={annotation}
                     width={width}

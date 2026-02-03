@@ -4,6 +4,7 @@ import type {
   Annotation,
   AnnotationLine,
   AngleAnnotation,
+  EllipseAnnotation,
   DrawingTool,
 } from '@/src/types/annotation';
 import {
@@ -11,6 +12,7 @@ import {
   loadAnnotations,
 } from '@/src/services/annotation/annotation-storage';
 import { computeAngleDegrees } from '@/src/utils/angle-math';
+import { computeEllipseFromCorners, isEllipseNonTrivial } from '@/src/utils/ellipse-math';
 
 const DEFAULT_STROKE_WIDTH = 3;
 const DEFAULT_COLOR = '#ffffff';
@@ -45,6 +47,10 @@ type UseDrawingResult = {
   endLine: () => void;
   /** Remove the last completed annotation. */
   undo: () => void;
+  /** Re-apply the last undone annotation. */
+  redo: () => void;
+  /** Whether there are annotations that can be redone. */
+  canRedo: boolean;
   /** Remove all annotations. */
   clearAll: () => void;
   /** Change the active drawing color. */
@@ -76,9 +82,14 @@ export const useDrawing = ({ clipId }: UseDrawingOptions): UseDrawingResult => {
   const [anglePhase, setAnglePhase] = useState<AnglePhase>('idle');
   const hasLoaded = useRef(false);
 
+  const [redoStack, setRedoStack] = useState<Annotation[]>([]);
+
   // Pending angle state stored in refs to avoid stale closures in gesture callbacks
   const pendingAngleVertex = useRef<Point | null>(null);
   const pendingAngleRayA = useRef<Point | null>(null);
+
+  // Pending ellipse corner stored in ref to avoid stale closures
+  const pendingEllipseCorner = useRef<Point | null>(null);
 
   // Load saved annotations on mount
   useEffect(() => {
@@ -104,6 +115,7 @@ export const useDrawing = ({ clipId }: UseDrawingOptions): UseDrawingResult => {
         persist(updated);
         return updated;
       });
+      setRedoStack([]);
     },
     [persist]
   );
@@ -128,6 +140,18 @@ export const useDrawing = ({ clipId }: UseDrawingOptions): UseDrawingResult => {
           strokeWidth: DEFAULT_STROKE_WIDTH,
         };
         setCurrentAnnotation(newLine);
+      } else if (activeTool === 'ellipse') {
+        pendingEllipseCorner.current = point;
+        const newEllipse: EllipseAnnotation = {
+          type: 'ellipse',
+          id: generateId(),
+          center: point,
+          radiusX: 0,
+          radiusY: 0,
+          color,
+          strokeWidth: DEFAULT_STROKE_WIDTH,
+        };
+        setCurrentAnnotation(newEllipse);
       } else if (activeTool === 'angle') {
         if (anglePhase === 'idle') {
           // First drag: start the first ray
@@ -176,6 +200,13 @@ export const useDrawing = ({ clipId }: UseDrawingOptions): UseDrawingResult => {
           return { ...prev, points: [prev.points[0], point] };
         }
 
+        if (prev.type === 'ellipse') {
+          const startCorner = pendingEllipseCorner.current;
+          if (!startCorner) return prev;
+          const { center, radiusX, radiusY } = computeEllipseFromCorners(startCorner, point);
+          return { ...prev, center, radiusX, radiusY };
+        }
+
         if (prev.type === 'angle') {
           // Update the second ray endpoint and recompute angle
           const angleDegrees = computeAngleDegrees(
@@ -200,6 +231,14 @@ export const useDrawing = ({ clipId }: UseDrawingOptions): UseDrawingResult => {
         if (prev.points.length >= 2) {
           commitAnnotation(prev);
         }
+        return null;
+      }
+
+      if (prev.type === 'ellipse') {
+        if (isEllipseNonTrivial(prev.radiusX, prev.radiusY)) {
+          commitAnnotation(prev);
+        }
+        pendingEllipseCorner.current = null;
         return null;
       }
 
@@ -241,6 +280,11 @@ export const useDrawing = ({ clipId }: UseDrawingOptions): UseDrawingResult => {
       if (anglePhase !== 'idle') {
         cancelAngle();
       }
+      // Cancel any in-progress ellipse when switching tools
+      if (pendingEllipseCorner.current) {
+        pendingEllipseCorner.current = null;
+        setCurrentAnnotation(null);
+      }
       setActiveTool(tool);
     },
     [anglePhase, cancelAngle]
@@ -255,17 +299,35 @@ export const useDrawing = ({ clipId }: UseDrawingOptions): UseDrawingResult => {
 
     setAnnotations((prev) => {
       if (prev.length === 0) return prev;
+      const removed = prev[prev.length - 1];
+      setRedoStack((stack) => [...stack, removed]);
       const updated = prev.slice(0, -1);
       persist(updated);
       return updated;
     });
   }, [persist, anglePhase, cancelAngle]);
 
+  const redo = useCallback(() => {
+    setRedoStack((stack) => {
+      if (stack.length === 0) return stack;
+      const restored = stack[stack.length - 1];
+      setAnnotations((prev) => {
+        const updated = [...prev, restored];
+        persist(updated);
+        return updated;
+      });
+      return stack.slice(0, -1);
+    });
+  }, [persist]);
+
+  const canRedo = redoStack.length > 0 && currentAnnotation === null;
+
   const clearAll = useCallback(() => {
     if (anglePhase !== 'idle') {
       cancelAngle();
     }
     setAnnotations([]);
+    setRedoStack([]);
     persist([]);
   }, [persist, anglePhase, cancelAngle]);
 
@@ -280,6 +342,8 @@ export const useDrawing = ({ clipId }: UseDrawingOptions): UseDrawingResult => {
     addPoint,
     endLine,
     undo,
+    redo,
+    canRedo,
     clearAll,
     setColor,
     setActiveTool: handleSetActiveTool,

@@ -399,11 +399,13 @@ export const VideoPlayer = ({
               activeColor={drawing.color}
               presetColors={drawing.presetColors}
               canUndo={drawing.annotations.length > 0 || drawing.anglePhase !== 'idle'}
+              canRedo={drawing.canRedo}
               activeTool={drawing.activeTool}
               anglePhase={drawing.anglePhase}
               canSave={drawing.annotations.length > 0}
               onColorSelect={drawing.setColor}
               onUndo={drawing.undo}
+              onRedo={drawing.redo}
               onClear={drawing.clearAll}
               onToolSelect={drawing.setActiveTool}
               onSave={handleSaveFrame}

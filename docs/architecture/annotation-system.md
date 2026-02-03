@@ -1,16 +1,17 @@
 # Annotation System Architecture
 
-The annotation system lets users draw on paused video frames and export the annotated frame to their device gallery. It supports freehand drawing, straight lines, and angle measurement.
+The annotation system lets users draw on paused video frames and export the annotated frame to their device gallery. It supports freehand drawing, straight lines, angle measurement, and ellipses.
 
 ## Overview
 
-Three drawing tools are available:
+Four drawing tools are available:
 
 | Tool | Description |
 |------|-------------|
 | **Freehand** | Free-form polyline following the user's finger |
 | **Straight line** | Two-point line segment (drag start to end) |
 | **Angle** | Two-ray angle measurement with arc and degree label (two sequential drags from a shared vertex) |
+| **Ellipse** | Ellipse/circle shape (drag from one bounding-box corner to opposite corner) |
 
 Annotations are drawn as SVG elements overlaid on the video. All coordinates are normalized to the 0–1 range, making annotations resolution-independent and portable across screen sizes.
 
@@ -42,10 +43,20 @@ AngleAnnotation {
   strokeWidth: number
 }
 
-Annotation = AnnotationLine | AngleAnnotation
+EllipseAnnotation {
+  type: 'ellipse'
+  id: string
+  center: Point
+  radiusX: number                         // Half-width, normalized 0–1
+  radiusY: number                         // Half-height, normalized 0–1
+  color: string
+  strokeWidth: number
+}
+
+Annotation = AnnotationLine | AngleAnnotation | EllipseAnnotation
 ```
 
-`DrawingTool = 'freehand' | 'straight-line' | 'angle'`
+`DrawingTool = 'freehand' | 'straight-line' | 'angle' | 'ellipse'`
 
 ## Component Architecture
 
@@ -74,9 +85,10 @@ useDrawing (src/hooks/use-drawing.ts)
 
 Core state management for annotations. Key behaviors:
 
-- **Tool switching**: Setting a new `activeTool` cancels any in-progress angle measurement.
+- **Tool switching**: Setting a new `activeTool` cancels any in-progress angle measurement or ellipse drag.
 - **Angle measurement phases**: Uses a three-phase state machine (`'idle'` → `'first-ray'` → `'second-ray'` → `'idle'`). Vertex and first ray endpoint are stored in refs to avoid stale closures in gesture callbacks.
-- **Undo**: If an angle is in progress, undo cancels it. Otherwise removes the last completed annotation.
+- **Ellipse tool**: Drag from one bounding-box corner to the opposite. Center and radii are computed from the two corners (see `src/utils/ellipse-math.ts`). Ellipses with both radii below 0.01 (accidental taps) are discarded.
+- **Undo/Redo**: Undo pops the last annotation onto a redo stack. Redo restores it. New commits clear the redo stack (no timeline branching). If an angle is in progress, undo cancels it instead. The redo stack is session-only and not persisted.
 - **Auto-persistence**: Loads annotations from storage on mount; saves after every mutation (commit, undo, clear).
 - **Defaults**: Stroke width 3, white color, preset palette `['#ffffff', '#f44336', '#ffeb3b', '#2196f3']`.
 
@@ -86,7 +98,7 @@ Core state management for annotations. Key behaviors:
 
 - Uses `react-native-gesture-handler`'s `Gesture.Pan()` with `minDistance(0)` and `runOnJS(true)`.
 - Normalizes pixel coordinates via `onLayout` container dimensions, clamped to [0, 1].
-- Renders SVG: `<Polyline>` for freehand, `<Line>` for straight lines, `<AngleAnnotationRenderer>` for angles.
+- Renders SVG: `<Polyline>` for freehand, `<Line>` for straight lines, `<AngleAnnotationRenderer>` for angles, `<Ellipse>` for ellipses.
 - Passes through touch events (`pointerEvents: 'none'`) when drawing is disabled.
 - Appends `currentAnnotation` (in-progress) to `annotations` for live preview.
 
@@ -114,8 +126,8 @@ Renders a complete angle annotation as an SVG `<G>` group:
 `src/components/annotation/drawing-toolbar.tsx`
 
 Three-row layout:
-1. Tool buttons (freehand, straight-line, angle) with Ionicons
-2. Color swatches (left) + action buttons (right): save, undo, clear
+1. Tool buttons (freehand, straight-line, angle, ellipse) with Ionicons
+2. Color swatches (left) + action buttons (right): save, undo, redo, clear
 3. Angle phase hint text (visible only during angle measurement)
 
 ## Storage
@@ -175,3 +187,4 @@ Both request media library permissions before saving and clean up temp files in 
 | `src/services/annotation/frame-capture.ts` | Platform-specific capture + gallery save |
 | `src/components/playback/video-player.tsx` | Orchestrates the full annotation + capture flow |
 | `src/utils/angle-math.ts` | Angle calculation and label positioning utilities |
+| `src/utils/ellipse-math.ts` | Ellipse geometry computation from bounding-box corners |

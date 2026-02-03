@@ -5,7 +5,7 @@ export type Point = {
 };
 
 /** Available drawing tools. */
-export type DrawingTool = 'freehand' | 'straight-line' | 'angle';
+export type DrawingTool = 'freehand' | 'straight-line' | 'angle' | 'ellipse';
 
 /** A drawn line (freehand polyline or straight 2-point line). */
 export type AnnotationLine = {
@@ -29,5 +29,18 @@ export type AngleAnnotation = {
   strokeWidth: number;
 };
 
+/** An ellipse annotation defined by center and radii. */
+export type EllipseAnnotation = {
+  type: 'ellipse';
+  id: string;
+  center: Point;
+  /** Half-width, normalized 0-1. */
+  radiusX: number;
+  /** Half-height, normalized 0-1. */
+  radiusY: number;
+  color: string;
+  strokeWidth: number;
+};
+
 /** Any annotation that can be drawn on a video frame. */
-export type Annotation = AnnotationLine | AngleAnnotation;
+export type Annotation = AnnotationLine | AngleAnnotation | EllipseAnnotation;

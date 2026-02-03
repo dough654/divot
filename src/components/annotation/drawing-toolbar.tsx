@@ -13,6 +13,7 @@ const TOOL_OPTIONS: ToolOption[] = [
   { tool: 'freehand', icon: 'pencil-outline' },
   { tool: 'straight-line', icon: 'remove-outline' },
   { tool: 'angle', icon: 'analytics-outline' },
+  { tool: 'ellipse', icon: 'ellipse-outline' },
 ];
 
 const ANGLE_PHASE_HINTS: Record<AnglePhase, string | null> = {
@@ -28,6 +29,8 @@ type DrawingToolbarProps = {
   presetColors: readonly string[];
   /** Whether there are annotations to undo. */
   canUndo: boolean;
+  /** Whether there are annotations to redo. */
+  canRedo: boolean;
   /** Currently active drawing tool. */
   activeTool: DrawingTool;
   /** Current angle drawing phase. */
@@ -38,6 +41,8 @@ type DrawingToolbarProps = {
   onColorSelect: (color: string) => void;
   /** Called when undo is tapped. */
   onUndo: () => void;
+  /** Called when redo is tapped. */
+  onRedo: () => void;
   /** Called when clear is tapped. */
   onClear: () => void;
   /** Called when a tool is selected. */
@@ -55,11 +60,13 @@ export const DrawingToolbar = ({
   activeColor,
   presetColors,
   canUndo,
+  canRedo,
   activeTool,
   anglePhase,
   canSave,
   onColorSelect,
   onUndo,
+  onRedo,
   onClear,
   onToolSelect,
   onSave,
@@ -119,6 +126,14 @@ export const DrawingToolbar = ({
             disabled={!canUndo}
           >
             <Ionicons name="arrow-undo" size={20} color={canUndo ? '#fff' : '#666'} />
+          </Pressable>
+
+          <Pressable
+            style={[styles.actionButton, !canRedo && styles.actionButtonDisabled]}
+            onPress={onRedo}
+            disabled={!canRedo}
+          >
+            <Ionicons name="arrow-redo" size={20} color={canRedo ? '#fff' : '#666'} />
           </Pressable>
 
           <Pressable style={styles.actionButton} onPress={onClear}>
