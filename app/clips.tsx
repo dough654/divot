@@ -1,11 +1,11 @@
-import { StyleSheet, View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
+import { StyleSheet, View, Text, FlatList, Pressable, RefreshControl, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { listClips } from '@/src/services/recording/clip-storage';
+import { listClips, deleteClip, renameClip } from '@/src/services/recording/clip-storage';
 import type { Clip } from '@/src/types/recording';
 
 /**
@@ -48,10 +48,11 @@ const formatFileSize = (bytes: number): string => {
 type ClipItemProps = {
   clip: Clip;
   onPress: () => void;
+  onMenuPress: () => void;
   isDark: boolean;
 };
 
-const ClipItem = ({ clip, onPress, isDark }: ClipItemProps) => {
+const ClipItem = ({ clip, onPress, onMenuPress, isDark }: ClipItemProps) => {
   const styles = createItemStyles(isDark);
 
   return (
@@ -71,7 +72,9 @@ const ClipItem = ({ clip, onPress, isDark }: ClipItemProps) => {
           <Text style={styles.metaText}>{clip.fps}fps</Text>
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={isDark ? '#666' : '#999'} />
+      <Pressable style={styles.menuButton} onPress={onMenuPress}>
+        <Ionicons name="ellipsis-vertical" size={20} color={isDark ? '#888' : '#666'} />
+      </Pressable>
     </Pressable>
   );
 };
@@ -84,6 +87,9 @@ export default function ClipsScreen() {
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [clipToRename, setClipToRename] = useState<Clip | null>(null);
+  const [renameText, setRenameText] = useState('');
 
   const loadClips = useCallback(async () => {
     try {
@@ -109,6 +115,73 @@ export default function ClipsScreen() {
   const handleClipPress = useCallback((clip: Clip) => {
     router.push(`/playback/${clip.id}`);
   }, [router]);
+
+  const handleClipLongPress = useCallback((clip: Clip) => {
+    Alert.alert(
+      clip.name || 'Swing Recording',
+      'What would you like to do?',
+      [
+        {
+          text: 'Rename',
+          onPress: () => {
+            setClipToRename(clip);
+            setRenameText(clip.name || '');
+            setRenameModalVisible(true);
+          },
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => handleDeleteClip(clip),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  }, []);
+
+  const handleDeleteClip = useCallback((clip: Clip) => {
+    Alert.alert(
+      'Delete Clip',
+      'Are you sure you want to delete this clip? This cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteClip(clip.id);
+            loadClips();
+          },
+        },
+      ]
+    );
+  }, [loadClips]);
+
+  const handleRenameConfirm = useCallback(async () => {
+    if (!clipToRename) return;
+
+    const trimmedName = renameText.trim();
+    if (trimmedName) {
+      await renameClip(clipToRename.id, trimmedName);
+      loadClips();
+    }
+
+    setRenameModalVisible(false);
+    setClipToRename(null);
+    setRenameText('');
+  }, [clipToRename, renameText, loadClips]);
+
+  const handleRenameCancel = useCallback(() => {
+    setRenameModalVisible(false);
+    setClipToRename(null);
+    setRenameText('');
+  }, []);
 
   const styles = createStyles(isDark);
 
@@ -149,6 +222,7 @@ export default function ClipsScreen() {
           <ClipItem
             clip={item}
             onPress={() => handleClipPress(item)}
+            onMenuPress={() => handleClipLongPress(item)}
             isDark={isDark}
           />
         )}
@@ -162,6 +236,37 @@ export default function ClipsScreen() {
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
+
+      {/* Rename Modal */}
+      <Modal
+        visible={renameModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleRenameCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Rename Clip</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={renameText}
+              onChangeText={setRenameText}
+              placeholder="Enter clip name"
+              placeholderTextColor={isDark ? '#666' : '#999'}
+              autoFocus
+              selectTextOnFocus
+            />
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleRenameCancel}>
+                <Text style={styles.modalButtonCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalButtonConfirm} onPress={handleRenameConfirm}>
+                <Text style={styles.modalButtonConfirmText}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -216,6 +321,58 @@ const createStyles = (isDark: boolean) =>
     separator: {
       height: 8,
     },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 32,
+    },
+    modalContent: {
+      width: '100%',
+      backgroundColor: isDark ? '#2a2a4e' : '#fff',
+      borderRadius: 16,
+      padding: 24,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: isDark ? '#fff' : '#1a1a2e',
+      marginBottom: 16,
+    },
+    modalInput: {
+      backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: isDark ? '#fff' : '#1a1a2e',
+      marginBottom: 20,
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 12,
+    },
+    modalButtonCancel: {
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+    },
+    modalButtonCancelText: {
+      fontSize: 16,
+      color: isDark ? '#888' : '#666',
+    },
+    modalButtonConfirm: {
+      backgroundColor: '#4CAF50',
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      borderRadius: 8,
+    },
+    modalButtonConfirmText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#fff',
+    },
   });
 
 const createItemStyles = (isDark: boolean) =>
@@ -257,5 +414,9 @@ const createItemStyles = (isDark: boolean) =>
       fontSize: 13,
       color: isDark ? '#555' : '#999',
       marginHorizontal: 6,
+    },
+    menuButton: {
+      padding: 8,
+      marginLeft: 4,
     },
   });
