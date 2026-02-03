@@ -32,7 +32,7 @@ const formatTime = (millis: number): string => {
 
 /**
  * Video player component with play/pause controls, timeline scrubber,
- * and optional freehand drawing annotations.
+ * and optional annotation drawing (freehand, straight-line, angle).
  */
 export const VideoPlayer = ({
   uri,
@@ -228,8 +228,8 @@ export const VideoPlayer = ({
         {drawingEnabled && (
           <DrawingOverlay
             drawingEnabled={isDrawMode}
-            lines={showAnnotations ? drawing.lines : []}
-            currentLine={showAnnotations ? drawing.currentLine : null}
+            annotations={showAnnotations ? drawing.annotations : []}
+            currentAnnotation={showAnnotations ? drawing.currentAnnotation : null}
             onLineStart={drawing.startLine}
             onLineMove={drawing.addPoint}
             onLineEnd={drawing.endLine}
@@ -242,10 +242,13 @@ export const VideoPlayer = ({
             <DrawingToolbar
               activeColor={drawing.color}
               presetColors={drawing.presetColors}
-              canUndo={drawing.lines.length > 0}
+              canUndo={drawing.annotations.length > 0 || drawing.anglePhase !== 'idle'}
+              activeTool={drawing.activeTool}
+              anglePhase={drawing.anglePhase}
               onColorSelect={drawing.setColor}
               onUndo={drawing.undo}
               onClear={drawing.clearAll}
+              onToolSelect={drawing.setActiveTool}
             />
           </View>
         )}

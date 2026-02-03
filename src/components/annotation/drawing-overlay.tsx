@@ -1,17 +1,18 @@
 import { StyleSheet, View } from 'react-native';
 import { useRef, useCallback } from 'react';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Polyline } from 'react-native-svg';
-import type { AnnotationLine, Point } from '@/src/types/annotation';
+import Svg, { Polyline, Line } from 'react-native-svg';
+import type { Annotation, AnnotationLine, Point } from '@/src/types/annotation';
+import { AngleAnnotationRenderer } from './angle-annotation-renderer';
 
 type DrawingOverlayProps = {
   /** Whether the user can draw (enables touch input). */
   drawingEnabled: boolean;
-  /** All completed lines to render. */
-  lines: AnnotationLine[];
-  /** Line currently being drawn. */
-  currentLine: AnnotationLine | null;
-  /** Called when a new line starts. */
+  /** All completed annotations to render. */
+  annotations: Annotation[];
+  /** Annotation currently being drawn. */
+  currentAnnotation: Annotation | null;
+  /** Called when a new annotation starts. */
   onLineStart: (point: Point) => void;
   /** Called as the user drags. */
   onLineMove: (point: Point) => void;
@@ -32,14 +33,53 @@ const toSvgPointsString = (
 };
 
 /**
- * Transparent SVG overlay for drawing freehand annotations on video frames.
+ * Renders a single line annotation (freehand or straight-line).
+ */
+const LineAnnotationRenderer = ({
+  annotation,
+  width,
+  height,
+}: {
+  annotation: AnnotationLine;
+  width: number;
+  height: number;
+}) => {
+  if (annotation.type === 'straight-line' && annotation.points.length === 2) {
+    const [start, end] = annotation.points;
+    return (
+      <Line
+        x1={start.x * width}
+        y1={start.y * height}
+        x2={end.x * width}
+        y2={end.y * height}
+        stroke={annotation.color}
+        strokeWidth={annotation.strokeWidth}
+        strokeLinecap="round"
+      />
+    );
+  }
+
+  return (
+    <Polyline
+      points={toSvgPointsString(annotation.points, width, height)}
+      fill="none"
+      stroke={annotation.color}
+      strokeWidth={annotation.strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  );
+};
+
+/**
+ * Transparent SVG overlay for drawing annotations on video frames.
  * Uses react-native-gesture-handler Pan gesture for touch input.
  * Coordinates are normalized (0-1) so annotations are resolution-independent.
  */
 export const DrawingOverlay = ({
   drawingEnabled,
-  lines,
-  currentLine,
+  annotations,
+  currentAnnotation,
   onLineStart,
   onLineMove,
   onLineEnd,
@@ -71,8 +111,12 @@ export const DrawingOverlay = ({
     .minDistance(0)
     .enabled(drawingEnabled);
 
-  const allLines = currentLine ? [...lines, currentLine] : lines;
-  const hasLines = allLines.length > 0;
+  const allAnnotations = currentAnnotation
+    ? [...annotations, currentAnnotation]
+    : annotations;
+  const hasAnnotations = allAnnotations.length > 0;
+
+  const { width, height } = containerSize.current;
 
   return (
     <GestureDetector gesture={panGesture}>
@@ -82,27 +126,32 @@ export const DrawingOverlay = ({
           !drawingEnabled && styles.passthrough,
         ]}
         onLayout={(event) => {
-          const { width, height } = event.nativeEvent.layout;
-          containerSize.current = { width, height };
+          const layout = event.nativeEvent.layout;
+          containerSize.current = { width: layout.width, height: layout.height };
         }}
       >
-        {hasLines && (
+        {hasAnnotations && (
           <Svg style={StyleSheet.absoluteFill}>
-            {allLines.map((line) => (
-              <Polyline
-                key={line.id}
-                points={toSvgPointsString(
-                  line.points,
-                  containerSize.current.width,
-                  containerSize.current.height
-                )}
-                fill="none"
-                stroke={line.color}
-                strokeWidth={line.strokeWidth}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
+            {allAnnotations.map((annotation) => {
+              if (annotation.type === 'angle') {
+                return (
+                  <AngleAnnotationRenderer
+                    key={annotation.id}
+                    annotation={annotation}
+                    width={width}
+                    height={height}
+                  />
+                );
+              }
+              return (
+                <LineAnnotationRenderer
+                  key={annotation.id}
+                  annotation={annotation}
+                  width={width}
+                  height={height}
+                />
+              );
+            })}
           </Svg>
         )}
       </View>

@@ -1,5 +1,5 @@
 import { File, Directory, Paths } from 'expo-file-system';
-import type { AnnotationLine } from '@/src/types/annotation';
+import type { Annotation } from '@/src/types/annotation';
 
 const ANNOTATIONS_DIR_NAME = 'annotations';
 
@@ -28,20 +28,32 @@ const getAnnotationFilename = (clipId: string): string => {
 };
 
 /**
+ * Migrates a raw parsed annotation by assigning `type: 'freehand'` if the
+ * type field is missing (legacy data written before the tool system existed).
+ */
+const migrateAnnotation = (raw: Record<string, unknown>): Annotation => {
+  if (!raw.type) {
+    return { ...raw, type: 'freehand' } as Annotation;
+  }
+  return raw as Annotation;
+};
+
+/**
  * Saves annotations for a clip. Overwrites any existing annotations.
  */
-export const saveAnnotations = (clipId: string, lines: AnnotationLine[]): void => {
+export const saveAnnotations = (clipId: string, annotations: Annotation[]): void => {
   ensureAnnotationsDirectory();
   const annotationsDir = getAnnotationsDirectory();
   const file = new File(annotationsDir, getAnnotationFilename(clipId));
-  file.write(JSON.stringify(lines));
+  file.write(JSON.stringify(annotations));
 };
 
 /**
  * Loads saved annotations for a clip.
  * Returns an empty array if no annotations exist.
+ * Migrates legacy annotations that lack a `type` field.
  */
-export const loadAnnotations = async (clipId: string): Promise<AnnotationLine[]> => {
+export const loadAnnotations = async (clipId: string): Promise<Annotation[]> => {
   const annotationsDir = getAnnotationsDirectory();
   const file = new File(annotationsDir, getAnnotationFilename(clipId));
 
@@ -51,7 +63,8 @@ export const loadAnnotations = async (clipId: string): Promise<AnnotationLine[]>
 
   try {
     const content = await file.text();
-    return JSON.parse(content) as AnnotationLine[];
+    const raw = JSON.parse(content) as Record<string, unknown>[];
+    return raw.map(migrateAnnotation);
   } catch (err) {
     console.error('Failed to load annotations:', err);
     return [];

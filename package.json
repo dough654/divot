@@ -16,7 +16,9 @@
     "build:android:prod": "npx eas-cli build --platform android --profile production",
     "build:ios:prod": "npx eas-cli build --platform ios --profile production",
     "eas:configure": "npx eas-cli build:configure",
-    "eas:login": "npx eas-cli login"
+    "eas:login": "npx eas-cli login",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^13.0.0",
@@ -58,7 +60,8 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "react-test-renderer": "19.1.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.18"
   },
   "private": true
 }
