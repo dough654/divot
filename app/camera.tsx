@@ -170,6 +170,7 @@ export default function CameraScreen() {
       const code = await createRoom();
       if (code) {
         setConnectionStep('displaying-qr');
+        setCameraState('previewing');
       }
     };
     initialize();
@@ -203,15 +204,12 @@ export default function CameraScreen() {
     return unsubscribe;
   }, [onIceCandidate, handleIceCandidate]);
 
-  // Update camera state based on connection
+  // Update connection step based on WebRTC state
   useEffect(() => {
     if (isConnected) {
       setConnectionStep('connected');
-      if (cameraState === 'connecting') {
-        setCameraState('previewing');
-      }
     }
-  }, [isConnected, cameraState]);
+  }, [isConnected]);
 
   const handleQRButtonPress = () => {
     setShowQRModal(true);
