@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DataChannel } from '@/src/services/webrtc';
 import { clipTransfer, TransferProgress, initialTransferProgress } from '@/src/services/clip-sync';
+import { messageRouter } from '@/src/services/data-channel';
 import type { Clip } from '@/src/types/recording';
 
 export type UseClipSyncOptions = {
@@ -49,9 +50,9 @@ export const useClipSync = ({
       },
     });
 
-    // Set up message handler
+    // Route all data channel messages through the message router
     dataChannel.onmessage = (event) => {
-      clipTransfer.handleMessage(event.data);
+      messageRouter.handleMessage(event.data);
     };
 
     // Check if channel is ready

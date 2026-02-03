@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { VideoFile } from 'react-native-vision-camera';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { LocalVideoView } from '@/src/components/video';
 import { QRCodeDisplay, QRCodeButton } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import {
@@ -14,12 +13,12 @@ import {
   VisionCameraRecorder,
   VisionCameraRecorderRef,
 } from '@/src/components/recording';
-import { useLocalMediaStream } from '@/src/hooks/use-local-media-stream';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useVisionCamera } from '@/src/hooks/use-vision-camera';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
+import { useFrameStreaming } from '@/src/hooks/use-frame-streaming';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { TransferProgressModal } from '@/src/components/clip-sync';
@@ -29,7 +28,7 @@ import type { Clip } from '@/src/types/recording';
 
 const MIN_LOADING_TIME_MS = 1500;
 
-type CameraMode = 'streaming' | 'recording';
+type CameraState = 'connecting' | 'previewing' | 'armed' | 'recording' | 'reviewing';
 
 export default function CameraScreen() {
   const colorScheme = useColorScheme();
@@ -41,9 +40,8 @@ export default function CameraScreen() {
   const [isButtonLoading, setIsButtonLoading] = useState(true);
   const loadingStartTime = useState(() => Date.now())[0];
 
-  // Recording mode state
-  const [cameraMode, setCameraMode] = useState<CameraMode>('streaming');
-  const [isRecording, setIsRecording] = useState(false);
+  // Camera state machine
+  const [cameraState, setCameraState] = useState<CameraState>('connecting');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const [lastRecordedClip, setLastRecordedClip] = useState<Clip | null>(null);
@@ -54,23 +52,13 @@ export default function CameraScreen() {
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingDurationRef = useRef(0);
 
-  // Hooks for streaming mode
-  const {
-    stream: localStream,
-    error: cameraError,
-    isFrontCamera,
-    startStream,
-    stopStream,
-    toggleCamera: toggleWebRTCCamera,
-  } = useLocalMediaStream({ video: true, audio: true });
-
-  // Hooks for recording mode
+  // VisionCamera is always active
   const {
     device: visionDevice,
     hasCameraPermission,
     error: visionCameraError,
-    toggleCamera: toggleVisionCamera,
-    isFrontCamera: visionIsFrontCamera,
+    toggleCamera,
+    isFrontCamera,
   } = useVisionCamera({ autoRequestPermissions: true });
 
   const {
@@ -84,6 +72,7 @@ export default function CameraScreen() {
     onPeerJoined,
   } = useSignaling({ autoConnect: false });
 
+  // No localStream — data-channel-only peer connection
   const {
     peerConnection,
     createOffer,
@@ -92,7 +81,6 @@ export default function CameraScreen() {
     isConnected,
     dataChannel,
   } = useWebRTCConnection({
-    localStream,
     onIceCandidate: sendIceCandidate,
   });
 
@@ -111,6 +99,16 @@ export default function CameraScreen() {
     dataChannel,
   });
 
+  // Frame streaming — active whenever connected and not syncing a clip
+  const isSyncing = syncProgress.state === 'sending' || syncProgress.state === 'receiving';
+  const frameStreamingEnabled = isConnected && !isSyncing;
+
+  const { isStreaming, currentFps, pause: pauseStreaming, resume: resumeStreaming } = useFrameStreaming({
+    recorderRef,
+    dataChannel,
+    enabled: frameStreamingEnabled,
+  });
+
   // QR code payload
   const qrPayload = roomCode
     ? encodeQRPayload({
@@ -119,6 +117,8 @@ export default function CameraScreen() {
         signalingUrl: 'https://swinglink-signaling.fly.dev',
       })
     : null;
+
+  const isRecording = cameraState === 'recording';
 
   // Duration timer for recording
   useEffect(() => {
@@ -166,7 +166,6 @@ export default function CameraScreen() {
   useEffect(() => {
     const initialize = async () => {
       setConnectionStep('generating-session');
-      await startStream();
       await connectSignaling();
       const code = await createRoom();
       if (code) {
@@ -204,12 +203,15 @@ export default function CameraScreen() {
     return unsubscribe;
   }, [onIceCandidate, handleIceCandidate]);
 
-  // Update connection step based on WebRTC state
+  // Update camera state based on connection
   useEffect(() => {
     if (isConnected) {
       setConnectionStep('connected');
+      if (cameraState === 'connecting') {
+        setCameraState('previewing');
+      }
     }
-  }, [isConnected]);
+  }, [isConnected, cameraState]);
 
   const handleQRButtonPress = () => {
     setShowQRModal(true);
@@ -218,32 +220,19 @@ export default function CameraScreen() {
     }
   };
 
-  // Switch to recording mode
-  const enterRecordingMode = useCallback(() => {
-    stopStream();
-    setCameraMode('recording');
+  // Arm recording (no camera switch needed)
+  const armRecording = useCallback(() => {
     setRecordingError(null);
-  }, [stopStream]);
+    setLastRecordedClip(null);
+    setCameraState('armed');
+  }, []);
 
-  // Switch back to streaming mode
-  const exitRecordingMode = useCallback(async () => {
-    if (isRecording) {
-      // Stop recording first if still recording
-      await handleStopRecording();
-    }
-    setCameraMode('streaming');
-    await startStream();
-  }, [isRecording, startStream]);
+  // Disarm recording
+  const disarmRecording = useCallback(() => {
+    setCameraState('previewing');
+  }, []);
 
-  // Handle recording toggle
-  const handleRecordPress = useCallback(() => {
-    if (isRecording) {
-      handleStopRecording();
-    } else {
-      handleStartRecording();
-    }
-  }, [isRecording]);
-
+  // Start recording
   const handleStartRecording = useCallback(() => {
     if (!recorderRef.current) {
       setRecordingError('Camera not ready');
@@ -251,43 +240,38 @@ export default function CameraScreen() {
     }
 
     setRecordingError(null);
-    setIsRecording(true);
+    setCameraState('recording');
 
     recorderRef.current.startRecording({
       onRecordingFinished: async (video: VideoFile) => {
-        // Use ref to get current duration (avoids closure issue)
         const duration = recordingDurationRef.current;
-        setIsRecording(false);
 
         try {
           const clip = await saveClip({
             path: video.path,
             duration,
-            fps: 30, // Default for now
+            fps: 30,
           });
 
           setLastRecordedClip(clip);
-
-          Alert.alert(
-            'Recording Saved',
-            `${duration}s clip saved. View it in My Clips.`,
-            [{ text: 'OK' }]
-          );
+          setCameraState('reviewing');
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'Failed to save recording';
           setRecordingError(errorMsg);
+          setCameraState('armed');
           Alert.alert('Save Failed', errorMsg);
         }
       },
       onRecordingError: (error: unknown) => {
-        setIsRecording(false);
         const errorMsg = error instanceof Error ? error.message : 'Recording failed';
         setRecordingError(errorMsg);
+        setCameraState('armed');
         Alert.alert('Recording Error', errorMsg);
       },
     });
   }, []);
 
+  // Stop recording
   const handleStopRecording = useCallback(async () => {
     if (!recorderRef.current) return;
 
@@ -298,13 +282,13 @@ export default function CameraScreen() {
     }
   }, []);
 
-  const handleToggleCamera = useCallback(() => {
-    if (cameraMode === 'recording') {
-      toggleVisionCamera();
+  const handleRecordPress = useCallback(() => {
+    if (isRecording) {
+      handleStopRecording();
     } else {
-      toggleWebRTCCamera();
+      handleStartRecording();
     }
-  }, [cameraMode, toggleVisionCamera, toggleWebRTCCamera]);
+  }, [isRecording, handleStopRecording, handleStartRecording]);
 
   // Sync last recorded clip to viewer
   const handleSyncClip = useCallback(async () => {
@@ -318,25 +302,35 @@ export default function CameraScreen() {
     }
 
     setShowSyncModal(true);
+    pauseStreaming();
     try {
       await sendClip(lastRecordedClip);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Sync failed';
       Alert.alert('Sync Failed', errorMsg);
+    } finally {
+      resumeStreaming();
     }
-  }, [lastRecordedClip, isSyncReady, sendClip]);
+  }, [lastRecordedClip, isSyncReady, sendClip, pauseStreaming, resumeStreaming]);
 
   const handleSyncDismiss = useCallback(() => {
     setShowSyncModal(false);
     if (syncProgress.state === 'complete') {
-      setLastRecordedClip(null); // Clear after successful sync
+      setLastRecordedClip(null);
+      setCameraState('previewing');
     }
   }, [syncProgress.state]);
 
+  // Record again from reviewing state
+  const handleRecordAgain = useCallback(() => {
+    setLastRecordedClip(null);
+    setCameraState('armed');
+  }, []);
+
   const styles = createStyles(isDark);
 
-  const showVisionCamera = cameraMode === 'recording' && visionDevice && hasCameraPermission;
-  const currentError = cameraMode === 'recording' ? (visionCameraError || recordingError) : cameraError;
+  const showVisionCamera = visionDevice && hasCameraPermission;
+  const currentError = visionCameraError || recordingError;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -344,32 +338,38 @@ export default function CameraScreen() {
       <View style={styles.topBar}>
         <View style={styles.topBarContent}>
           <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} compact />
-          {cameraMode === 'recording' && (
+          {isRecording && (
             <RecordingIndicator
               duration={recordingDuration}
               visible={isRecording}
               compact
             />
           )}
+          {isStreaming && !isRecording && (
+            <View style={styles.streamingBadge}>
+              <View style={styles.streamingDot} />
+              <Text style={styles.streamingFpsText}>{currentFps}fps</Text>
+            </View>
+          )}
         </View>
       </View>
 
-      {/* Video Preview - full width */}
+      {/* Video Preview - full width, always VisionCamera */}
       <View style={styles.videoContainer}>
         {showVisionCamera ? (
           <VisionCameraRecorder
             ref={recorderRef}
             device={visionDevice}
-            isActive={cameraMode === 'recording'}
-            isFrontCamera={visionIsFrontCamera}
-            onFlipCamera={handleToggleCamera}
+            isActive={true}
+            isFrontCamera={isFrontCamera}
+            onFlipCamera={toggleCamera}
           />
         ) : (
-          <LocalVideoView
-            stream={localStream}
-            isFrontCamera={isFrontCamera}
-            onFlipCamera={handleToggleCamera}
-          />
+          <View style={styles.cameraPlaceholder}>
+            <Text style={styles.placeholderText}>
+              {hasCameraPermission ? 'No camera device found' : 'Camera permission required'}
+            </Text>
+          </View>
         )}
         {currentError && (
           <View style={styles.errorOverlay}>
@@ -388,9 +388,22 @@ export default function CameraScreen() {
         )}
       </View>
 
-      {/* Bottom bar */}
+      {/* Bottom bar - varies by state */}
       <View style={styles.bottomBar}>
-        {cameraMode === 'streaming' ? (
+        {cameraState === 'connecting' && (
+          <>
+            {/* QR Code Button */}
+            <QRCodeButton
+              roomCode={roomCode ? formatRoomCode(roomCode) : null}
+              onPress={handleQRButtonPress}
+              isPulsing={isPulsing}
+              isLoading={isButtonLoading}
+              isDark={isDark}
+            />
+          </>
+        )}
+
+        {cameraState === 'previewing' && (
           <>
             {/* QR Code Button - when not connected */}
             {!isConnected && (
@@ -403,7 +416,7 @@ export default function CameraScreen() {
               />
             )}
 
-            {/* Connected indicator and record button */}
+            {/* Connected - streaming badge */}
             {isConnected && (
               <View style={styles.connectedSection}>
                 <View style={[styles.connectedBadge, isDark && styles.connectedBadgeDark]}>
@@ -413,35 +426,65 @@ export default function CameraScreen() {
               </View>
             )}
 
-            {/* Record mode button */}
+            {/* Arm recording button */}
             <Pressable
-              style={[styles.recordModeButton, isDark && styles.recordModeButtonDark]}
-              onPress={enterRecordingMode}
+              style={[styles.armButton, isDark && styles.armButtonDark]}
+              onPress={armRecording}
             >
-              <View style={styles.recordModeIcon}>
+              <View style={styles.armButtonIcon}>
                 <Ionicons name="radio-button-on" size={20} color="#ff453a" />
               </View>
-              <Text style={[styles.recordModeText, isDark && styles.recordModeTextDark]}>
-                Enter Recording Mode
+              <Text style={[styles.armButtonText, isDark && styles.armButtonTextDark]}>
+                Arm Recording
               </Text>
-              <Text style={[styles.recordModeSubtext, isDark && styles.recordModeSubtextDark]}>
-                Pauses streaming to enable high-quality recording
+              <Text style={[styles.armButtonSubtext, isDark && styles.armButtonSubtextDark]}>
+                Preview continues while recording
               </Text>
             </Pressable>
           </>
-        ) : (
+        )}
+
+        {cameraState === 'armed' && (
           <>
-            {/* Recording mode controls */}
+            {/* Record button */}
             <View style={styles.recordingControls}>
               <RecordingButton
-                isRecording={isRecording}
+                isRecording={false}
                 onPress={handleRecordPress}
                 disabled={!visionDevice || !hasCameraPermission}
               />
             </View>
 
-            {/* Sync to viewer button - shows when clip available and connected */}
-            {lastRecordedClip && !isRecording && (
+            {/* Disarm button */}
+            <Pressable
+              style={[styles.disarmButton, isDark && styles.disarmButtonDark]}
+              onPress={disarmRecording}
+            >
+              <Ionicons name="arrow-back" size={20} color={isDark ? '#fff' : '#1a1a2e'} />
+              <Text style={[styles.disarmButtonText, isDark && styles.disarmButtonTextDark]}>
+                Disarm
+              </Text>
+            </Pressable>
+          </>
+        )}
+
+        {cameraState === 'recording' && (
+          <>
+            {/* Stop button */}
+            <View style={styles.recordingControls}>
+              <RecordingButton
+                isRecording={true}
+                onPress={handleRecordPress}
+                disabled={false}
+              />
+            </View>
+          </>
+        )}
+
+        {cameraState === 'reviewing' && (
+          <>
+            {/* Sync to viewer button */}
+            {lastRecordedClip && (
               <Pressable
                 style={[
                   styles.syncButton,
@@ -464,15 +507,25 @@ export default function CameraScreen() {
               </Pressable>
             )}
 
-            {/* Exit recording mode button */}
+            {/* Record again */}
             <Pressable
-              style={[styles.exitRecordingButton, isDark && styles.exitRecordingButtonDark]}
-              onPress={exitRecordingMode}
-              disabled={isRecording}
+              style={[styles.secondaryButton, isDark && styles.secondaryButtonDark]}
+              onPress={handleRecordAgain}
+            >
+              <Ionicons name="videocam" size={20} color={isDark ? '#fff' : '#1a1a2e'} />
+              <Text style={[styles.secondaryButtonText, isDark && styles.secondaryButtonTextDark]}>
+                Record Again
+              </Text>
+            </Pressable>
+
+            {/* Disarm */}
+            <Pressable
+              style={[styles.disarmButton, isDark && styles.disarmButtonDark]}
+              onPress={disarmRecording}
             >
               <Ionicons name="arrow-back" size={20} color={isDark ? '#fff' : '#1a1a2e'} />
-              <Text style={[styles.exitRecordingText, isDark && styles.exitRecordingTextDark]}>
-                {isRecording ? 'Stop recording to exit' : 'Back to Streaming'}
+              <Text style={[styles.disarmButtonText, isDark && styles.disarmButtonTextDark]}>
+                Disarm
               </Text>
             </Pressable>
           </>
@@ -552,12 +605,42 @@ const createStyles = (isDark: boolean) =>
       alignItems: 'center',
       justifyContent: 'space-between',
     },
+    streamingBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: 'rgba(76, 175, 80, 0.15)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    streamingDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: '#4CAF50',
+    },
+    streamingFpsText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: '#4CAF50',
+    },
     videoContainer: {
       flex: 1,
       marginHorizontal: 12,
       marginBottom: 8,
       borderRadius: 16,
       overflow: 'hidden',
+    },
+    cameraPlaceholder: {
+      flex: 1,
+      backgroundColor: isDark ? '#0a0a1e' : '#e0e0e0',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    placeholderText: {
+      color: '#888',
+      fontSize: 16,
     },
     errorOverlay: {
       position: 'absolute',
@@ -602,34 +685,34 @@ const createStyles = (isDark: boolean) =>
       fontWeight: '500',
       color: '#4CAF50',
     },
-    recordModeButton: {
+    armButton: {
       backgroundColor: '#fff',
       borderRadius: 12,
       padding: 16,
       borderWidth: 1,
       borderColor: '#e0e0e0',
     },
-    recordModeButtonDark: {
+    armButtonDark: {
       backgroundColor: '#2a2a4e',
       borderColor: '#3a3a5e',
     },
-    recordModeIcon: {
+    armButtonIcon: {
       marginBottom: 8,
     },
-    recordModeText: {
+    armButtonText: {
       fontSize: 16,
       fontWeight: '600',
       color: '#1a1a2e',
       marginBottom: 4,
     },
-    recordModeTextDark: {
+    armButtonTextDark: {
       color: '#fff',
     },
-    recordModeSubtext: {
+    armButtonSubtext: {
       fontSize: 13,
       color: '#666',
     },
-    recordModeSubtextDark: {
+    armButtonSubtextDark: {
       color: '#999',
     },
     recordingControls: {
@@ -643,7 +726,6 @@ const createStyles = (isDark: boolean) =>
       gap: 8,
       borderRadius: 8,
       paddingVertical: 12,
-      marginBottom: 8,
     },
     syncButtonReady: {
       backgroundColor: '#2196F3',
@@ -659,7 +741,7 @@ const createStyles = (isDark: boolean) =>
     syncButtonTextDisabled: {
       color: '#888',
     },
-    exitRecordingButton: {
+    secondaryButton: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
@@ -668,15 +750,35 @@ const createStyles = (isDark: boolean) =>
       borderRadius: 8,
       paddingVertical: 12,
     },
-    exitRecordingButtonDark: {
+    secondaryButtonDark: {
       backgroundColor: '#2a2a4e',
     },
-    exitRecordingText: {
+    secondaryButtonText: {
       fontSize: 14,
       fontWeight: '500',
       color: '#1a1a2e',
     },
-    exitRecordingTextDark: {
+    secondaryButtonTextDark: {
+      color: '#fff',
+    },
+    disarmButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: '#f0f0f0',
+      borderRadius: 8,
+      paddingVertical: 12,
+    },
+    disarmButtonDark: {
+      backgroundColor: '#2a2a4e',
+    },
+    disarmButtonText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: '#1a1a2e',
+    },
+    disarmButtonTextDark: {
       color: '#fff',
     },
     modalOverlay: {

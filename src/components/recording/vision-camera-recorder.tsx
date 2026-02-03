@@ -1,6 +1,7 @@
 import { StyleSheet, View, Pressable } from 'react-native';
 import { useRef, forwardRef, useImperativeHandle } from 'react';
 import { Camera, CameraDevice, VideoFile } from 'react-native-vision-camera';
+import { File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 
 export type VisionCameraRecorderProps = {
@@ -22,6 +23,8 @@ export type VisionCameraRecorderRef = {
   }) => void;
   /** Stop recording video. */
   stopRecording: () => Promise<void>;
+  /** Capture a snapshot from the preview buffer and return it as a base64 JPEG string. */
+  takeSnapshot: (options?: { quality?: number }) => Promise<string | null>;
 };
 
 /**
@@ -46,6 +49,29 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
       stopRecording: async () => {
         if (cameraRef.current) {
           await cameraRef.current.stopRecording();
+        }
+      },
+      takeSnapshot: async (options) => {
+        if (!cameraRef.current) return null;
+
+        try {
+          const snapshot = await cameraRef.current.takeSnapshot({
+            quality: options?.quality ?? 30,
+          });
+
+          const snapshotFile = new File(snapshot.path);
+          const base64Data = await snapshotFile.base64();
+
+          // Clean up temp file
+          try {
+            snapshotFile.delete();
+          } catch {
+            // Ignore cleanup errors
+          }
+
+          return base64Data;
+        } catch {
+          return null;
         }
       },
     }));

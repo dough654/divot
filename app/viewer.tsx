@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'expo-router';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { RemoteVideoView } from '@/src/components/video';
+import { PreviewFrameView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import { TransferProgressModal } from '@/src/components/clip-sync';
@@ -13,6 +13,7 @@ import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
+import { usePreviewReceiver } from '@/src/hooks/use-preview-receiver';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import type { ConnectionStep } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
@@ -38,7 +39,6 @@ export default function ViewerScreen() {
 
   const {
     peerConnection,
-    remoteStream,
     handleOffer,
     handleIceCandidate,
     isConnected,
@@ -72,6 +72,9 @@ export default function ViewerScreen() {
     dataChannel,
     onClipReceived: handleClipReceived,
   });
+
+  // Preview frame receiver
+  const { latestFrame, isReceiving } = usePreviewReceiver({ dataChannel });
 
   // Show transfer modal when receiving
   useEffect(() => {
@@ -168,10 +171,10 @@ export default function ViewerScreen() {
 
       {/* Video or Scanner or Manual Entry */}
       <View style={styles.mainContent}>
-        {isConnected || remoteStream ? (
-          <RemoteVideoView
-            stream={remoteStream}
-            isConnecting={connectionStep === 'establishing-webrtc'}
+        {isConnected ? (
+          <PreviewFrameView
+            latestFrame={latestFrame}
+            isConnected={isConnected}
           />
         ) : isScanning ? (
           useManualEntry ? (
@@ -222,10 +225,10 @@ export default function ViewerScreen() {
         {isConnected && (
           <View style={styles.qualityInfo}>
             <Text style={[styles.qualityLabel, isDark && styles.qualityLabelDark]}>
-              Stream Quality
+              Preview
             </Text>
             <Text style={[styles.qualityValue, isDark && styles.qualityValueDark]}>
-              {quality ? `${quality.latencyMs}ms latency` : 'Measuring...'}
+              {isReceiving ? 'Live' : 'Waiting...'}
             </Text>
           </View>
         )}
