@@ -2,18 +2,70 @@ import { type RefObject } from 'react';
 import { type View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { File } from 'expo-file-system/next';
+
+type CaptureOptions = {
+  /** Output width in pixels. If provided, the capture is resized. */
+  width?: number;
+  /** Output height in pixels. If provided, the capture is resized. */
+  height?: number;
+};
 
 /**
  * Captures the annotated video frame (video + SVG overlay) as a PNG
  * and saves it to the device's photo gallery.
  *
- * @param viewRef - Ref to the View compositing the video and drawing overlay.
+ * @param viewRef - Ref to the View compositing the frame image and drawing overlay.
+ * @param options - Optional width/height to resize the output image.
+ * @returns The gallery asset URI of the saved image.
+ * @throws If media library permission is denied or capture fails.
+ */
+/**
+ * Saves a raw base64 PNG string to the device's photo gallery.
+ * Used on Android where captureRef can't see SVG content — the SVG is
+ * composited via toDataURL() instead, producing a base64 PNG directly.
+ *
+ * @param base64Data - Raw base64-encoded PNG data (no data URI prefix).
+ * @returns The gallery asset URI of the saved image.
+ * @throws If media library permission is denied or save fails.
+ */
+export const saveBase64ImageToGallery = async (
+  base64Data: string,
+): Promise<string> => {
+  const { status } = await MediaLibrary.requestPermissionsAsync();
+  if (status !== 'granted') {
+    throw new Error('Media library permission denied');
+  }
+
+  const tempPath = `${FileSystem.cacheDirectory}annotated-frame-${Date.now()}.png`;
+  await FileSystem.writeAsStringAsync(tempPath, base64Data, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  try {
+    const asset = await MediaLibrary.createAssetAsync(tempPath);
+    return asset.uri;
+  } finally {
+    const tempFile = new File(tempPath);
+    if (tempFile.exists) {
+      tempFile.delete();
+    }
+  }
+};
+
+/**
+ * Captures the annotated video frame (video + SVG overlay) as a PNG
+ * and saves it to the device's photo gallery.
+ *
+ * @param viewRef - Ref to the View compositing the frame image and drawing overlay.
+ * @param options - Optional width/height to resize the output image.
  * @returns The gallery asset URI of the saved image.
  * @throws If media library permission is denied or capture fails.
  */
 export const captureAnnotatedFrame = async (
   viewRef: RefObject<View | null>,
+  options?: CaptureOptions,
 ): Promise<string> => {
   const { status } = await MediaLibrary.requestPermissionsAsync();
   if (status !== 'granted') {
@@ -24,12 +76,17 @@ export const captureAnnotatedFrame = async (
     format: 'png',
     quality: 1,
     result: 'tmpfile',
+    ...(options?.width && { width: options.width }),
+    ...(options?.height && { height: options.height }),
   });
 
   try {
     const asset = await MediaLibrary.createAssetAsync(tempUri);
     return asset.uri;
   } finally {
-    await FileSystem.deleteAsync(tempUri, { idempotent: true });
+    const tempFile = new File(tempUri);
+    if (tempFile.exists) {
+      tempFile.delete();
+    }
   }
 };

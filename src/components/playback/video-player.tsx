@@ -1,12 +1,15 @@
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Image, Alert, Platform } from 'react-native';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { DrawingOverlay } from '@/src/components/annotation/drawing-overlay';
+import { StaticAnnotationOverlay } from '@/src/components/annotation/static-annotation-overlay';
 import { DrawingToolbar } from '@/src/components/annotation/drawing-toolbar';
 import { useDrawing } from '@/src/hooks/use-drawing';
-import { captureAnnotatedFrame } from '@/src/services/annotation/frame-capture';
+import { captureAnnotatedFrame, saveBase64ImageToGallery } from '@/src/services/annotation/frame-capture';
 
 export type VideoPlayerProps = {
   /** URI of the video to play. */
@@ -53,6 +56,12 @@ export const VideoPlayer = ({
   const [isDrawMode, setIsDrawMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [captureFrameUri, setCaptureFrameUri] = useState<string | null>(null);
+  const captureFrameReady = useRef<(() => void) | null>(null);
+  const svgLayoutReady = useRef<(() => void) | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const staticSvgRef = useRef<any>(null);
+  const containerSize = useRef({ width: 0, height: 0 });
   const wasPlayingBeforeSeek = useRef(false);
   const lastSeekTime = useRef(0);
   const pendingSeek = useRef<number | null>(null);
@@ -110,25 +119,106 @@ export const VideoPlayer = ({
     }
   }, [isDrawMode, isPlaying, drawingEnabled]);
 
-  const handleSaveFrame = useCallback(async () => {
+  // Split into two phases so React actually re-renders between
+  // hiding the toolbar and capturing the view.
+  const pendingCapture = useRef(false);
+
+  const handleSaveFrame = useCallback(() => {
     if (!videoContainerRef.current) return;
 
-    setIsSaving(true);
-    setSaveMessage(null);
+    Alert.alert('Save to Photos', 'Save this annotated frame to your photo gallery?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Save',
+        onPress: async () => {
+          // Get the video frame as a thumbnail
+          const thumbnail = await VideoThumbnails.getThumbnailAsync(uri, {
+            time: position,
+          });
 
-    try {
-      // Wait one frame for the toolbar to hide before capturing
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      await captureAnnotatedFrame(videoContainerRef);
-      setSaveMessage('Saved to gallery');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Save failed';
-      setSaveMessage(message);
-    } finally {
-      setIsSaving(false);
-      setTimeout(() => setSaveMessage(null), 2000);
-    }
-  }, []);
+          // Read as base64 so Image renders synchronously
+          const base64 = await FileSystem.readAsStringAsync(thumbnail.uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          // Phase 1: hide toolbar + show thumbnail, then schedule capture
+          pendingCapture.current = true;
+          setSaveMessage(null);
+          setIsSaving(true);
+          setCaptureFrameUri(`data:image/jpeg;base64,${base64}`);
+        },
+      },
+    ]);
+  }, [uri, position]);
+
+  // Phase 2: runs after React re-renders with toolbar hidden + thumbnail visible
+  useEffect(() => {
+    if (!pendingCapture.current || !isSaving || !captureFrameUri) return;
+    pendingCapture.current = false;
+
+    const doCapture = async () => {
+      try {
+        if (Platform.OS === 'android' && drawing.annotations.length > 0) {
+          // Android path: captureRef can't see SVG content at all, so we
+          // composite frame + annotations entirely within the SVG and export
+          // via toDataURL. No captureRef needed.
+
+          // Wait for the SVG (with background image) to layout
+          await new Promise<void>((resolve) => {
+            if (svgLayoutReady.current === null) {
+              svgLayoutReady.current = resolve;
+            } else {
+              resolve();
+            }
+          });
+          // Extra frames for native SVG + image decoding to finish
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          await new Promise<void>((resolve) => setTimeout(resolve, 200));
+
+          if (!staticSvgRef.current) {
+            throw new Error('SVG ref not available');
+          }
+
+          const rawBase64 = await new Promise<string>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('toDataURL timeout')), 5000);
+            staticSvgRef.current.toDataURL((data: string) => {
+              clearTimeout(timeout);
+              resolve(data);
+            });
+          });
+
+          await saveBase64ImageToGallery(rawBase64);
+        } else {
+          // iOS path (or no annotations): use captureRef on the video container
+          // which correctly captures both the thumbnail Image and SVG overlay.
+          await new Promise<void>((resolve) => {
+            if (captureFrameReady.current) {
+              captureFrameReady.current = null;
+              requestAnimationFrame(() => resolve());
+            } else {
+              captureFrameReady.current = resolve;
+            }
+          });
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+          await captureAnnotatedFrame(videoContainerRef);
+        }
+
+        setSaveMessage('Saved to gallery');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Save failed';
+        setSaveMessage(message);
+      } finally {
+        setCaptureFrameUri(null);
+        svgLayoutReady.current = null;
+        setIsSaving(false);
+        setTimeout(() => setSaveMessage(null), 2000);
+      }
+    };
+
+    doCapture();
+  }, [isSaving, captureFrameUri]);
 
   const handleSeekStart = useCallback(async () => {
     setIsSeeking(true);
@@ -237,6 +327,10 @@ export const VideoPlayer = ({
         style={styles.videoContainer}
         onPress={isDrawMode ? undefined : togglePlayPause}
         disabled={isDrawMode}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          containerSize.current = { width, height };
+        }}
       >
         <Video
           ref={videoRef}
@@ -249,8 +343,23 @@ export const VideoPlayer = ({
           rate={playbackRate}
         />
 
-        {/* Drawing overlay - rendered over video */}
-        {drawingEnabled && (
+        {/* Thumbnail overlay for save capture — native video surfaces
+            aren't captured by view-shot, so we overlay a base64 Image
+            of the current frame during capture. */}
+        {captureFrameUri && (
+          <Image
+            source={{ uri: captureFrameUri }}
+            style={styles.captureFrame}
+            resizeMode="contain"
+            onLoad={() => {
+              captureFrameReady.current?.();
+              captureFrameReady.current = null;
+            }}
+          />
+        )}
+
+        {/* Drawing overlay - hidden during save so it doesn't block captureRef */}
+        {drawingEnabled && !isSaving && (
           <DrawingOverlay
             drawingEnabled={isDrawMode}
             annotations={showAnnotations ? drawing.annotations : []}
@@ -258,6 +367,28 @@ export const VideoPlayer = ({
             onLineStart={drawing.startLine}
             onLineMove={drawing.addPoint}
             onLineEnd={drawing.endLine}
+          />
+        )}
+
+        {/* Static annotation layer for capture.
+            On iOS: captureRef sees the SVG directly (no background image needed).
+            On Android: the frame is embedded as an SVG <Image> element so
+            toDataURL produces a fully composited PNG — bypassing captureRef
+            which can't see SVG content on Android. */}
+        {isSaving && drawing.annotations.length > 0 && (
+          <StaticAnnotationOverlay
+            ref={staticSvgRef}
+            annotations={drawing.annotations}
+            width={containerSize.current.width}
+            height={containerSize.current.height}
+            backgroundImageUri={Platform.OS === 'android' ? captureFrameUri ?? undefined : undefined}
+            onReady={() => {
+              if (svgLayoutReady.current) {
+                svgLayoutReady.current();
+              } else {
+                svgLayoutReady.current = () => {};
+              }
+            }}
           />
         )}
 
@@ -383,6 +514,9 @@ const styles = StyleSheet.create({
   video: {
     width: '100%',
     height: '100%',
+  },
+  captureFrame: {
+    ...StyleSheet.absoluteFillObject,
   },
   toolbarContainer: {
     position: 'absolute',
