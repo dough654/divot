@@ -1,5 +1,5 @@
 import { StyleSheet, View, Text, Pressable } from 'react-native';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
@@ -40,6 +40,9 @@ export const VideoPlayer = ({
   const [duration, setDuration] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
+  const wasPlayingBeforeSeek = useRef(false);
+  const lastSeekTime = useRef(0);
+  const pendingSeek = useRef<number | null>(null);
 
   const handlePlaybackStatusUpdate = useCallback(
     (status: AVPlaybackStatus) => {
@@ -73,33 +76,92 @@ export const VideoPlayer = ({
     }
   }, [isPlaying]);
 
-  const handleSeekStart = useCallback(() => {
+  const handleSeekStart = useCallback(async () => {
     setIsSeeking(true);
+    wasPlayingBeforeSeek.current = isPlaying;
+    // Pause during scrubbing for frame-accurate seeking
+    if (videoRef.current && isPlaying) {
+      await videoRef.current.pauseAsync();
+    }
+  }, [isPlaying]);
+
+  // Safely seek, ignoring "interrupted" errors from rapid scrubbing
+  const safeSeek = useCallback(async (value: number) => {
+    if (!videoRef.current) return;
+    try {
+      await videoRef.current.setPositionAsync(value, {
+        toleranceMillisBefore: 0,
+        toleranceMillisAfter: 0,
+      });
+    } catch (err) {
+      // Ignore "Seeking interrupted" errors - expected during rapid scrubbing
+      const message = err instanceof Error ? err.message : '';
+      if (!message.includes('interrupted')) {
+        console.error('Seek error:', err);
+      }
+    }
   }, []);
 
   const handleSeekComplete = useCallback(async (value: number) => {
     if (!videoRef.current) return;
 
-    await videoRef.current.setPositionAsync(value);
+    await safeSeek(value);
     setPosition(value);
     setIsSeeking(false);
-  }, []);
 
-  const handleSeekChange = useCallback((value: number) => {
+    // Resume playing if was playing before
+    if (wasPlayingBeforeSeek.current) {
+      await videoRef.current.playAsync();
+    }
+  }, [safeSeek]);
+
+  // Throttled seek while dragging - seeks every 50ms for smooth scrubbing
+  const handleSeekChange = useCallback(async (value: number) => {
     setPosition(value);
-  }, []);
 
-  const skipBackward = useCallback(async () => {
-    if (!videoRef.current) return;
-    const newPosition = Math.max(0, position - 5000);
-    await videoRef.current.setPositionAsync(newPosition);
-  }, [position]);
+    const now = Date.now();
+    if (now - lastSeekTime.current < 50) {
+      // Too soon, store for later
+      pendingSeek.current = value;
+      return;
+    }
 
-  const skipForward = useCallback(async () => {
+    lastSeekTime.current = now;
+    pendingSeek.current = null;
+
+    await safeSeek(value);
+  }, [safeSeek]);
+
+  // Process any pending seek when throttle window passes
+  useEffect(() => {
+    if (!isSeeking || pendingSeek.current === null) return;
+
+    const timer = setTimeout(async () => {
+      if (pendingSeek.current !== null) {
+        await safeSeek(pendingSeek.current);
+        pendingSeek.current = null;
+      }
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [position, isSeeking, safeSeek]);
+
+  // Frame step duration in ms (assuming 30fps = ~33ms per frame)
+  const FRAME_DURATION_MS = 33;
+
+  const stepBackward = useCallback(async () => {
     if (!videoRef.current) return;
-    const newPosition = Math.min(duration, position + 5000);
-    await videoRef.current.setPositionAsync(newPosition);
-  }, [position, duration]);
+    const newPosition = Math.max(0, position - FRAME_DURATION_MS);
+    await safeSeek(newPosition);
+    setPosition(newPosition);
+  }, [position, safeSeek]);
+
+  const stepForward = useCallback(async () => {
+    if (!videoRef.current) return;
+    const newPosition = Math.min(duration, position + FRAME_DURATION_MS);
+    await safeSeek(newPosition);
+    setPosition(newPosition);
+  }, [position, duration, safeSeek]);
 
   return (
     <View style={styles.container}>
@@ -113,15 +175,6 @@ export const VideoPlayer = ({
           onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
           shouldPlay={false}
         />
-
-        {/* Play/Pause overlay when paused */}
-        {isLoaded && !isPlaying && (
-          <View style={styles.playOverlay}>
-            <View style={styles.playButton}>
-              <Ionicons name="play" size={48} color="#fff" />
-            </View>
-          </View>
-        )}
 
         {/* Loading indicator */}
         {!isLoaded && (
@@ -155,9 +208,8 @@ export const VideoPlayer = ({
 
           {/* Control buttons */}
           <View style={styles.buttonRow}>
-            <Pressable style={styles.controlButton} onPress={skipBackward}>
-              <Ionicons name="play-back" size={28} color="#fff" />
-              <Text style={styles.skipLabel}>5s</Text>
+            <Pressable style={styles.frameButton} onPress={stepBackward}>
+              <Ionicons name="chevron-back" size={32} color="#fff" />
             </Pressable>
 
             <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
@@ -168,9 +220,8 @@ export const VideoPlayer = ({
               />
             </Pressable>
 
-            <Pressable style={styles.controlButton} onPress={skipForward}>
-              <Ionicons name="play-forward" size={28} color="#fff" />
-              <Text style={styles.skipLabel}>5s</Text>
+            <Pressable style={styles.frameButton} onPress={stepForward}>
+              <Ionicons name="chevron-forward" size={32} color="#fff" />
             </Pressable>
           </View>
         </View>
@@ -182,47 +233,38 @@ export const VideoPlayer = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#1a1a2e',
   },
   videoContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#12121f',
   },
   video: {
     width: '100%',
     height: '100%',
   },
-  playOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  playButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingLeft: 6, // Offset play icon to center visually
-  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(26, 26, 46, 0.8)',
   },
   loadingText: {
     color: '#fff',
     fontSize: 16,
   },
   controls: {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: '#1a1a2e',
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 16,
+    paddingBottom: 32,
   },
   timeRow: {
     flexDirection: 'row',
@@ -245,14 +287,13 @@ const styles = StyleSheet.create({
     gap: 32,
     marginTop: 8,
   },
-  controlButton: {
+  frameButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: 8,
-  },
-  skipLabel: {
-    color: '#888',
-    fontSize: 10,
-    marginTop: 2,
   },
   playPauseButton: {
     width: 64,

@@ -97,9 +97,9 @@ export default function PlaybackScreen() {
     <>
       <Stack.Screen
         options={{
-          title: clipTitle,
-          headerRight: () => (
-            <View style={styles.headerInfo}>
+          headerTitle: () => (
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>{clipTitle}</Text>
               <Text style={styles.headerDate}>{formatDate(clip.timestamp)}</Text>
             </View>
           ),
@@ -116,7 +116,7 @@ const createStyles = (isDark: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#000',
+      backgroundColor: '#1a1a2e',
     },
     centerContent: {
       flex: 1,
@@ -147,11 +147,17 @@ const createStyles = (isDark: boolean) =>
       fontSize: 16,
       fontWeight: '600',
     },
-    headerInfo: {
-      marginRight: 8,
+    headerTitleContainer: {
+      alignItems: 'center',
+    },
+    headerTitle: {
+      fontSize: 17,
+      fontWeight: '600',
+      color: isDark ? '#fff' : '#1a1a2e',
     },
     headerDate: {
       fontSize: 12,
       color: isDark ? '#888' : '#666',
+      marginTop: 2,
     },
   });

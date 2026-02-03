@@ -20,7 +20,7 @@ import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useVisionCamera } from '@/src/hooks/use-vision-camera';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
-import { saveClip, saveClipToGallery } from '@/src/services/recording/clip-storage';
+import { saveClip } from '@/src/services/recording/clip-storage';
 import { formatRoomCode } from '@/src/utils';
 import type { ConnectionStep } from '@/src/types';
 
@@ -244,28 +244,17 @@ export default function CameraScreen() {
         setIsRecording(false);
 
         try {
-          const clip = await saveClip({
+          await saveClip({
             path: video.path,
             duration,
             fps: 30, // Default for now
           });
 
-          // Also save to camera roll so user can view it
-          try {
-            await saveClipToGallery(clip.id);
-            Alert.alert(
-              'Recording Saved',
-              `${duration}s clip saved to your camera roll.`,
-              [{ text: 'OK' }]
-            );
-          } catch (galleryErr) {
-            // Saved to app storage but not camera roll
-            Alert.alert(
-              'Recording Saved',
-              `${duration}s clip saved. Camera roll access denied - check permissions to view in Photos.`,
-              [{ text: 'OK' }]
-            );
-          }
+          Alert.alert(
+            'Recording Saved',
+            `${duration}s clip saved. View it in My Clips.`,
+            [{ text: 'OK' }]
+          );
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'Failed to save recording';
           setRecordingError(errorMsg);
