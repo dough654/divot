@@ -51,6 +51,21 @@ export default function HomeScreen() {
             <Ionicons name="chevron-forward" size={24} color={isDark ? '#888' : '#666'} />
           </Pressable>
         </Link>
+
+        <Link href="/clips" asChild>
+          <Pressable style={styles.roleButton}>
+            <View style={[styles.roleIconContainer, styles.clipsIconContainer]}>
+              <Ionicons name="film" size={40} color="#FF9800" />
+            </View>
+            <View style={styles.roleTextContainer}>
+              <Text style={styles.roleTitle}>My Clips</Text>
+              <Text style={styles.roleDescription}>
+                View and playback recorded swing videos
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={isDark ? '#888' : '#666'} />
+          </Pressable>
+        </Link>
       </View>
 
       <View style={styles.footer}>
@@ -119,6 +134,9 @@ const createStyles = (isDark: boolean) =>
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: 16,
+    },
+    clipsIconContainer: {
+      backgroundColor: isDark ? '#2a1a1a' : '#fff3e0',
     },
     roleTextContainer: {
       flex: 1,

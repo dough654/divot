@@ -72,6 +72,20 @@ export default function RootLayout() {
             headerBackTitle: 'Back',
           }}
         />
+        <Stack.Screen
+          name="clips"
+          options={{
+            title: 'My Clips',
+            headerBackTitle: 'Back',
+          }}
+        />
+        <Stack.Screen
+          name="playback/[id]"
+          options={{
+            title: 'Playback',
+            headerBackTitle: 'Clips',
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );
