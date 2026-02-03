@@ -40,6 +40,7 @@ export const VideoPlayer = ({
   const [duration, setDuration] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const wasPlayingBeforeSeek = useRef(false);
   const lastSeekTime = useRef(0);
   const pendingSeek = useRef<number | null>(null);
@@ -146,6 +147,17 @@ export const VideoPlayer = ({
     return () => clearTimeout(timer);
   }, [position, isSeeking, safeSeek]);
 
+  // Available playback speeds
+  const PLAYBACK_SPEEDS = [0.25, 0.5, 1];
+
+  const cyclePlaybackSpeed = useCallback(() => {
+    const currentIndex = PLAYBACK_SPEEDS.indexOf(playbackRate);
+    const nextIndex = (currentIndex + 1) % PLAYBACK_SPEEDS.length;
+    const newRate = PLAYBACK_SPEEDS[nextIndex];
+    setPlaybackRate(newRate);
+    videoRef.current?.setRateAsync(newRate, true);
+  }, [playbackRate]);
+
   // Frame step duration in ms (assuming 30fps = ~33ms per frame)
   const FRAME_DURATION_MS = 33;
 
@@ -174,6 +186,7 @@ export const VideoPlayer = ({
           isLooping={loop}
           onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
           shouldPlay={false}
+          rate={playbackRate}
         />
 
         {/* Loading indicator */}
@@ -224,6 +237,11 @@ export const VideoPlayer = ({
               <Ionicons name="chevron-forward" size={32} color="#fff" />
             </Pressable>
           </View>
+
+          {/* Speed control */}
+          <Pressable style={styles.speedButton} onPress={cyclePlaybackSpeed}>
+            <Text style={styles.speedButtonText}>{playbackRate}x</Text>
+          </Pressable>
         </View>
       )}
     </View>
@@ -302,5 +320,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#4CAF50',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  speedButton: {
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 16,
+  },
+  speedButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
