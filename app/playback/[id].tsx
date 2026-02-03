@@ -106,7 +106,7 @@ export default function PlaybackScreen() {
         }}
       />
       <View style={styles.container}>
-        <VideoPlayer uri={clip.path} />
+        <VideoPlayer uri={clip.path} clipId={clip.id} />
       </View>
     </>
   );

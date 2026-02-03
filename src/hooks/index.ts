@@ -6,3 +6,4 @@ export * from './use-connection-cascade';
 export * from './use-connection-quality';
 export * from './use-vision-camera';
 export * from './use-video-recording';
+export * from './use-drawing';

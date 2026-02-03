@@ -3,6 +3,9 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
+import { DrawingOverlay } from '@/src/components/annotation/drawing-overlay';
+import { DrawingToolbar } from '@/src/components/annotation/drawing-toolbar';
+import { useDrawing } from '@/src/hooks/use-drawing';
 
 export type VideoPlayerProps = {
   /** URI of the video to play. */
@@ -13,6 +16,8 @@ export type VideoPlayerProps = {
   onPlaybackEnd?: () => void;
   /** Whether to loop the video. Defaults to false. */
   loop?: boolean;
+  /** Clip ID for persisting annotations. Enables drawing when provided. */
+  clipId?: string;
 };
 
 /**
@@ -26,13 +31,15 @@ const formatTime = (millis: number): string => {
 };
 
 /**
- * Video player component with play/pause controls and timeline scrubber.
+ * Video player component with play/pause controls, timeline scrubber,
+ * and optional freehand drawing annotations.
  */
 export const VideoPlayer = ({
   uri,
   showControls = true,
   onPlaybackEnd,
   loop = false,
+  clipId,
 }: VideoPlayerProps) => {
   const videoRef = useRef<Video>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,9 +48,13 @@ export const VideoPlayer = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [isDrawMode, setIsDrawMode] = useState(false);
   const wasPlayingBeforeSeek = useRef(false);
   const lastSeekTime = useRef(0);
   const pendingSeek = useRef<number | null>(null);
+
+  const drawingEnabled = !!clipId;
+  const drawing = useDrawing({ clipId: clipId ?? '' });
 
   const handlePlaybackStatusUpdate = useCallback(
     (status: AVPlaybackStatus) => {
@@ -73,9 +84,27 @@ export const VideoPlayer = ({
     if (isPlaying) {
       await videoRef.current.pauseAsync();
     } else {
+      // Exit draw mode when playing
+      if (isDrawMode) {
+        setIsDrawMode(false);
+      }
       await videoRef.current.playAsync();
     }
-  }, [isPlaying]);
+  }, [isPlaying, isDrawMode]);
+
+  const toggleDrawMode = useCallback(async () => {
+    if (!drawingEnabled) return;
+
+    if (isDrawMode) {
+      setIsDrawMode(false);
+    } else {
+      // Auto-pause when entering draw mode
+      if (isPlaying && videoRef.current) {
+        await videoRef.current.pauseAsync();
+      }
+      setIsDrawMode(true);
+    }
+  }, [isDrawMode, isPlaying, drawingEnabled]);
 
   const handleSeekStart = useCallback(async () => {
     setIsSeeking(true);
@@ -175,9 +204,15 @@ export const VideoPlayer = ({
     setPosition(newPosition);
   }, [position, duration, safeSeek]);
 
+  const showAnnotations = drawingEnabled;
+
   return (
     <View style={styles.container}>
-      <Pressable style={styles.videoContainer} onPress={togglePlayPause}>
+      <Pressable
+        style={styles.videoContainer}
+        onPress={isDrawMode ? undefined : togglePlayPause}
+        disabled={isDrawMode}
+      >
         <Video
           ref={videoRef}
           source={{ uri }}
@@ -188,6 +223,32 @@ export const VideoPlayer = ({
           shouldPlay={false}
           rate={playbackRate}
         />
+
+        {/* Drawing overlay - rendered over video */}
+        {drawingEnabled && (
+          <DrawingOverlay
+            drawingEnabled={isDrawMode}
+            lines={showAnnotations ? drawing.lines : []}
+            currentLine={showAnnotations ? drawing.currentLine : null}
+            onLineStart={drawing.startLine}
+            onLineMove={drawing.addPoint}
+            onLineEnd={drawing.endLine}
+          />
+        )}
+
+        {/* Drawing toolbar - absolutely positioned inside video container */}
+        {isDrawMode && (
+          <View style={styles.toolbarContainer}>
+            <DrawingToolbar
+              activeColor={drawing.color}
+              presetColors={drawing.presetColors}
+              canUndo={drawing.lines.length > 0}
+              onColorSelect={drawing.setColor}
+              onUndo={drawing.undo}
+              onClear={drawing.clearAll}
+            />
+          </View>
+        )}
 
         {/* Loading indicator */}
         {!isLoaded && (
@@ -238,10 +299,28 @@ export const VideoPlayer = ({
             </Pressable>
           </View>
 
-          {/* Speed control */}
-          <Pressable style={styles.speedButton} onPress={cyclePlaybackSpeed}>
-            <Text style={styles.speedButtonText}>{playbackRate}x</Text>
-          </Pressable>
+          {/* Bottom row: speed + draw toggle */}
+          <View style={styles.bottomRow}>
+            <Pressable style={styles.speedButton} onPress={cyclePlaybackSpeed}>
+              <Text style={styles.speedButtonText}>{playbackRate}x</Text>
+            </Pressable>
+
+            {drawingEnabled && (
+              <Pressable
+                style={[
+                  styles.drawButton,
+                  isDrawMode && styles.drawButtonActive,
+                ]}
+                onPress={toggleDrawMode}
+              >
+                <Ionicons
+                  name="pencil"
+                  size={18}
+                  color={isDrawMode ? '#fff' : '#ccc'}
+                />
+              </Pressable>
+            )}
+          </View>
         </View>
       )}
     </View>
@@ -267,6 +346,12 @@ const styles = StyleSheet.create({
   video: {
     width: '100%',
     height: '100%',
+  },
+  toolbarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -321,9 +406,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  speedButton: {
-    alignSelf: 'center',
+  bottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 12,
+    gap: 12,
+  },
+  speedButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
@@ -333,5 +423,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  drawButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  drawButtonActive: {
+    backgroundColor: '#4CAF50',
   },
 });
