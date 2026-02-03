@@ -20,7 +20,7 @@ import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useVisionCamera } from '@/src/hooks/use-vision-camera';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
-import { saveClip } from '@/src/services/recording/clip-storage';
+import { saveClip, saveClipToGallery } from '@/src/services/recording/clip-storage';
 import { formatRoomCode } from '@/src/utils';
 import type { ConnectionStep } from '@/src/types';
 
@@ -47,6 +47,7 @@ export default function CameraScreen() {
   const recorderRef = useRef<VisionCameraRecorderRef>(null);
   const recordingStartTimeRef = useRef<number | null>(null);
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingDurationRef = useRef(0);
 
   // Hooks for streaming mode
   const {
@@ -108,11 +109,13 @@ export default function CameraScreen() {
     if (isRecording) {
       recordingStartTimeRef.current = Date.now();
       setRecordingDuration(0);
+      recordingDurationRef.current = 0;
 
       durationIntervalRef.current = setInterval(() => {
         if (recordingStartTimeRef.current) {
-          const elapsed = (Date.now() - recordingStartTimeRef.current) / 1000;
-          setRecordingDuration(Math.floor(elapsed));
+          const elapsed = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
+          setRecordingDuration(elapsed);
+          recordingDurationRef.current = elapsed;
         }
       }, 100);
     } else {
@@ -236,21 +239,33 @@ export default function CameraScreen() {
 
     recorderRef.current.startRecording({
       onRecordingFinished: async (video: VideoFile) => {
-        const duration = recordingDuration;
+        // Use ref to get current duration (avoids closure issue)
+        const duration = recordingDurationRef.current;
         setIsRecording(false);
 
         try {
-          await saveClip({
+          const clip = await saveClip({
             path: video.path,
             duration,
             fps: 30, // Default for now
           });
 
-          Alert.alert(
-            'Recording Saved',
-            `Clip saved (${duration}s). You can find it in the app's clips folder.`,
-            [{ text: 'OK' }]
-          );
+          // Also save to camera roll so user can view it
+          try {
+            await saveClipToGallery(clip.id);
+            Alert.alert(
+              'Recording Saved',
+              `${duration}s clip saved to your camera roll.`,
+              [{ text: 'OK' }]
+            );
+          } catch (galleryErr) {
+            // Saved to app storage but not camera roll
+            Alert.alert(
+              'Recording Saved',
+              `${duration}s clip saved. Camera roll access denied - check permissions to view in Photos.`,
+              [{ text: 'OK' }]
+            );
+          }
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'Failed to save recording';
           setRecordingError(errorMsg);
@@ -264,7 +279,7 @@ export default function CameraScreen() {
         Alert.alert('Recording Error', errorMsg);
       },
     });
-  }, [recordingDuration]);
+  }, []);
 
   const handleStopRecording = useCallback(async () => {
     if (!recorderRef.current) return;
