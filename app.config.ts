@@ -22,6 +22,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSMicrophoneUsageDescription: 'SwingLink needs microphone access for audio during video streaming.',
       NSLocalNetworkUsageDescription: 'SwingLink uses local network to discover and connect to nearby devices.',
       NSBonjourServices: ['_swinglink._tcp'],
+      NSPhotoLibraryUsageDescription: 'SwingLink needs photo library access to save recorded swing videos.',
+      NSPhotoLibraryAddUsageDescription: 'SwingLink needs photo library access to save recorded swing videos.',
     },
   },
   android: {
@@ -38,6 +40,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'ACCESS_WIFI_STATE',
       'CHANGE_WIFI_STATE',
       'INTERNET',
+      'READ_EXTERNAL_STORAGE',
+      'WRITE_EXTERNAL_STORAGE',
     ],
   },
   web: {
@@ -60,6 +64,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         cameraPermission: 'SwingLink needs camera access to scan QR codes and film your swing.',
         microphonePermission: 'SwingLink needs microphone access for audio during video streaming.',
         recordAudioAndroid: true,
+      },
+    ],
+    [
+      'react-native-vision-camera',
+      {
+        cameraPermissionText: 'SwingLink needs camera access to record your golf swing.',
+        enableMicrophonePermission: true,
+        microphonePermissionText: 'SwingLink needs microphone access to record audio with your swing videos.',
+      },
+    ],
+    [
+      'expo-media-library',
+      {
+        photosPermission: 'SwingLink needs photo library access to save recorded swing videos.',
+        savePhotosPermission: 'SwingLink needs permission to save recorded swing videos to your library.',
+        isAccessMediaLocationEnabled: true,
       },
     ],
   ],
