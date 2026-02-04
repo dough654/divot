@@ -23,6 +23,8 @@ const stepInfo: Record<ConnectionStep, { label: string; icon: keyof typeof Ionic
   'exchanging-signaling': { label: 'Exchanging signals...', icon: 'swap-horizontal' },
   'establishing-webrtc': { label: 'Establishing connection...', icon: 'git-branch' },
   connected: { label: 'Connected', icon: 'checkmark-circle' },
+  reconnecting: { label: 'Reconnecting...', icon: 'refresh' },
+  'reconnect-failed': { label: 'Reconnection failed', icon: 'close-circle' },
   failed: { label: 'Connection failed', icon: 'close-circle' },
 };
 
@@ -45,11 +47,13 @@ export const ConnectionStatus = ({
 }: ConnectionStatusProps) => {
   const info = stepInfo[step];
   const isConnected = step === 'connected';
-  const isFailed = step === 'failed';
+  const isFailed = step === 'failed' || step === 'reconnect-failed';
+  const isReconnecting = step === 'reconnecting';
   const qualityRating = getQualityRating(quality ?? null);
 
   const getStatusColor = () => {
     if (isConnected) return '#4CAF50';
+    if (isReconnecting) return '#FF9800';
     if (isFailed) return '#f44336';
     return isDark ? '#888' : '#666';
   };

@@ -95,6 +95,62 @@ io.on('connection', (socket: Socket) => {
   });
 
   /**
+   * Rejoin an existing room (or re-create it).
+   * Camera role: re-creates room if it was cleaned up, then joins.
+   * Viewer role: joins existing room (fails if room doesn't exist yet).
+   */
+  socket.on('rejoin-room', (data: { roomCode: string; role: 'camera' | 'viewer' }, callback: (response: { success?: boolean; error?: string }) => void) => {
+    const { roomCode, role } = data;
+    let room = rooms.get(roomCode);
+
+    if (role === 'camera') {
+      if (!room) {
+        room = new Set();
+        rooms.set(roomCode, room);
+        console.log(`Room re-created: ${roomCode} by ${socket.id}`);
+      }
+
+      // Remove stale entry if already present (reconnecting same socket)
+      room.delete(socket.id);
+
+      if (room.size >= 2) {
+        callback({ error: 'Room is full' });
+        return;
+      }
+
+      room.add(socket.id);
+      socket.join(roomCode);
+
+      // Notify any existing peer
+      socket.to(roomCode).emit('peer-joined');
+
+      console.log(`Camera ${socket.id} rejoined room: ${roomCode}`);
+      callback({ success: true });
+    } else {
+      // Viewer: room must exist (camera should rejoin first)
+      if (!room) {
+        callback({ error: 'Room not found' });
+        return;
+      }
+
+      room.delete(socket.id);
+
+      if (room.size >= 2) {
+        callback({ error: 'Room is full' });
+        return;
+      }
+
+      room.add(socket.id);
+      socket.join(roomCode);
+
+      socket.to(roomCode).emit('peer-joined');
+
+      console.log(`Viewer ${socket.id} rejoined room: ${roomCode}`);
+      callback({ success: true });
+    }
+  });
+
+  /**
    * Leave the current room.
    */
   socket.on('leave-room', (roomCode: string) => {

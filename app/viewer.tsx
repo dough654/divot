@@ -14,6 +14,7 @@ import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { usePreviewReceiver } from '@/src/hooks/use-preview-receiver';
+import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import type { ConnectionStep } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
@@ -27,10 +28,16 @@ export default function ViewerScreen() {
   const [useManualEntry, setUseManualEntry] = useState(false);
   const isProcessingScan = useRef(false);
 
+  const roomCodeRef = useRef<string | null>(null);
+  const [wasConnected, setWasConnected] = useState(false);
+
   // Hooks
   const {
+    connectionState: signalingConnectionState,
     connect: connectSignaling,
+    reconnectSignaling,
     joinRoom,
+    rejoinRoom,
     sendAnswer,
     sendIceCandidate,
     onOffer,
@@ -41,8 +48,11 @@ export default function ViewerScreen() {
     peerConnection,
     handleOffer,
     handleIceCandidate,
+    restartIce,
+    renegotiate,
     isConnected,
     dataChannel,
+    status: webrtcStatus,
   } = useWebRTCConnection({
     onIceCandidate: sendIceCandidate,
   });
@@ -76,6 +86,32 @@ export default function ViewerScreen() {
   // Preview frame receiver
   const { latestFrame, isReceiving } = usePreviewReceiver({ dataChannel });
 
+  const isSyncing = syncProgress.state === 'sending' || syncProgress.state === 'receiving';
+
+  // Track wasConnected
+  useEffect(() => {
+    if (isConnected && !wasConnected) {
+      setWasConnected(true);
+    }
+  }, [isConnected, wasConnected]);
+
+  // Auto-reconnect (viewer: restartIce/renegotiate/sendOffer are no-ops since camera initiates)
+  const noopSdpAction = useCallback(async () => null, []);
+  const { reconnectionState } = useAutoReconnect({
+    role: 'viewer',
+    iceConnectionState: webrtcStatus.iceConnectionState,
+    signalingConnectionState,
+    wasConnected,
+    roomCode: roomCodeRef.current,
+    isRecording: false,
+    isTransferring: isSyncing,
+    restartIce: noopSdpAction,
+    renegotiate: noopSdpAction,
+    sendOffer: () => {},
+    reconnectSignaling,
+    rejoinRoom,
+  });
+
   // Show transfer modal when receiving
   useEffect(() => {
     if (syncProgress.state === 'receiving') {
@@ -85,6 +121,7 @@ export default function ViewerScreen() {
 
   // Connect to the signaling server and join the room
   const proceedWithConnection = useCallback(async (roomCode: string) => {
+    roomCodeRef.current = roomCode;
     setConnectionStep('exchanging-signaling');
 
     await connectSignaling();
@@ -136,12 +173,16 @@ export default function ViewerScreen() {
     return unsubscribe;
   }, [onIceCandidate, handleIceCandidate]);
 
-  // Update connection step based on WebRTC state
+  // Update connection step based on WebRTC and reconnection state
   useEffect(() => {
     if (isConnected) {
       setConnectionStep('connected');
+    } else if (reconnectionState.isReconnecting) {
+      setConnectionStep('reconnecting');
+    } else if (reconnectionState.lastDisconnectReason && !reconnectionState.isReconnecting && reconnectionState.attempt > 0) {
+      setConnectionStep('reconnect-failed');
     }
-  }, [isConnected]);
+  }, [isConnected, reconnectionState]);
 
   const handleRescan = useCallback(() => {
     isProcessingScan.current = false;

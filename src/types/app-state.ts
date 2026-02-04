@@ -14,7 +14,19 @@ export type ConnectionStep =
   | 'exchanging-signaling'
   | 'establishing-webrtc'
   | 'connected'
+  | 'reconnecting'
+  | 'reconnect-failed'
   | 'failed';
+
+export type ReconnectionStrategy = 'ice-restart' | 'renegotiation' | 'signaling-rejoin';
+
+export type ReconnectionState = {
+  isReconnecting: boolean;
+  attempt: number;
+  maxAttempts: number;
+  lastDisconnectReason: string | null;
+  strategy: ReconnectionStrategy | null;
+};
 
 export type ConnectionCascadeState = {
   step: ConnectionStep;

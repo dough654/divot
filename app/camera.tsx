@@ -19,6 +19,7 @@ import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useVisionCamera } from '@/src/hooks/use-vision-camera';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { useFrameStreaming } from '@/src/hooks/use-frame-streaming';
+import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { TransferProgressModal } from '@/src/components/clip-sync';
@@ -62,9 +63,12 @@ export default function CameraScreen() {
   } = useVisionCamera({ autoRequestPermissions: true });
 
   const {
+    connectionState: signalingConnectionState,
     roomCode,
     connect: connectSignaling,
+    reconnectSignaling,
     createRoom,
+    rejoinRoom,
     sendOffer,
     sendIceCandidate,
     onAnswer,
@@ -78,8 +82,11 @@ export default function CameraScreen() {
     createOffer,
     handleAnswer,
     handleIceCandidate,
+    restartIce,
+    renegotiate,
     isConnected,
     dataChannel,
+    status: webrtcStatus,
   } = useWebRTCConnection({
     onIceCandidate: sendIceCandidate,
   });
@@ -99,6 +106,14 @@ export default function CameraScreen() {
     dataChannel,
   });
 
+  // Track whether we were ever connected (for auto-reconnect)
+  const [wasConnected, setWasConnected] = useState(false);
+  useEffect(() => {
+    if (isConnected && !wasConnected) {
+      setWasConnected(true);
+    }
+  }, [isConnected, wasConnected]);
+
   // Frame streaming — active whenever connected and not syncing a clip
   const isSyncing = syncProgress.state === 'sending' || syncProgress.state === 'receiving';
   const frameStreamingEnabled = isConnected && !isSyncing;
@@ -107,6 +122,22 @@ export default function CameraScreen() {
     recorderRef,
     dataChannel,
     enabled: frameStreamingEnabled,
+  });
+
+  // Auto-reconnect
+  const { reconnectionState } = useAutoReconnect({
+    role: 'camera',
+    iceConnectionState: webrtcStatus.iceConnectionState,
+    signalingConnectionState,
+    wasConnected,
+    roomCode,
+    isRecording: cameraState === 'recording',
+    isTransferring: isSyncing,
+    restartIce,
+    renegotiate,
+    sendOffer: (sdp) => sendOffer(sdp),
+    reconnectSignaling,
+    rejoinRoom,
   });
 
   // QR code payload
@@ -204,12 +235,16 @@ export default function CameraScreen() {
     return unsubscribe;
   }, [onIceCandidate, handleIceCandidate]);
 
-  // Update connection step based on WebRTC state
+  // Update connection step based on WebRTC and reconnection state
   useEffect(() => {
     if (isConnected) {
       setConnectionStep('connected');
+    } else if (reconnectionState.isReconnecting) {
+      setConnectionStep('reconnecting');
+    } else if (reconnectionState.lastDisconnectReason && !reconnectionState.isReconnecting && reconnectionState.attempt > 0) {
+      setConnectionStep('reconnect-failed');
     }
-  }, [isConnected]);
+  }, [isConnected, reconnectionState]);
 
   const handleQRButtonPress = () => {
     setShowQRModal(true);

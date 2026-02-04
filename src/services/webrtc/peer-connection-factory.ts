@@ -143,13 +143,20 @@ export const addStreamToPeerConnection = (
   });
 };
 
+export type CreateOfferOptions = {
+  iceRestart?: boolean;
+};
+
 /**
  * Creates an SDP offer for the peer connection.
  */
 export const createOffer = async (
-  peerConnection: RTCPeerConnection
+  peerConnection: RTCPeerConnection,
+  options: CreateOfferOptions = {}
 ): Promise<SDPInfo> => {
-  const offer = await peerConnection.createOffer({});
+  const offer = await peerConnection.createOffer(
+    options.iceRestart ? { iceRestart: true } : {}
+  );
   await peerConnection.setLocalDescription(offer);
 
   return {

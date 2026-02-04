@@ -36,6 +36,8 @@ export type UseWebRTCConnectionResult = {
   handleOffer: (sdp: SDPInfo) => Promise<SDPInfo | null>;
   handleAnswer: (sdp: SDPInfo) => Promise<void>;
   handleIceCandidate: (candidate: IceCandidateInfo) => Promise<void>;
+  restartIce: () => Promise<SDPInfo | null>;
+  renegotiate: () => Promise<SDPInfo | null>;
   disconnect: () => void;
   isConnected: boolean;
 };
@@ -169,6 +171,15 @@ export const useWebRTCConnection = (
   const handleOffer = useCallback(
     async (sdp: SDPInfo): Promise<SDPInfo | null> => {
       try {
+        // If we already have a peer connection, tear it down first (renegotiation)
+        if (peerConnectionRef.current) {
+          closePeerConnection(peerConnectionRef.current);
+          peerConnectionRef.current = null;
+          setDataChannel(null);
+          dataChannelRef.current = null;
+          pendingCandidatesRef.current = [];
+        }
+
         // Viewer/receiver creates answer, receives data channel
         const pc = initializePeerConnection(false);
         const answer = await createAnswer(pc, sdp);
@@ -237,6 +248,62 @@ export const useWebRTCConnection = (
     }
   }, []);
 
+  /**
+   * Performs an ICE restart on the existing peer connection.
+   * Lightweight recovery that preserves the RTCPeerConnection and data channels.
+   */
+  const restartIce = useCallback(async (): Promise<SDPInfo | null> => {
+    try {
+      if (!peerConnectionRef.current) {
+        console.error('No peer connection for ICE restart');
+        return null;
+      }
+
+      const offer = await createOffer(peerConnectionRef.current, { iceRestart: true });
+
+      setStatus((prev) => ({
+        ...prev,
+        signalingState: 'have-local-offer' as SignalingState,
+      }));
+
+      return offer;
+    } catch (err) {
+      console.error('Failed to restart ICE:', err);
+      return null;
+    }
+  }, []);
+
+  /**
+   * Full renegotiation: tears down the existing peer connection and creates a fresh one.
+   * Returns a new SDP offer.
+   */
+  const renegotiate = useCallback(async (): Promise<SDPInfo | null> => {
+    try {
+      // Tear down existing connection
+      if (peerConnectionRef.current) {
+        closePeerConnection(peerConnectionRef.current);
+        peerConnectionRef.current = null;
+      }
+      setDataChannel(null);
+      dataChannelRef.current = null;
+      pendingCandidatesRef.current = [];
+
+      // Create fresh connection (as initiator with data channel)
+      const pc = initializePeerConnection(true);
+      const offer = await createOffer(pc);
+
+      setStatus((prev) => ({
+        ...prev,
+        signalingState: 'have-local-offer' as SignalingState,
+      }));
+
+      return offer;
+    } catch (err) {
+      console.error('Failed to renegotiate:', err);
+      return null;
+    }
+  }, [initializePeerConnection]);
+
   const disconnect = useCallback(() => {
     if (peerConnectionRef.current) {
       closePeerConnection(peerConnectionRef.current);
@@ -268,6 +335,8 @@ export const useWebRTCConnection = (
     handleOffer,
     handleAnswer,
     handleIceCandidate,
+    restartIce,
+    renegotiate,
     disconnect,
     isConnected: status.isConnected,
   };

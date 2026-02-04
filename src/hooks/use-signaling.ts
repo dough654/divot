@@ -13,8 +13,10 @@ export type UseSignalingResult = {
   error: SignalingError | null;
   connect: () => Promise<void>;
   disconnect: () => void;
+  reconnectSignaling: () => Promise<void>;
   createRoom: () => Promise<string | null>;
   joinRoom: (code: string) => Promise<boolean>;
+  rejoinRoom: (roomCode: string, role: 'camera' | 'viewer') => Promise<boolean>;
   leaveRoom: () => void;
   sendOffer: (sdp: string) => void;
   sendAnswer: (sdp: string) => void;
@@ -24,6 +26,7 @@ export type UseSignalingResult = {
   onIceCandidate: (callback: (candidate: IceCandidateInfo) => void) => () => void;
   onPeerJoined: (callback: () => void) => () => void;
   onPeerLeft: (callback: () => void) => () => void;
+  onReconnected: (callback: () => void) => () => void;
 };
 
 /**
@@ -44,12 +47,14 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
     onIceCandidate: Set<(candidate: IceCandidateInfo) => void>;
     onPeerJoined: Set<() => void>;
     onPeerLeft: Set<() => void>;
+    onReconnected: Set<() => void>;
   }>({
     onOffer: new Set(),
     onAnswer: new Set(),
     onIceCandidate: new Set(),
     onPeerJoined: new Set(),
     onPeerLeft: new Set(),
+    onReconnected: new Set(),
   });
 
   // Initialize client
@@ -73,6 +78,9 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
         },
         onPeerLeft: () => {
           callbacksRef.current.onPeerLeft.forEach((cb) => cb());
+        },
+        onReconnected: () => {
+          callbacksRef.current.onReconnected.forEach((cb) => cb());
         },
       }
     );
@@ -173,6 +181,34 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
     };
   }, []);
 
+  const onReconnected = useCallback((callback: () => void) => {
+    callbacksRef.current.onReconnected.add(callback);
+    return () => {
+      callbacksRef.current.onReconnected.delete(callback);
+    };
+  }, []);
+
+  const reconnectSignaling = useCallback(async () => {
+    if (!clientRef.current) return;
+    try {
+      await clientRef.current.reconnect();
+    } catch (err) {
+      console.error('Failed to reconnect signaling:', err);
+    }
+  }, []);
+
+  const rejoinRoom = useCallback(async (code: string, role: 'camera' | 'viewer'): Promise<boolean> => {
+    if (!clientRef.current) return false;
+    try {
+      await clientRef.current.rejoinRoom(code, role);
+      setRoomCode(code);
+      return true;
+    } catch (err) {
+      console.error('Failed to rejoin room:', err);
+      return false;
+    }
+  }, []);
+
   // Auto-connect if requested
   useEffect(() => {
     if (autoConnect) {
@@ -186,8 +222,10 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
     error,
     connect,
     disconnect,
+    reconnectSignaling,
     createRoom,
     joinRoom,
+    rejoinRoom,
     leaveRoom,
     sendOffer,
     sendAnswer,
@@ -197,5 +235,6 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
     onIceCandidate,
     onPeerJoined,
     onPeerLeft,
+    onReconnected,
   };
 };

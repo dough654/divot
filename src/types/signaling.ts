@@ -1,6 +1,7 @@
 export type SignalingEventType =
   | 'create-room'
   | 'join-room'
+  | 'rejoin-room'
   | 'leave-room'
   | 'offer'
   | 'answer'
@@ -50,13 +51,20 @@ export type SignalingClientConfig = {
   reconnectionDelay?: number;
 };
 
+export type RejoinRoomResponse = {
+  success: boolean;
+  error?: string;
+};
+
 export type SignalingClientHookResult = {
   connectionState: SignalingConnectionState;
   roomCode: string | null;
   error: SignalingError | null;
   createRoom: () => Promise<string | null>;
   joinRoom: (code: string) => Promise<boolean>;
+  rejoinRoom: (roomCode: string, role: 'camera' | 'viewer') => Promise<boolean>;
   leaveRoom: () => void;
+  reconnectSignaling: () => Promise<void>;
   sendOffer: (sdp: string) => void;
   sendAnswer: (sdp: string) => void;
   sendIceCandidate: (candidate: { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null }) => void;
@@ -65,4 +73,5 @@ export type SignalingClientHookResult = {
   onIceCandidate: (callback: (candidate: { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null }) => void) => () => void;
   onPeerJoined: (callback: () => void) => () => void;
   onPeerLeft: (callback: () => void) => () => void;
+  onReconnected: (callback: () => void) => () => void;
 };

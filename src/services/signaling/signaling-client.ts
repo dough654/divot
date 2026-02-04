@@ -20,6 +20,7 @@ export type SignalingClientCallbacks = {
   onIceCandidate?: (candidate: IceCandidateInfo) => void;
   onPeerJoined?: () => void;
   onPeerLeft?: () => void;
+  onReconnected?: () => void;
 };
 
 /**
@@ -91,7 +92,13 @@ export const createSignalingClient = (
 
       socket.on('disconnect', () => {
         updateConnectionState('disconnected');
-        currentRoom = null;
+        // Preserve currentRoom so we can rejoin after reconnection
+      });
+
+      socket.io.on('reconnect', () => {
+        console.log('[Signaling] Socket.IO reconnected');
+        updateConnectionState('connected');
+        callbacks.onReconnected?.();
       });
 
       // Set up message handlers
@@ -194,6 +201,49 @@ export const createSignalingClient = (
   };
 
   /**
+   * Rejoins a room after reconnection.
+   * Camera re-creates the room if it was cleaned up; viewer joins existing room.
+   */
+  const rejoinRoom = (roomCode: string, role: 'camera' | 'viewer'): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (!socket?.connected) {
+        reject(new Error('Not connected to signaling server'));
+        return;
+      }
+
+      socket.emit('rejoin-room', { roomCode, role }, (response: { success?: boolean; error?: string }) => {
+        if (response.error) {
+          callbacks.onError?.({
+            code: 'REJOIN_ROOM_ERROR',
+            message: response.error,
+          });
+          reject(new Error(response.error));
+          return;
+        }
+
+        if (response.success) {
+          currentRoom = roomCode;
+          resolve();
+        } else {
+          reject(new Error('Failed to rejoin room'));
+        }
+      });
+    });
+  };
+
+  /**
+   * Reconnects to the signaling server (disconnect + connect).
+   */
+  const reconnect = async (): Promise<void> => {
+    if (socket) {
+      socket.disconnect();
+      socket = null;
+    }
+    updateConnectionState('disconnected');
+    await connect();
+  };
+
+  /**
    * Leaves the current room.
    */
   const leaveRoom = (): void => {
@@ -243,8 +293,10 @@ export const createSignalingClient = (
   return {
     connect,
     disconnect,
+    reconnect,
     createRoom,
     joinRoom,
+    rejoinRoom,
     leaveRoom,
     sendOffer,
     sendAnswer,

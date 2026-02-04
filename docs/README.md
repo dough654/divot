@@ -7,6 +7,7 @@ Technical documentation for SwingLink's architecture, design decisions, and subs
 | Document | Description |
 |----------|-------------|
 | [Annotation System](architecture/annotation-system.md) | Drawing tools, type system, component architecture, storage, and frame capture/export |
+| [Auto-Reconnection](architecture/auto-reconnection.md) | ICE restart, signaling rejoin, backoff, recording/transfer awareness |
 
 ## Architecture Decision Records (ADRs)
 
