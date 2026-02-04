@@ -149,12 +149,11 @@ export default function CameraScreen() {
     rejoinRoom,
   });
 
-  // QR code payload
+  // QR code payload - keep minimal to ensure scannable at low resolution
   const qrPayload = roomCode
     ? encodeQRPayload({
         sessionId: roomCode,
         mode: 'auto',
-        signalingUrl: 'https://swinglink-signaling.fly.dev',
       })
     : null;
 
