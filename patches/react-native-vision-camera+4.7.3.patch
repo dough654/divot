@@ -1,0 +1,28 @@
+diff --git a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CodeScannerPipeline.kt b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CodeScannerPipeline.kt
+index 23d78d1..0b132d1 100644
+--- a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CodeScannerPipeline.kt
++++ b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CodeScannerPipeline.kt
+@@ -27,14 +27,22 @@ class CodeScannerPipeline(val configuration: CameraConfiguration.CodeScanner, va
+     scanner = BarcodeScanning.getClient(barcodeScannerOptions)
+   }
+ 
++  private var analyzeCount = 0L
++
+   @OptIn(ExperimentalGetImage::class)
+   override fun analyze(imageProxy: ImageProxy) {
+     val image = imageProxy.image ?: throw InvalidImageTypeError()
++    analyzeCount++
+ 
+     try {
+-      val inputImage = InputImage.fromMediaImage(image, imageProxy.imageInfo.rotationDegrees)
++      val rotation = imageProxy.imageInfo.rotationDegrees
++      val inputImage = InputImage.fromMediaImage(image, rotation)
++      if (analyzeCount % 30 == 1L) {
++        Log.i(TAG, "analyze() called #$analyzeCount — rotation=$rotation size=${inputImage.width}x${inputImage.height}")
++      }
+       scanner.process(inputImage)
+         .addOnSuccessListener { barcodes ->
++          Log.i(TAG, "MLKit result: ${barcodes.size} barcodes found (frame #$analyzeCount)")
+           if (barcodes.isNotEmpty()) {
+             callback.onCodeScanned(barcodes, CodeScannerFrame(inputImage.width, inputImage.height))
+           }

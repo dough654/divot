@@ -30,7 +30,8 @@
     "eas:configure": "npx eas-cli build:configure",
     "eas:login": "npx eas-cli login",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^13.0.0",
@@ -72,6 +73,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "patch-package": "^8.0.1",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2",
     "vitest": "^4.0.18"

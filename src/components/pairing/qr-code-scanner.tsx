@@ -68,6 +68,7 @@ export const QRCodeScanner = ({
         isActive={isScanning}
         codeScanner={codeScanner}
         androidPreviewViewType="texture-view"
+        onError={(error) => console.error('[QRScanner] Camera error:', error.code, error.message)}
       />
       <View style={styles.overlay} pointerEvents="none">
         <View style={styles.scanArea}>
