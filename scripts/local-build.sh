@@ -83,8 +83,8 @@ rsync -az --delete \
   --exclude='node_modules' \
   --exclude='.git' \
   --exclude='.expo' \
-  --exclude='android' \
-  --exclude='ios' \
+  --exclude='/android' \
+  --exclude='/ios' \
   --exclude='builds' \
   "${LOCAL_DIR}/" "${MAC_HOST}:${REMOTE_DIR}/"
 echo "    Done."
