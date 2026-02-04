@@ -16,6 +16,6 @@ Pod::Spec.new do |s|
   s.source_files   = '**/*.{swift,m,h}'
 
   s.dependency 'ExpoModulesCore'
-  s.dependency 'VisionCamera/FrameProcessors'
+  s.dependency 'VisionCamera'
   s.dependency 'JitsiWebRTC', '~> 124.0.0'
 end

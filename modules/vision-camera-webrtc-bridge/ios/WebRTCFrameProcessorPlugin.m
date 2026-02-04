@@ -1,6 +1,6 @@
-#import <VisionCamera/FrameProcessorPlugin.h>
-#import <VisionCamera/FrameProcessorPluginRegistry.h>
-#import <VisionCamera/Frame.h>
+#import "FrameProcessorPlugin.h"
+#import "FrameProcessorPluginRegistry.h"
+#import "Frame.h"
 
 #if __has_include("VisionCameraWebRTCBridge-Swift.h")
 #import "VisionCameraWebRTCBridge-Swift.h"
@@ -23,8 +23,6 @@
            withArguments:(NSDictionary* _Nullable)arguments {
   CMSampleBufferRef buffer = frame.buffer;
   if (buffer != NULL) {
-    // Forward to the singleton forwarder
-    // Swift class is accessed via the generated header
     [VisionCameraFrameForwarder.shared pushFrameWithSampleBuffer:buffer];
   }
   return nil;
