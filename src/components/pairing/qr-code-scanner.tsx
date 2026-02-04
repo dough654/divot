@@ -1,5 +1,5 @@
 import { StyleSheet, View, Text, Pressable } from 'react-native';
-import { Camera, useCameraDevice, useCameraPermission, useCodeScanner } from 'react-native-vision-camera';
+import { Camera, useCameraDevice, useCameraFormat, useCameraPermission, useCodeScanner } from 'react-native-vision-camera';
 import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -20,14 +20,20 @@ export const QRCodeScanner = ({
 }: QRCodeScannerProps) => {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
+  const format = useCameraFormat(device, [
+    { videoResolution: { width: 1920, height: 1080 } },
+  ]);
 
   const codeScanner = useCodeScanner({
     codeTypes: ['qr'],
-    onCodeScanned: useCallback((codes) => {
+    onCodeScanned: useCallback((codes, frame) => {
+      console.log('[QRScanner] onCodeScanned fired — codes:', codes.length, 'frame:', frame.width, 'x', frame.height);
+      if (codes.length > 0) {
+        console.log('[QRScanner] Code[0]:', JSON.stringify(codes[0]));
+      }
       if (!isScanning) return;
       const firstCode = codes[0];
       if (firstCode?.value) {
-        console.log('[QRScanner] Scanned:', firstCode.type, firstCode.value.substring(0, 50));
         onScan(firstCode.value);
       }
     }, [isScanning, onScan]),
@@ -62,8 +68,11 @@ export const QRCodeScanner = ({
       <Camera
         style={styles.camera}
         device={device}
+        format={format}
         isActive={isScanning}
+        photo={true}
         codeScanner={codeScanner}
+        pixelFormat="yuv"
       />
       <View style={styles.overlay} pointerEvents="none">
         <View style={styles.scanArea}>
