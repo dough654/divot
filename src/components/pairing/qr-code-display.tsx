@@ -24,8 +24,9 @@ export const QRCodeDisplay = ({
         <QRCode
           value={value}
           size={size}
-          backgroundColor={isDark ? '#2a2a4e' : '#ffffff'}
-          color={isDark ? '#ffffff' : '#1a1a2e'}
+          backgroundColor="#ffffff"
+          color="#000000"
+          quietZone={10}
         />
       </View>
 
