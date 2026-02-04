@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import WebRTC
 
 /**
@@ -26,7 +27,7 @@ final class VisionCameraFrameForwarder: NSObject {
 
   /// Push a CMSampleBuffer frame from VisionCamera into the WebRTC video source.
   /// Called from the frame processor plugin on the camera thread.
-  @objc func pushFrame(sampleBuffer: CMSampleBuffer) {
+  @objc func pushFrame(sampleBuffer: CMSampleBuffer, orientation: UIImage.Orientation) {
     guard isConfigured,
           let source = videoSource,
           let capturer = dummyCapturer,
@@ -40,11 +41,28 @@ final class VisionCameraFrameForwarder: NSObject {
     let rtcPixelBuffer = RTCCVPixelBuffer(pixelBuffer: pixelBuffer)
     let videoFrame = RTCVideoFrame(
       buffer: rtcPixelBuffer,
-      rotation: ._0,
+      rotation: rtcRotation(from: orientation),
       timeStampNs: timestampNsInt
     )
 
     source.capturer(capturer, didCapture: videoFrame)
+  }
+
+  /// Convert UIImage.Orientation (from VisionCamera Frame) to RTCVideoRotation.
+  /// iPhone rear camera sensor is landscape with "top" pointing to the device's right side.
+  /// VisionCamera reports this as the frame's UIImageOrientation.
+  private func rtcRotation(from orientation: UIImage.Orientation) -> RTCVideoRotation {
+    switch orientation {
+    case .up:            return ._0
+    case .left:          return ._90
+    case .down:          return ._180
+    case .right:         return ._270
+    case .upMirrored:    return ._0
+    case .leftMirrored:  return ._90
+    case .downMirrored:  return ._180
+    case .rightMirrored: return ._270
+    @unknown default:    return ._0
+    }
   }
 
   /// Stop forwarding and release references.

@@ -1,5 +1,6 @@
 import ExpoModulesCore
 import WebRTC
+import VisionCamera
 
 /**
  * Expo Module that creates a WebRTC video track backed by VisionCamera frames.
@@ -14,6 +15,13 @@ import WebRTC
 public class VisionCameraWebRTCBridgeModule: Module {
   public func definition() -> ModuleDefinition {
     Name("VisionCameraWebRTCBridge")
+
+    // Register the frame processor plugin so VisionCamera can find it
+    OnCreate {
+      FrameProcessorPluginRegistry.addFrameProcessorPlugin("forwardToWebRTC") { proxy, options in
+        return WebRTCFrameProcessorPlugin(proxy: proxy, options: options)
+      }
+    }
 
     AsyncFunction("createVisionCameraTrack") { (promise: Promise) in
       guard let bridge = self.appContext?.reactBridge else {

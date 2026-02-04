@@ -13,13 +13,9 @@ Pod::Spec.new do |s|
   s.source         = { git: '' }
   s.platform       = :ios, '15.1'
   s.swift_version  = '5.9'
-  s.source_files   = '**/*.{swift,m,h}'
+  s.source_files   = '**/*.swift'
 
   s.dependency 'ExpoModulesCore'
   s.dependency 'VisionCamera'
   s.dependency 'JitsiWebRTC', '~> 124.0.0'
-
-  s.pod_target_xcconfig = {
-    'HEADER_SEARCH_PATHS' => '"${PODS_ROOT}/Headers/Public/VisionCamera"'
-  }
 end

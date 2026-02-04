@@ -23,6 +23,10 @@
     "build:local:ios": "./scripts/local-build.sh ios",
     "build:local:android:preview": "./scripts/local-build.sh android --profile preview",
     "build:local:ios:preview": "./scripts/local-build.sh ios --profile preview",
+    "install:iphone": "./scripts/local-install.sh ios --device iphone",
+    "install:ipad": "./scripts/local-install.sh ios --device ipad",
+    "install:s22": "./scripts/local-install.sh android --device s22",
+    "install:s10-tablet": "./scripts/local-install.sh android --device s10-tablet",
     "eas:configure": "npx eas-cli build:configure",
     "eas:login": "npx eas-cli login",
     "test": "vitest run",
@@ -63,6 +67,7 @@
     "react-native-web": "~0.21.0",
     "react-native-webrtc": "^124.0.7",
     "react-native-worklets": "0.5.1",
+    "react-native-worklets-core": "^1.6.2",
     "react-native-zeroconf": "^0.14.0",
     "socket.io-client": "^4.8.3"
   },

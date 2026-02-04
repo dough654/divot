@@ -3,13 +3,13 @@ package com.swinglink.visioncamerawebrtcbridge
 import com.mrousavy.camera.core.types.Orientation
 import com.mrousavy.camera.frameprocessors.Frame
 import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
-import com.mrousavy.camera.frameprocessors.FrameProcessorPluginRegistry
 
 /**
  * VisionCamera frame processor plugin that forwards each camera frame
  * to [VisionCameraFrameForwarder] for injection into the WebRTC video track.
  *
- * Usage in JS: `plugin.call(frame)` where plugin = VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC')
+ * Registered as "forwardToWebRTC" from [VisionCameraWebRTCBridgeModule].
+ * Called from JS via: `VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC')`
  */
 class WebRTCFrameProcessorPlugin : FrameProcessorPlugin() {
 
@@ -23,12 +23,6 @@ class WebRTCFrameProcessorPlugin : FrameProcessorPlugin() {
   }
 
   companion object {
-    init {
-      FrameProcessorPluginRegistry.addFrameProcessorPlugin("forwardToWebRTC") { _, _ ->
-        WebRTCFrameProcessorPlugin()
-      }
-    }
-
     /** Convert VisionCamera Orientation enum to rotation degrees for WebRTC. */
     private fun orientationToDegrees(orientation: Orientation): Int =
       when (orientation) {

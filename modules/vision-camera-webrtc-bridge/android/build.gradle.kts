@@ -23,7 +23,7 @@ android {
 
 dependencies {
   implementation(project(":expo-modules-core"))
-  implementation("com.mrousavy:react-native-vision-camera:4.7.3")
-  implementation("com.oney:react-native-webrtc:124.0.7")
-  implementation("org.webrtc:google-webrtc:1.0.32006")
+  implementation("com.facebook.react:react-android")
+  implementation(project(":react-native-vision-camera"))
+  implementation(project(":react-native-webrtc"))
 }
