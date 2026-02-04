@@ -17,5 +17,5 @@ Pod::Spec.new do |s|
 
   s.dependency 'ExpoModulesCore'
   s.dependency 'VisionCamera'
-  s.dependency 'WebRTC-SDK'
+  s.dependency 'JitsiWebRTC', '~> 124.0.0'
 end
