@@ -59,17 +59,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     [
-      'expo-camera',
-      {
-        cameraPermission: 'SwingLink needs camera access to scan QR codes and film your swing.',
-        microphonePermission: 'SwingLink needs microphone access for audio during video streaming.',
-        recordAudioAndroid: true,
-      },
-    ],
-    [
       'react-native-vision-camera',
       {
         cameraPermissionText: 'SwingLink needs camera access to record your golf swing.',
+        enableCodeScanner: true,
         enableMicrophonePermission: true,
         microphonePermissionText: 'SwingLink needs microphone access to record audio with your swing videos.',
       },

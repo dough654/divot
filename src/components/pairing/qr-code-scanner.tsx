@@ -1,6 +1,6 @@
-import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
-import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
-import { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { Camera, useCameraDevice, useCameraPermission, useCodeScanner } from 'react-native-vision-camera';
+import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 export type QRCodeScannerProps = {
@@ -11,43 +11,29 @@ export type QRCodeScannerProps = {
 
 /**
  * QR code scanner for reading pairing codes.
- * Uses expo-camera for barcode detection.
+ * Uses VisionCamera with MLKit (Android) / AVFoundation (iOS) for reliable barcode detection.
  */
 export const QRCodeScanner = ({
   onScan,
   isScanning = true,
   isDark = false,
 }: QRCodeScannerProps) => {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [scannerReady, setScannerReady] = useState(false);
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const device = useCameraDevice('back');
 
-  // Delay enabling scanner to avoid race conditions
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log('[QRScanner] Enabling scanner after delay');
-      setScannerReady(true);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  const codeScanner = useCodeScanner({
+    codeTypes: ['qr'],
+    onCodeScanned: useCallback((codes) => {
+      if (!isScanning) return;
+      const firstCode = codes[0];
+      if (firstCode?.value) {
+        console.log('[QRScanner] Scanned:', firstCode.type, firstCode.value.substring(0, 50));
+        onScan(firstCode.value);
+      }
+    }, [isScanning, onScan]),
+  });
 
-  const handleBarCodeScanned = (result: BarcodeScanningResult) => {
-    console.log('[QRScanner] Scanned:', result.type, result.data?.substring(0, 50));
-    if (isScanning && result.data) {
-      onScan(result.data);
-    }
-  };
-
-  if (!permission) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={[styles.message, isDark && styles.messageDark]}>
-          Loading camera...
-        </Text>
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
+  if (!hasPermission) {
     return (
       <View style={[styles.container, styles.centered, isDark && styles.containerDark]}>
         <Ionicons name="camera-outline" size={48} color={isDark ? '#888' : '#666'} />
@@ -61,30 +47,35 @@ export const QRCodeScanner = ({
     );
   }
 
-  console.log('[QRScanner] Rendering camera, isScanning:', isScanning, 'platform:', Platform.OS);
+  if (!device) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={[styles.message, isDark && styles.messageDark]}>
+          No camera device available
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <CameraView
+      <Camera
         style={styles.camera}
-        facing="back"
-        barcodeScannerSettings={{
-          barcodeTypes: ['qr'],
-        }}
-        onBarcodeScanned={scannerReady && isScanning ? handleBarCodeScanned : undefined}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.scanArea}>
-            <View style={[styles.corner, styles.topLeft]} />
-            <View style={[styles.corner, styles.topRight]} />
-            <View style={[styles.corner, styles.bottomLeft]} />
-            <View style={[styles.corner, styles.bottomRight]} />
-          </View>
-          <Text style={styles.instruction}>
-            {isScanning ? 'Point at QR code to scan' : 'Processing...'}
-          </Text>
+        device={device}
+        isActive={isScanning}
+        codeScanner={codeScanner}
+      />
+      <View style={styles.overlay} pointerEvents="none">
+        <View style={styles.scanArea}>
+          <View style={[styles.corner, styles.topLeft]} />
+          <View style={[styles.corner, styles.topRight]} />
+          <View style={[styles.corner, styles.bottomLeft]} />
+          <View style={[styles.corner, styles.bottomRight]} />
         </View>
-      </CameraView>
+        <Text style={styles.instruction}>
+          {isScanning ? 'Point at QR code to scan' : 'Processing...'}
+        </Text>
+      </View>
     </View>
   );
 };
@@ -108,10 +99,10 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   camera: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
