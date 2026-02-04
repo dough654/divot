@@ -1,6 +1,6 @@
 import { StyleSheet, View, Pressable } from 'react-native';
 import { useRef, forwardRef, useImperativeHandle } from 'react';
-import { Camera, CameraDevice, VideoFile } from 'react-native-vision-camera';
+import { Camera, CameraDevice, VideoFile, type ReadonlyFrameProcessor } from 'react-native-vision-camera';
 import { File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -13,6 +13,8 @@ export type VisionCameraRecorderProps = {
   isFrontCamera: boolean;
   /** Callback when camera flip is requested. */
   onFlipCamera?: () => void;
+  /** Optional frame processor for native WebRTC streaming. */
+  frameProcessor?: ReadonlyFrameProcessor;
 };
 
 export type VisionCameraRecorderRef = {
@@ -32,7 +34,7 @@ export type VisionCameraRecorderRef = {
  * Exposes recording controls via ref.
  */
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
-  ({ device, isActive, onFlipCamera }, ref) => {
+  ({ device, isActive, onFlipCamera, frameProcessor }, ref) => {
     const cameraRef = useRef<Camera>(null);
 
     useImperativeHandle(ref, () => ({
@@ -85,6 +87,7 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           isActive={isActive}
           video={true}
           audio={true}
+          frameProcessor={frameProcessor}
         />
         {onFlipCamera && (
           <Pressable style={styles.flipButton} onPress={onFlipCamera}>

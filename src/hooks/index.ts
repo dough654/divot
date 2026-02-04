@@ -7,5 +7,4 @@ export * from './use-connection-quality';
 export * from './use-vision-camera';
 export * from './use-video-recording';
 export * from './use-drawing';
-export * from './use-frame-streaming';
-export * from './use-preview-receiver';
+export * from './use-vision-camera-stream';

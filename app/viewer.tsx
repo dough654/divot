@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'expo-router';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { PreviewFrameView } from '@/src/components/video';
+import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import { TransferProgressModal } from '@/src/components/clip-sync';
@@ -13,7 +13,6 @@ import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
-import { usePreviewReceiver } from '@/src/hooks/use-preview-receiver';
 import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import type { ConnectionStep } from '@/src/types';
@@ -46,6 +45,7 @@ export default function ViewerScreen() {
 
   const {
     peerConnection,
+    remoteStream,
     handleOffer,
     handleIceCandidate,
     restartIce,
@@ -82,9 +82,6 @@ export default function ViewerScreen() {
     dataChannel,
     onClipReceived: handleClipReceived,
   });
-
-  // Preview frame receiver
-  const { latestFrame, isReceiving } = usePreviewReceiver({ dataChannel });
 
   const isSyncing = syncProgress.state === 'sending' || syncProgress.state === 'receiving';
 
@@ -213,9 +210,9 @@ export default function ViewerScreen() {
       {/* Video or Scanner or Manual Entry */}
       <View style={styles.mainContent}>
         {isConnected ? (
-          <PreviewFrameView
-            latestFrame={latestFrame}
-            isConnected={isConnected}
+          <RemoteVideoView
+            stream={remoteStream}
+            isConnecting={!remoteStream}
           />
         ) : isScanning ? (
           useManualEntry ? (
@@ -269,7 +266,7 @@ export default function ViewerScreen() {
               Preview
             </Text>
             <Text style={[styles.qualityValue, isDark && styles.qualityValueDark]}>
-              {isReceiving ? 'Live' : 'Waiting...'}
+              {remoteStream ? 'Live' : 'Waiting...'}
             </Text>
           </View>
         )}

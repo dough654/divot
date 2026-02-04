@@ -2,7 +2,7 @@ import { StyleSheet, View, Text, Pressable, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { VideoFile } from 'react-native-vision-camera';
+import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { QRCodeDisplay, QRCodeButton } from '@/src/components/pairing';
@@ -18,7 +18,7 @@ import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useVisionCamera } from '@/src/hooks/use-vision-camera';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
-import { useFrameStreaming } from '@/src/hooks/use-frame-streaming';
+import { useVisionCameraStream } from '@/src/hooks/use-vision-camera-stream';
 import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
@@ -76,7 +76,15 @@ export default function CameraScreen() {
     onPeerJoined,
   } = useSignaling({ autoConnect: false });
 
-  // No localStream — data-channel-only peer connection
+  // Native WebRTC video stream from VisionCamera frame processor
+  const {
+    stream: visionCameraStream,
+    isReady: isStreamReady,
+    error: streamError,
+    startStream,
+    stopStream,
+  } = useVisionCameraStream();
+
   const {
     peerConnection,
     createOffer,
@@ -88,6 +96,7 @@ export default function CameraScreen() {
     dataChannel,
     status: webrtcStatus,
   } = useWebRTCConnection({
+    localStream: visionCameraStream,
     onIceCandidate: sendIceCandidate,
   });
 
@@ -114,15 +123,15 @@ export default function CameraScreen() {
     }
   }, [isConnected, wasConnected]);
 
-  // Frame streaming — active whenever connected and not syncing a clip
   const isSyncing = syncProgress.state === 'sending' || syncProgress.state === 'receiving';
-  const frameStreamingEnabled = isConnected && !isSyncing;
 
-  const { isStreaming, currentFps, pause: pauseStreaming, resume: resumeStreaming } = useFrameStreaming({
-    recorderRef,
-    dataChannel,
-    enabled: frameStreamingEnabled,
-  });
+  // Frame processor plugin: forwards each VisionCamera frame to the WebRTC video source natively
+  const forwardPlugin = VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC', {});
+
+  const frameProcessor = useFrameProcessor((frame) => {
+    'worklet';
+    forwardPlugin?.call(frame);
+  }, [forwardPlugin]);
 
   // Auto-reconnect
   const { reconnectionState } = useAutoReconnect({
@@ -193,9 +202,12 @@ export default function CameraScreen() {
     }
   }, [roomCode, loadingStartTime]);
 
-  // Start camera and connection on mount
+  // Start camera, native WebRTC stream, and connection on mount
   useEffect(() => {
     const initialize = async () => {
+      // Create the native WebRTC video track before signaling
+      await startStream();
+
       setConnectionStep('generating-session');
       await connectSignaling();
       const code = await createRoom();
@@ -205,6 +217,10 @@ export default function CameraScreen() {
       }
     };
     initialize();
+
+    return () => {
+      stopStream();
+    };
   }, []);
 
   // Handle peer joined - create and send offer
@@ -335,16 +351,13 @@ export default function CameraScreen() {
     }
 
     setShowSyncModal(true);
-    pauseStreaming();
     try {
       await sendClip(lastRecordedClip);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Sync failed';
       Alert.alert('Sync Failed', errorMsg);
-    } finally {
-      resumeStreaming();
     }
-  }, [lastRecordedClip, isSyncReady, sendClip, pauseStreaming, resumeStreaming]);
+  }, [lastRecordedClip, isSyncReady, sendClip]);
 
   const handleSyncDismiss = useCallback(() => {
     setShowSyncModal(false);
@@ -363,7 +376,7 @@ export default function CameraScreen() {
   const styles = createStyles(isDark);
 
   const showVisionCamera = visionDevice && hasCameraPermission;
-  const currentError = visionCameraError || recordingError;
+  const currentError = visionCameraError || recordingError || streamError;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -378,10 +391,10 @@ export default function CameraScreen() {
               compact
             />
           )}
-          {isStreaming && !isRecording && (
+          {isConnected && isStreamReady && !isRecording && (
             <View style={styles.streamingBadge}>
               <View style={styles.streamingDot} />
-              <Text style={styles.streamingFpsText}>{currentFps}fps</Text>
+              <Text style={styles.streamingFpsText}>Live</Text>
             </View>
           )}
         </View>
@@ -396,6 +409,7 @@ export default function CameraScreen() {
             isActive={true}
             isFrontCamera={isFrontCamera}
             onFlipCamera={toggleCamera}
+            frameProcessor={frameProcessor}
           />
         ) : (
           <View style={styles.cameraPlaceholder}>
