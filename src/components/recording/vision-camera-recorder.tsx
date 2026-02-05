@@ -1,10 +1,8 @@
 import { StyleSheet, View, Pressable, Platform } from 'react-native';
-import { useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useRef, forwardRef, useImperativeHandle } from 'react';
 import { Camera, CameraDevice, VideoFile, type ReadonlyFrameProcessor } from 'react-native-vision-camera';
 import { File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
-
-import { useOrientation } from '../../hooks';
 
 export type VisionCameraRecorderProps = {
   /** The camera device to use. */
@@ -44,10 +42,6 @@ export type VisionCameraRecorderRef = {
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
   ({ device, isActive, audio = true, onFlipCamera, frameProcessor }, ref) => {
     const cameraRef = useRef<Camera>(null);
-    const { isLandscape } = useOrientation();
-    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-
-    const needsRotationFix = Platform.OS === 'android' && isLandscape && containerSize.width > 0;
 
     useImperativeHandle(ref, () => ({
       startRecording: (options) => {
@@ -90,26 +84,12 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
       },
     }));
 
-    // Debug: no rotation, just scale to verify transform is being applied
-    const cameraStyle = needsRotationFix
-      ? [styles.camera, {
-          transform: [
-            { scale: 0.5 },
-          ],
-        }]
-      : styles.camera;
-
     return (
-      <View
-        style={styles.container}
-        onLayout={(e) => {
-          const { width, height } = e.nativeEvent.layout;
-          setContainerSize({ width, height });
-        }}
-      >
+      <View style={styles.container}>
         <Camera
           ref={cameraRef}
-          style={cameraStyle}
+          style={styles.camera}
+          androidPreviewViewType={Platform.OS === 'android' ? 'texture-view' : undefined}
           device={device}
           isActive={isActive}
           video={true}
