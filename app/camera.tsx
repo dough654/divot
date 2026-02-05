@@ -59,10 +59,25 @@ export default function CameraScreen() {
   const {
     device: visionDevice,
     hasCameraPermission,
+    hasMicrophonePermission,
     error: visionCameraError,
     toggleCamera,
     isFrontCamera,
   } = useVisionCamera({ autoRequestPermissions: true });
+
+  // Track if we've shown the microphone warning
+  const [hasShownMicWarning, setHasShownMicWarning] = useState(false);
+
+  // Warn user once if microphone permission is denied
+  useEffect(() => {
+    if (hasCameraPermission && !hasMicrophonePermission && !hasShownMicWarning) {
+      showToast('Microphone access denied. Recordings will have no audio.', {
+        variant: 'warning',
+        duration: 5000,
+      });
+      setHasShownMicWarning(true);
+    }
+  }, [hasCameraPermission, hasMicrophonePermission, hasShownMicWarning, showToast]);
 
   const {
     connectionState: signalingConnectionState,
@@ -409,6 +424,7 @@ export default function CameraScreen() {
             device={visionDevice}
             isActive={true}
             isFrontCamera={isFrontCamera}
+            audio={hasMicrophonePermission}
             onFlipCamera={toggleCamera}
             frameProcessor={frameProcessor}
           />

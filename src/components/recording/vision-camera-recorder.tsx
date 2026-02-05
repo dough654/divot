@@ -11,6 +11,8 @@ export type VisionCameraRecorderProps = {
   isActive: boolean;
   /** Whether to use the front camera (for mirroring). */
   isFrontCamera: boolean;
+  /** Whether audio recording is enabled. Defaults to true. */
+  audio?: boolean;
   /** Callback when camera flip is requested. */
   onFlipCamera?: () => void;
   /** Optional frame processor for native WebRTC streaming. */
@@ -34,7 +36,7 @@ export type VisionCameraRecorderRef = {
  * Exposes recording controls via ref.
  */
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
-  ({ device, isActive, onFlipCamera, frameProcessor }, ref) => {
+  ({ device, isActive, audio = true, onFlipCamera, frameProcessor }, ref) => {
     const cameraRef = useRef<Camera>(null);
 
     useImperativeHandle(ref, () => ({
@@ -86,7 +88,7 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           device={device}
           isActive={isActive}
           video={true}
-          audio={true}
+          audio={audio}
           frameProcessor={frameProcessor}
         />
         {onFlipCamera && (
