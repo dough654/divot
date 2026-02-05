@@ -62,12 +62,12 @@ export default function HomeScreen() {
         {!isLandscape && <Text style={styles.subtitle}>P2P Golf Swing Analysis</Text>}
       </View>
 
-      <View style={styles.roleSection}>
+      <View style={isLandscape ? styles.roleSectionLandscape : styles.roleSection}>
         {!isLandscape && <Text style={styles.sectionTitle}>Select Your Role</Text>}
 
         <Link href="/camera" asChild>
           <RoleButton
-            style={isLandscape ? styles.roleButtonCompact : styles.roleButton}
+            style={isLandscape ? styles.roleCard : styles.roleButton}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
@@ -75,24 +75,24 @@ export default function HomeScreen() {
             accessibilityLabel="Camera mode"
             accessibilityHint="Film the swing and stream to another device"
           >
-            <View style={isLandscape ? styles.roleIconContainerCompact : styles.roleIconContainer}>
-              <Ionicons name="videocam" size={isLandscape ? 24 : 40} color={theme.colors.primary} />
+            <View style={isLandscape ? styles.cardIconContainer : styles.roleIconContainer}>
+              <Ionicons name="videocam" size={isLandscape ? 32 : 40} color={theme.colors.primary} />
             </View>
-            <View style={styles.roleTextContainer}>
-              <Text style={styles.roleTitle}>Camera</Text>
-              {!isLandscape && (
-                <Text style={styles.roleDescription}>
-                  Film the swing and stream to another device
-                </Text>
-              )}
+            <View style={isLandscape ? styles.cardTextContainer : styles.roleTextContainer}>
+              <Text style={isLandscape ? styles.cardTitle : styles.roleTitle}>Camera</Text>
+              <Text style={isLandscape ? styles.cardDescription : styles.roleDescription}>
+                Film and stream
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+            {!isLandscape && (
+              <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+            )}
           </RoleButton>
         </Link>
 
         <Link href="/viewer" asChild>
           <RoleButton
-            style={isLandscape ? styles.roleButtonCompact : styles.roleButton}
+            style={isLandscape ? styles.roleCard : styles.roleButton}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
@@ -100,24 +100,24 @@ export default function HomeScreen() {
             accessibilityLabel="Viewer mode"
             accessibilityHint="Watch the swing stream from another device"
           >
-            <View style={isLandscape ? styles.roleIconContainerCompact : styles.roleIconContainer}>
-              <Ionicons name="eye" size={isLandscape ? 24 : 40} color={theme.colors.secondary} />
+            <View style={isLandscape ? styles.cardIconContainer : styles.roleIconContainer}>
+              <Ionicons name="eye" size={isLandscape ? 32 : 40} color={theme.colors.secondary} />
             </View>
-            <View style={styles.roleTextContainer}>
-              <Text style={styles.roleTitle}>Viewer</Text>
-              {!isLandscape && (
-                <Text style={styles.roleDescription}>
-                  Watch the swing stream from another device
-                </Text>
-              )}
+            <View style={isLandscape ? styles.cardTextContainer : styles.roleTextContainer}>
+              <Text style={isLandscape ? styles.cardTitle : styles.roleTitle}>Viewer</Text>
+              <Text style={isLandscape ? styles.cardDescription : styles.roleDescription}>
+                Watch the stream
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+            {!isLandscape && (
+              <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+            )}
           </RoleButton>
         </Link>
 
         <Link href="/clips" asChild>
           <RoleButton
-            style={isLandscape ? styles.roleButtonCompact : styles.roleButton}
+            style={isLandscape ? styles.roleCard : styles.roleButton}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
@@ -125,18 +125,21 @@ export default function HomeScreen() {
             accessibilityLabel="My Clips"
             accessibilityHint="View and playback recorded swing videos"
           >
-            <View style={[isLandscape ? styles.roleIconContainerCompact : styles.roleIconContainer, styles.clipsIconContainer]}>
-              <Ionicons name="film" size={isLandscape ? 24 : 40} color={theme.palette.amber600} />
+            <View style={isLandscape
+              ? [styles.cardIconContainer, styles.clipsIconContainer]
+              : [styles.roleIconContainer, styles.clipsIconContainer]
+            }>
+              <Ionicons name="film" size={isLandscape ? 32 : 40} color={theme.palette.amber600} />
             </View>
-            <View style={styles.roleTextContainer}>
-              <Text style={styles.roleTitle}>My Clips</Text>
-              {!isLandscape && (
-                <Text style={styles.roleDescription}>
-                  View and playback recorded swing videos
-                </Text>
-              )}
+            <View style={isLandscape ? styles.cardTextContainer : styles.roleTextContainer}>
+              <Text style={isLandscape ? styles.cardTitle : styles.roleTitle}>My Clips</Text>
+              <Text style={isLandscape ? styles.cardDescription : styles.roleDescription}>
+                Recorded swings
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+            {!isLandscape && (
+              <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+            )}
           </RoleButton>
         </Link>
       </View>
@@ -173,7 +176,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   headerLandscape: {
     alignItems: 'center' as const,
     marginTop: theme.spacing.xs,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
   title: {
     fontSize: 36,
@@ -188,6 +191,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   roleSection: {
     flex: 1,
   },
+  roleSectionLandscape: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    gap: theme.spacing.md,
+  },
   sectionTitle: {
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.semibold,
@@ -196,21 +204,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     letterSpacing: 1,
     marginBottom: theme.spacing.lg,
   },
+  // Portrait: horizontal row layout per button
   roleButton: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.xl,
     marginBottom: theme.spacing.lg,
-    ...theme.shadows.md,
-    shadowOpacity: theme.isDark ? 0.3 : 0.1,
-  },
-  roleButtonCompact: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
     ...theme.shadows.md,
     shadowOpacity: theme.isDark ? 0.3 : 0.1,
   },
@@ -222,18 +222,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     marginRight: theme.spacing.lg,
-  },
-  roleIconContainerCompact: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.backgroundSecondary,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginRight: theme.spacing.md,
-  },
-  clipsIconContainer: {
-    backgroundColor: theme.isDark ? '#2a1a1a' : theme.palette.amber50,
   },
   roleTextContainer: {
     flex: 1,
@@ -248,6 +236,43 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
     lineHeight: 20,
+  },
+  // Landscape: vertical card layout per button
+  roleCard: {
+    flex: 1,
+    flexDirection: 'column' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    ...theme.shadows.md,
+    shadowOpacity: theme.isDark ? 0.3 : 0.1,
+  },
+  cardIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.backgroundSecondary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginBottom: theme.spacing.md,
+  },
+  cardTextContainer: {
+    alignItems: 'center' as const,
+  },
+  cardTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    textAlign: 'center' as const,
+  },
+  clipsIconContainer: {
+    backgroundColor: theme.isDark ? '#2a1a1a' : theme.palette.amber50,
   },
   footer: {
     alignItems: 'center' as const,
