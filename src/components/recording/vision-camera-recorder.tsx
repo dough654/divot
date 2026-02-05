@@ -1,8 +1,10 @@
-import { StyleSheet, View, Pressable } from 'react-native';
-import { useRef, forwardRef, useImperativeHandle } from 'react';
+import { StyleSheet, View, Pressable, Platform } from 'react-native';
+import { useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { Camera, CameraDevice, VideoFile, type ReadonlyFrameProcessor } from 'react-native-vision-camera';
 import { File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
+
+import { useOrientation } from '../../hooks';
 
 export type VisionCameraRecorderProps = {
   /** The camera device to use. */
@@ -34,10 +36,18 @@ export type VisionCameraRecorderRef = {
 /**
  * VisionCamera-based recording view with camera preview.
  * Exposes recording controls via ref.
+ *
+ * On Android, the SurfaceView doesn't rotate with the UI. We compensate
+ * by counter-rotating the Camera view and swapping its dimensions so the
+ * preview appears correctly oriented in landscape.
  */
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
   ({ device, isActive, audio = true, onFlipCamera, frameProcessor }, ref) => {
     const cameraRef = useRef<Camera>(null);
+    const { isLandscape } = useOrientation();
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+    const needsRotationFix = Platform.OS === 'android' && isLandscape && containerSize.width > 0;
 
     useImperativeHandle(ref, () => ({
       startRecording: (options) => {
@@ -80,11 +90,31 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
       },
     }));
 
+    // On Android in landscape: swap dimensions and rotate -90deg to compensate
+    // for SurfaceView not rotating. The view is absolutely positioned and
+    // offset so that after rotation it fills the container exactly.
+    const cameraStyle = needsRotationFix
+      ? {
+          position: 'absolute' as const,
+          width: containerSize.height,
+          height: containerSize.width,
+          left: (containerSize.width - containerSize.height) / 2,
+          top: (containerSize.height - containerSize.width) / 2,
+          transform: [{ rotate: '-90deg' }],
+        }
+      : styles.camera;
+
     return (
-      <View style={styles.container}>
+      <View
+        style={styles.container}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setContainerSize({ width, height });
+        }}
+      >
         <Camera
           ref={cameraRef}
-          style={styles.camera}
+          style={cameraStyle}
           device={device}
           isActive={isActive}
           video={true}
