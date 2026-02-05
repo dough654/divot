@@ -704,7 +704,7 @@ export default function CameraScreen() {
                     </Text>
                   </View>
                   <Pressable
-                    style={styles.closeButton}
+                    style={[styles.closeButton, styles.closeButtonLandscape]}
                     onPress={() => setShowQRModal(false)}
                     accessibilityRole="button"
                     accessibilityLabel="Done"
@@ -977,11 +977,12 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   modalContentLandscape: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    maxWidth: 480,
-    gap: theme.spacing.md,
+    maxWidth: 560,
+    gap: theme.spacing.lg,
   },
   modalLeftColumn: {
     alignItems: 'center' as const,
@@ -1000,7 +1001,8 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     marginTop: theme.spacing.lg,
   },
   tipSectionLandscape: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    padding: theme.spacing.sm,
   },
   tipHeader: {
     flexDirection: 'row' as const,
@@ -1020,13 +1022,17 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   closeButton: {
     backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing['3xl'],
     borderRadius: theme.borderRadius.sm,
     alignItems: 'center' as const,
   },
   closeButtonPortrait: {
     marginTop: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing['3xl'],
+  },
+  closeButtonLandscape: {
+    paddingVertical: theme.spacing.sm,
+    alignSelf: 'stretch' as const,
   },
   closeButtonText: {
     color: theme.palette.white,
