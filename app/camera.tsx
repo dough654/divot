@@ -476,6 +476,9 @@ export default function CameraScreen() {
             <Pressable
               style={[styles.armButton, isDark && styles.armButtonDark]}
               onPress={armRecording}
+              accessibilityRole="button"
+              accessibilityLabel="Arm Recording"
+              accessibilityHint="Enter recording mode. Preview continues while recording"
             >
               <View style={styles.armButtonIcon}>
                 <Ionicons name="radio-button-on" size={20} color="#ff453a" />
@@ -505,6 +508,9 @@ export default function CameraScreen() {
             <Pressable
               style={[styles.disarmButton, isDark && styles.disarmButtonDark]}
               onPress={disarmRecording}
+              accessibilityRole="button"
+              accessibilityLabel="Disarm"
+              accessibilityHint="Exit recording mode and return to preview"
             >
               <Ionicons name="arrow-back" size={20} color={isDark ? '#fff' : '#1a1a2e'} />
               <Text style={[styles.disarmButtonText, isDark && styles.disarmButtonTextDark]}>
@@ -538,6 +544,10 @@ export default function CameraScreen() {
                 ]}
                 onPress={handleSyncClip}
                 disabled={!isSyncReady}
+                accessibilityRole="button"
+                accessibilityLabel={isSyncReady ? 'Sync to Viewer' : 'Connect viewer to sync'}
+                accessibilityHint={isSyncReady ? 'Transfer the recorded clip to the viewer device' : 'A viewer must be connected to sync clips'}
+                accessibilityState={{ disabled: !isSyncReady }}
               >
                 <Ionicons
                   name="cloud-upload"
@@ -557,6 +567,9 @@ export default function CameraScreen() {
             <Pressable
               style={[styles.secondaryButton, isDark && styles.secondaryButtonDark]}
               onPress={handleRecordAgain}
+              accessibilityRole="button"
+              accessibilityLabel="Record Again"
+              accessibilityHint="Start a new recording"
             >
               <Ionicons name="videocam" size={20} color={isDark ? '#fff' : '#1a1a2e'} />
               <Text style={[styles.secondaryButtonText, isDark && styles.secondaryButtonTextDark]}>
@@ -568,6 +581,9 @@ export default function CameraScreen() {
             <Pressable
               style={[styles.disarmButton, isDark && styles.disarmButtonDark]}
               onPress={disarmRecording}
+              accessibilityRole="button"
+              accessibilityLabel="Disarm"
+              accessibilityHint="Exit recording mode and return to preview"
             >
               <Ionicons name="arrow-back" size={20} color={isDark ? '#fff' : '#1a1a2e'} />
               <Text style={[styles.disarmButtonText, isDark && styles.disarmButtonTextDark]}>
@@ -588,6 +604,9 @@ export default function CameraScreen() {
         <Pressable
           style={styles.modalOverlay}
           onPress={() => setShowQRModal(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Close QR code modal"
+          accessibilityHint="Tap outside to close"
         >
           <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
             {/* QR Code */}
@@ -617,6 +636,9 @@ export default function CameraScreen() {
             <Pressable
               style={styles.closeButton}
               onPress={() => setShowQRModal(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Done"
+              accessibilityHint="Close the QR code modal"
             >
               <Text style={styles.closeButtonText}>Done</Text>
             </Pressable>

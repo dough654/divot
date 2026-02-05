@@ -82,7 +82,13 @@ export default function PlaybackScreen() {
           <View style={styles.centerContent}>
             <Ionicons name="alert-circle-outline" size={64} color="#f44336" />
             <Text style={styles.errorTitle}>{error || 'Clip not found'}</Text>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Pressable
+              style={styles.backButton}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Go Back"
+              accessibilityHint="Return to clips list"
+            >
               <Text style={styles.backButtonText}>Go Back</Text>
             </Pressable>
           </View>

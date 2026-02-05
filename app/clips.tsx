@@ -55,14 +55,22 @@ type ClipItemProps = {
 const ClipItem = ({ clip, onPress, onMenuPress, isDark }: ClipItemProps) => {
   const styles = createItemStyles(isDark);
 
+  const clipName = clip.name || `Swing ${formatDate(clip.timestamp)}`;
+
   return (
-    <Pressable style={styles.container} onPress={onPress}>
+    <Pressable
+      style={styles.container}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${clipName}, ${formatDuration(clip.duration)}, ${formatFileSize(clip.fileSize)}`}
+      accessibilityHint="Open clip for playback"
+    >
       <View style={styles.thumbnail}>
         <Ionicons name="videocam" size={24} color="#888" />
       </View>
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={1}>
-          {clip.name || `Swing ${formatDate(clip.timestamp)}`}
+          {clipName}
         </Text>
         <View style={styles.meta}>
           <Text style={styles.metaText}>{formatDuration(clip.duration)}</Text>
@@ -72,7 +80,13 @@ const ClipItem = ({ clip, onPress, onMenuPress, isDark }: ClipItemProps) => {
           <Text style={styles.metaText}>{clip.fps}fps</Text>
         </View>
       </View>
-      <Pressable style={styles.menuButton} onPress={onMenuPress}>
+      <Pressable
+        style={styles.menuButton}
+        onPress={onMenuPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Options for ${clipName}`}
+        accessibilityHint="Open menu to rename or delete clip"
+      >
         <Ionicons name="ellipsis-vertical" size={20} color={isDark ? '#888' : '#666'} />
       </Pressable>
     </Pressable>
@@ -204,7 +218,13 @@ export default function ClipsScreen() {
           <Text style={styles.emptySubtitle}>
             Record your first swing in Camera mode to see it here.
           </Text>
-          <Pressable style={styles.recordButton} onPress={() => router.push('/camera')}>
+          <Pressable
+            style={styles.recordButton}
+            onPress={() => router.push('/camera')}
+            accessibilityRole="button"
+            accessibilityLabel="Go to Camera"
+            accessibilityHint="Navigate to camera mode to record clips"
+          >
             <Ionicons name="videocam" size={20} color="#fff" />
             <Text style={styles.recordButtonText}>Go to Camera</Text>
           </Pressable>
@@ -255,12 +275,26 @@ export default function ClipsScreen() {
               placeholderTextColor={isDark ? '#666' : '#999'}
               autoFocus
               selectTextOnFocus
+              accessibilityLabel="Clip name"
+              accessibilityHint="Enter a new name for this clip"
             />
             <View style={styles.modalButtons}>
-              <Pressable style={styles.modalButtonCancel} onPress={handleRenameCancel}>
+              <Pressable
+                style={styles.modalButtonCancel}
+                onPress={handleRenameCancel}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+                accessibilityHint="Cancel renaming and close dialog"
+              >
                 <Text style={styles.modalButtonCancelText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.modalButtonConfirm} onPress={handleRenameConfirm}>
+              <Pressable
+                style={styles.modalButtonConfirm}
+                onPress={handleRenameConfirm}
+                accessibilityRole="button"
+                accessibilityLabel="Save"
+                accessibilityHint="Save the new clip name"
+              >
                 <Text style={styles.modalButtonConfirmText}>Save</Text>
               </Pressable>
             </View>
