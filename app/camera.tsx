@@ -678,39 +678,74 @@ export default function CameraScreen() {
           accessibilityLabel="Close QR code modal"
           accessibilityHint="Tap outside to close"
         >
-          <View style={styles.modalContent}>
-            {/* QR Code */}
-            {qrPayload && (
-              <QRCodeDisplay
-                value={qrPayload}
-                roomCode={formatRoomCode(roomCode!)}
-                size={180}
-              />
+          <View style={isLandscape ? styles.modalContentLandscape : styles.modalContent}>
+            {isLandscape ? (
+              <>
+                {/* Landscape: QR left, tip + button right */}
+                <View style={styles.modalLeftColumn}>
+                  {qrPayload && (
+                    <QRCodeDisplay
+                      value={qrPayload}
+                      roomCode={formatRoomCode(roomCode!)}
+                      size={160}
+                    />
+                  )}
+                </View>
+                <View style={styles.modalRightColumn}>
+                  <View style={styles.tipSection}>
+                    <View style={styles.tipHeader}>
+                      <Ionicons name="flash" size={18} color={theme.colors.warning} />
+                      <Text style={styles.tipTitle}>
+                        Best Performance Tip
+                      </Text>
+                    </View>
+                    <Text style={styles.tipText}>
+                      For lowest latency: Enable this phone's hotspot, connect the viewer to it, then scan.
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.closeButton}
+                    onPress={() => setShowQRModal(false)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Done"
+                    accessibilityHint="Close the QR code modal"
+                  >
+                    <Text style={styles.closeButtonText}>Done</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <>
+                {/* Portrait: vertical stack */}
+                {qrPayload && (
+                  <QRCodeDisplay
+                    value={qrPayload}
+                    roomCode={formatRoomCode(roomCode!)}
+                    size={180}
+                  />
+                )}
+                <View style={styles.tipSection}>
+                  <View style={styles.tipHeader}>
+                    <Ionicons name="flash" size={18} color={theme.colors.warning} />
+                    <Text style={styles.tipTitle}>
+                      Best Performance Tip
+                    </Text>
+                  </View>
+                  <Text style={styles.tipText}>
+                    For lowest latency: Enable this phone's hotspot, connect the viewer to it, then scan.
+                  </Text>
+                </View>
+                <Pressable
+                  style={styles.closeButton}
+                  onPress={() => setShowQRModal(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Done"
+                  accessibilityHint="Close the QR code modal"
+                >
+                  <Text style={styles.closeButtonText}>Done</Text>
+                </Pressable>
+              </>
             )}
-
-            {/* Performance Tip */}
-            <View style={styles.tipSection}>
-              <View style={styles.tipHeader}>
-                <Ionicons name="flash" size={18} color={theme.colors.warning} />
-                <Text style={styles.tipTitle}>
-                  Best Performance Tip
-                </Text>
-              </View>
-              <Text style={styles.tipText}>
-                For lowest latency: Enable this phone's hotspot, connect the viewer to it, then scan.
-              </Text>
-            </View>
-
-            {/* Close button */}
-            <Pressable
-              style={styles.closeButton}
-              onPress={() => setShowQRModal(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Done"
-              accessibilityHint="Close the QR code modal"
-            >
-              <Text style={styles.closeButtonText}>Done</Text>
-            </Pressable>
           </View>
         </Pressable>
       </Modal>
@@ -938,6 +973,22 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     width: '100%' as const,
     maxWidth: 340,
     alignItems: 'center' as const,
+  },
+  modalContentLandscape: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    maxWidth: 560,
+    gap: theme.spacing.xl,
+  },
+  modalLeftColumn: {
+    alignItems: 'center' as const,
+  },
+  modalRightColumn: {
+    flex: 1,
+    gap: theme.spacing.lg,
   },
   tipSection: {
     width: '100%' as const,
