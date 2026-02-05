@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, Pressable, Modal } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Modal, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,16 +68,26 @@ export default function CameraScreen() {
   // Track if we've shown the microphone warning
   const [hasShownMicWarning, setHasShownMicWarning] = useState(false);
 
-  // Warn user once if microphone permission is denied
+  // Prompt user to grant microphone permission if denied
   useEffect(() => {
     if (hasCameraPermission && !hasMicrophonePermission && !hasShownMicWarning) {
-      showToast('Microphone access denied. Recordings will have no audio.', {
-        variant: 'warning',
-        duration: 5000,
-      });
       setHasShownMicWarning(true);
+      Alert.alert(
+        'Microphone Access Required',
+        'Microphone permission is needed for audio recording and swing detection. Without it, recordings will have no audio.',
+        [
+          {
+            text: 'Continue Without Audio',
+            style: 'cancel',
+          },
+          {
+            text: 'Open Settings',
+            onPress: () => Linking.openSettings(),
+          },
+        ]
+      );
     }
-  }, [hasCameraPermission, hasMicrophonePermission, hasShownMicWarning, showToast]);
+  }, [hasCameraPermission, hasMicrophonePermission, hasShownMicWarning]);
 
   const {
     connectionState: signalingConnectionState,
