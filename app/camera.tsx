@@ -508,6 +508,7 @@ export default function CameraScreen() {
           </View>
         )}
 
+        <View style={isLandscape ? styles.sidePanelControls : undefined}>
         {cameraState === 'connecting' && (
           <>
             {/* QR Code Button */}
@@ -663,6 +664,7 @@ export default function CameraScreen() {
           </>
         )}
         </View>
+        </View>
       </View>
 
       {/* QR Code Modal */}
@@ -771,6 +773,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flexWrap: 'wrap' as const,
     gap: theme.spacing.xs,
   },
+  sidePanelControls: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    gap: theme.spacing.md,
+  },
   topBarContent: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -841,7 +848,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
     gap: theme.spacing.md,
-    justifyContent: 'center' as const,
   },
   connectedSection: {
     marginBottom: theme.spacing.sm,
