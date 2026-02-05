@@ -60,6 +60,7 @@ export default function CameraScreen() {
     device: visionDevice,
     hasCameraPermission,
     hasMicrophonePermission,
+    isRequestingPermissions,
     error: visionCameraError,
     toggleCamera,
     isFrontCamera,
@@ -68,8 +69,11 @@ export default function CameraScreen() {
   // Track if we've shown the microphone warning
   const [hasShownMicWarning, setHasShownMicWarning] = useState(false);
 
-  // Prompt user to grant microphone permission if denied
+  // Prompt user to grant microphone permission if denied (after permission request completes)
   useEffect(() => {
+    // Wait until permission request is complete before checking
+    if (isRequestingPermissions) return;
+
     if (hasCameraPermission && !hasMicrophonePermission && !hasShownMicWarning) {
       setHasShownMicWarning(true);
       Alert.alert(
@@ -87,7 +91,7 @@ export default function CameraScreen() {
         ]
       );
     }
-  }, [hasCameraPermission, hasMicrophonePermission, hasShownMicWarning]);
+  }, [hasCameraPermission, hasMicrophonePermission, hasShownMicWarning, isRequestingPermissions]);
 
   const {
     connectionState: signalingConnectionState,
