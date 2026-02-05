@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
 
 import { useTheme, useToast } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel, useOrientation } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 import { QRCodeDisplay, QRCodeButton } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
@@ -37,6 +37,7 @@ export default function CameraScreen() {
   const { theme } = useTheme();
   const { show: showToast } = useToast();
   const styles = useThemedStyles(createStyles);
+  const { isLandscape } = useOrientation();
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
   const [showQRModal, setShowQRModal] = useState(false);
@@ -416,67 +417,96 @@ export default function CameraScreen() {
   const currentError = visionCameraError || recordingError || streamError;
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Connection Status - top bar */}
-      <View style={styles.topBar}>
-        <View style={styles.topBarContent}>
-          <ConnectionStatus step={connectionStep} quality={quality} compact />
-          {isRecording && (
-            <RecordingIndicator
-              duration={recordingDuration}
-              visible={isRecording}
-              compact
-            />
-          )}
-          {isConnected && isStreamReady && !isRecording && (
-            <View style={styles.streamingBadge}>
-              <View style={styles.streamingDot} />
-              <Text style={styles.streamingFpsText}>
-                Live · {getPresetLabel(qualityPreset)}
-              </Text>
+    <SafeAreaView
+      style={styles.container}
+      edges={isLandscape ? ['bottom', 'left', 'right'] : ['bottom']}
+    >
+      <View style={isLandscape ? styles.landscapeWrapper : styles.portraitWrapper}>
+        {/* Video Preview - full width in portrait, left side in landscape */}
+        <View style={isLandscape ? styles.videoContainerLandscape : styles.videoContainerPortrait}>
+          {/* Connection Status - overlay on video in landscape, top bar in portrait */}
+          {isLandscape ? (
+            <View style={styles.topBarOverlay}>
+              <View style={styles.topBarContent}>
+                <ConnectionStatus step={connectionStep} quality={quality} compact />
+                {isRecording && (
+                  <RecordingIndicator
+                    duration={recordingDuration}
+                    visible={isRecording}
+                    compact
+                  />
+                )}
+                {isConnected && isStreamReady && !isRecording && (
+                  <View style={styles.streamingBadge}>
+                    <View style={styles.streamingDot} />
+                    <Text style={styles.streamingFpsText}>
+                      Live · {getPresetLabel(qualityPreset)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.topBar}>
+              <View style={styles.topBarContent}>
+                <ConnectionStatus step={connectionStep} quality={quality} compact />
+                {isRecording && (
+                  <RecordingIndicator
+                    duration={recordingDuration}
+                    visible={isRecording}
+                    compact
+                  />
+                )}
+                {isConnected && isStreamReady && !isRecording && (
+                  <View style={styles.streamingBadge}>
+                    <View style={styles.streamingDot} />
+                    <Text style={styles.streamingFpsText}>
+                      Live · {getPresetLabel(qualityPreset)}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
           )}
+
+          <View style={styles.videoContainer}>
+            {showVisionCamera ? (
+              <VisionCameraRecorder
+                ref={recorderRef}
+                device={visionDevice}
+                isActive={true}
+                isFrontCamera={isFrontCamera}
+                audio={hasMicrophonePermission}
+                onFlipCamera={toggleCamera}
+                frameProcessor={frameProcessor}
+              />
+            ) : (
+              <View style={styles.cameraPlaceholder}>
+                <Text style={styles.placeholderText}>
+                  {hasCameraPermission ? 'No camera device found' : 'Camera permission required'}
+                </Text>
+              </View>
+            )}
+            {currentError && (
+              <View style={styles.errorOverlay}>
+                <Text style={styles.errorText}>{currentError}</Text>
+              </View>
+            )}
+
+            {/* Recording indicator overlay */}
+            {isRecording && (
+              <View style={styles.recordingOverlay}>
+                <RecordingIndicator
+                  duration={recordingDuration}
+                  visible={isRecording}
+                />
+              </View>
+            )}
+          </View>
         </View>
-      </View>
 
-      {/* Video Preview - full width, always VisionCamera */}
-      <View style={styles.videoContainer}>
-        {showVisionCamera ? (
-          <VisionCameraRecorder
-            ref={recorderRef}
-            device={visionDevice}
-            isActive={true}
-            isFrontCamera={isFrontCamera}
-            audio={hasMicrophonePermission}
-            onFlipCamera={toggleCamera}
-            frameProcessor={frameProcessor}
-          />
-        ) : (
-          <View style={styles.cameraPlaceholder}>
-            <Text style={styles.placeholderText}>
-              {hasCameraPermission ? 'No camera device found' : 'Camera permission required'}
-            </Text>
-          </View>
-        )}
-        {currentError && (
-          <View style={styles.errorOverlay}>
-            <Text style={styles.errorText}>{currentError}</Text>
-          </View>
-        )}
-
-        {/* Recording indicator overlay */}
-        {isRecording && (
-          <View style={styles.recordingOverlay}>
-            <RecordingIndicator
-              duration={recordingDuration}
-              visible={isRecording}
-            />
-          </View>
-        )}
-      </View>
-
-      {/* Bottom bar - varies by state */}
-      <View style={styles.bottomBar}>
+        {/* Controls - bottom bar in portrait, right side panel in landscape */}
+        <View style={isLandscape ? styles.sidePanel : styles.bottomBar}>
         {cameraState === 'connecting' && (
           <>
             {/* QR Code Button */}
@@ -631,6 +661,7 @@ export default function CameraScreen() {
             </Pressable>
           </>
         )}
+        </View>
       </View>
 
       {/* QR Code Modal */}
@@ -700,10 +731,35 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flex: 1,
     backgroundColor: theme.colors.backgroundSecondary,
   },
+  portraitWrapper: {
+    flex: 1,
+    flexDirection: 'column' as const,
+  },
+  landscapeWrapper: {
+    flex: 1,
+    flexDirection: 'row' as const,
+  },
+  videoContainerPortrait: {
+    flex: 1,
+  },
+  videoContainerLandscape: {
+    flex: 1,
+  },
   topBar: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
+  },
+  topBarOverlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   topBarContent: {
     flexDirection: 'row' as const,
@@ -769,6 +825,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
     gap: theme.spacing.md,
+  },
+  sidePanel: {
+    width: 240,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    gap: theme.spacing.md,
+    justifyContent: 'center' as const,
   },
   connectedSection: {
     marginBottom: theme.spacing.sm,
