@@ -1,4 +1,4 @@
-import { StyleSheet, View, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
 import { useRef, forwardRef, useImperativeHandle } from 'react';
 import { Camera, CameraDevice, VideoFile, type ReadonlyFrameProcessor } from 'react-native-vision-camera';
 import { File } from 'expo-file-system';
@@ -89,7 +89,6 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
         <Camera
           ref={cameraRef}
           style={styles.camera}
-          androidPreviewViewType={Platform.OS === 'android' ? 'texture-view' : undefined}
           device={device}
           isActive={isActive}
           video={true}
