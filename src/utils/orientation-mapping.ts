@@ -60,10 +60,24 @@ const isValidRotation = (degrees: number): boolean => {
   return [0, 90, 180, 270].includes(degrees);
 };
 
+type ScreenOrientationType = 'portrait' | 'landscape';
+
+/**
+ * Determines screen orientation type from window dimensions.
+ * Pure function — no side effects, easily testable.
+ *
+ * @param width - Window width in pixels
+ * @param height - Window height in pixels
+ * @returns 'landscape' if width > height, 'portrait' otherwise
+ */
+const getOrientationType = (width: number, height: number): ScreenOrientationType =>
+  width > height ? 'landscape' : 'portrait';
+
 export {
   orientationToRotationDegrees,
   rotationDegreesToOrientation,
   isValidRotation,
+  getOrientationType,
 };
 
-export type { DeviceOrientation };
+export type { DeviceOrientation, ScreenOrientationType };
