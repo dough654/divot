@@ -37,15 +37,7 @@ export default function CameraScreen() {
   const { theme } = useTheme();
   const { show: showToast } = useToast();
   const styles = useThemedStyles(createStyles);
-  const { isLandscape, lockToPortrait, unlock } = useOrientation();
-
-  // Android: lock camera screen to portrait (SurfaceView doesn't rotate)
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      lockToPortrait();
-      return () => { unlock(); };
-    }
-  }, [lockToPortrait, unlock]);
+  const { isLandscape } = useOrientation();
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
   const [showQRModal, setShowQRModal] = useState(false);
