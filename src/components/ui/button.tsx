@@ -1,8 +1,18 @@
 import { Pressable, Text, ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  interpolateColor,
+  Easing,
+} from 'react-native-reanimated';
+import { useCallback } from 'react';
 import { useTheme } from '../../context';
 import { useThemedStyles, makeThemedStyles } from '../../hooks';
 import type { Theme } from '../../context';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger';
 
@@ -37,6 +47,17 @@ export const Button = ({
   const styles = useThemedStyles(createStyles);
   const isDisabled = disabled || loading;
 
+  // Animation state
+  const pressed = useSharedValue(0);
+
+  const handlePressIn = useCallback(() => {
+    pressed.value = withTiming(1, { duration: 100, easing: Easing.out(Easing.cubic) });
+  }, [pressed]);
+
+  const handlePressOut = useCallback(() => {
+    pressed.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.cubic) });
+  }, [pressed]);
+
   const getBackgroundColor = () => {
     if (isDisabled) return theme.isDark ? '#333' : '#ccc';
     switch (variant) {
@@ -48,6 +69,20 @@ export const Button = ({
         return theme.palette.transparent;
       case 'danger':
         return theme.colors.error;
+    }
+  };
+
+  const getPressedBackgroundColor = () => {
+    if (isDisabled) return getBackgroundColor();
+    switch (variant) {
+      case 'primary':
+        return theme.colors.primaryHover;
+      case 'secondary':
+        return theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary;
+      case 'outline':
+        return theme.isDark ? 'rgba(76, 175, 80, 0.15)' : 'rgba(76, 175, 80, 0.1)';
+      case 'danger':
+        return '#d32f2f'; // Darker red
     }
   };
 
@@ -71,17 +106,29 @@ export const Button = ({
     return theme.palette.transparent;
   };
 
+  const defaultBg = getBackgroundColor();
+  const pressedBg = getPressedBackgroundColor();
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: isDisabled ? 1 : 1 - pressed.value * 0.02 }],
+    backgroundColor: interpolateColor(
+      pressed.value,
+      [0, 1],
+      [defaultBg, pressedBg]
+    ),
+  }));
+
   return (
-    <Pressable
+    <AnimatedPressable
       style={[
         styles.button,
-        {
-          backgroundColor: getBackgroundColor(),
-          borderColor: getBorderColor(),
-        },
+        { borderColor: getBorderColor() },
         variant === 'outline' && styles.buttonOutline,
+        animatedStyle,
       ]}
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={isDisabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
@@ -98,7 +145,7 @@ export const Button = ({
           <Text style={[styles.text, { color: getTextColor() }]}>{title}</Text>
         </View>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 };
 
