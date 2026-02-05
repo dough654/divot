@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import { EmptyState } from '@/src/components/ui';
 import type { Theme } from '@/src/context';
 import { listClips, deleteClip, renameClip } from '@/src/services/recording/clip-storage';
 import type { Clip } from '@/src/types/recording';
@@ -212,23 +213,16 @@ export default function ClipsScreen() {
   if (clips.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <View style={styles.centerContent}>
-          <Ionicons name="videocam-off-outline" size={64} color={theme.colors.border} />
-          <Text style={styles.emptyTitle}>No Clips Yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Record your first swing in Camera mode to see it here.
-          </Text>
-          <Pressable
-            style={styles.recordButton}
-            onPress={() => router.push('/camera')}
-            accessibilityRole="button"
-            accessibilityLabel="Go to Camera"
-            accessibilityHint="Navigate to camera mode to record clips"
-          >
-            <Ionicons name="videocam" size={20} color={theme.palette.white} />
-            <Text style={styles.recordButtonText}>Go to Camera</Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          icon="videocam-off-outline"
+          title="No Clips Yet"
+          description="Record your first swing in Camera mode to see it here."
+          action={{
+            label: 'Go to Camera',
+            onPress: () => router.push('/camera'),
+            icon: 'videocam',
+          }}
+        />
       </SafeAreaView>
     );
   }
@@ -318,34 +312,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   loadingText: {
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
-  },
-  emptyTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text,
-    marginTop: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
-  },
-  emptySubtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    textAlign: 'center' as const,
-    lineHeight: 20,
-    marginBottom: theme.spacing['2xl'],
-  },
-  recordButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.xl,
-    borderRadius: theme.borderRadius.sm,
-  },
-  recordButtonText: {
-    color: theme.palette.white,
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
   },
   listContent: {
     padding: theme.spacing.md,
