@@ -30,7 +30,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  withSpring,
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
@@ -134,11 +133,11 @@ const ToastItem = ({ toast, index, onDismiss }: ToastItemProps) => {
 
   // Animate in on mount
   useMemo(() => {
-    translateY.value = withSpring(index * (TOAST_HEIGHT + TOAST_MARGIN), {
-      damping: 15,
-      stiffness: 150,
+    translateY.value = withTiming(index * (TOAST_HEIGHT + TOAST_MARGIN), {
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
     });
-    opacity.value = withTiming(1, { duration: 200 });
+    opacity.value = withTiming(1, { duration: 150 });
   }, [index, translateY, opacity]);
 
   // Auto-dismiss timer
@@ -172,7 +171,7 @@ const ToastItem = ({ toast, index, onDismiss }: ToastItemProps) => {
         );
       } else {
         // Snap back
-        translateX.value = withSpring(0, { damping: 15 });
+        translateX.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.cubic) });
       }
     });
 
