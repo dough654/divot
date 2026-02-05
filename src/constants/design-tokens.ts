@@ -85,6 +85,8 @@ export const colors = {
     errorBackground: '#ffebee',
     warning: palette.amber600,
     warningBackground: palette.amber50,
+    info: palette.blue500,
+    infoBackground: '#e3f2fd',
 
     // Recording
     recording: palette.red400,
@@ -119,6 +121,8 @@ export const colors = {
     errorBackground: '#3a1a1a',
     warning: palette.amber300,
     warningBackground: '#3a2a1a',
+    info: palette.blue500,
+    infoBackground: '#1a2a3a',
 
     // Recording
     recording: palette.red400,
@@ -262,6 +266,8 @@ export type ThemeColors = {
   errorBackground: string;
   warning: string;
   warningBackground: string;
+  info: string;
+  infoBackground: string;
   recording: string;
 };
 

@@ -7,7 +7,7 @@ import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { AppThemeProvider } from '@/src/context';
+import { AppThemeProvider, ToastProvider } from '@/src/context';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -36,62 +36,64 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppThemeProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack
-            screenOptions={{
-              headerStyle: {
-                backgroundColor: colorScheme === 'dark' ? '#1a1a2e' : '#ffffff',
-              },
-              headerTintColor: colorScheme === 'dark' ? '#ffffff' : '#1a1a2e',
-              headerTitleStyle: {
-                fontWeight: '600',
-              },
-            }}
-          >
-            <Stack.Screen
-              name="index"
-              options={{
-                title: 'SwingLink',
-                headerShown: false,
+        <ToastProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack
+              screenOptions={{
+                headerStyle: {
+                  backgroundColor: colorScheme === 'dark' ? '#1a1a2e' : '#ffffff',
+                },
+                headerTintColor: colorScheme === 'dark' ? '#ffffff' : '#1a1a2e',
+                headerTitleStyle: {
+                  fontWeight: '600',
+                },
               }}
-            />
-            <Stack.Screen
-              name="camera"
-              options={{
-                title: 'Camera Mode',
-                headerBackTitle: 'Back',
-              }}
-            />
-            <Stack.Screen
-              name="viewer"
-              options={{
-                title: 'Viewer Mode',
-                headerBackTitle: 'Back',
-              }}
-            />
-            <Stack.Screen
-              name="settings"
-              options={{
-                title: 'Settings',
-                headerBackTitle: 'Back',
-              }}
-            />
-            <Stack.Screen
-              name="clips"
-              options={{
-                title: 'My Clips',
-                headerBackTitle: 'Back',
-              }}
-            />
-            <Stack.Screen
-              name="playback/[id]"
-              options={{
-                title: 'Playback',
-                headerBackTitle: 'Clips',
-              }}
-            />
-          </Stack>
-        </ThemeProvider>
+            >
+              <Stack.Screen
+                name="index"
+                options={{
+                  title: 'SwingLink',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="camera"
+                options={{
+                  title: 'Camera Mode',
+                  headerBackTitle: 'Back',
+                }}
+              />
+              <Stack.Screen
+                name="viewer"
+                options={{
+                  title: 'Viewer Mode',
+                  headerBackTitle: 'Back',
+                }}
+              />
+              <Stack.Screen
+                name="settings"
+                options={{
+                  title: 'Settings',
+                  headerBackTitle: 'Back',
+                }}
+              />
+              <Stack.Screen
+                name="clips"
+                options={{
+                  title: 'My Clips',
+                  headerBackTitle: 'Back',
+                }}
+              />
+              <Stack.Screen
+                name="playback/[id]"
+                options={{
+                  title: 'Playback',
+                  headerBackTitle: 'Clips',
+                }}
+              />
+            </Stack>
+          </ThemeProvider>
+        </ToastProvider>
       </AppThemeProvider>
     </GestureHandlerRootView>
   );

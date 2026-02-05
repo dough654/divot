@@ -1,10 +1,11 @@
-import { StyleSheet, View, Text, Pressable, Modal, Alert } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { useToast } from '@/src/context';
 import { QRCodeDisplay, QRCodeButton } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import {
@@ -34,6 +35,7 @@ type CameraState = 'connecting' | 'previewing' | 'armed' | 'recording' | 'review
 export default function CameraScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { show: showToast } = useToast();
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
   const [showQRModal, setShowQRModal] = useState(false);
@@ -307,14 +309,14 @@ export default function CameraScreen() {
           const errorMsg = err instanceof Error ? err.message : 'Failed to save recording';
           setRecordingError(errorMsg);
           setCameraState('armed');
-          Alert.alert('Save Failed', errorMsg);
+          showToast(`Save Failed: ${errorMsg}`, { variant: 'error' });
         }
       },
       onRecordingError: (error: unknown) => {
         const errorMsg = error instanceof Error ? error.message : 'Recording failed';
         setRecordingError(errorMsg);
         setCameraState('armed');
-        Alert.alert('Recording Error', errorMsg);
+        showToast(`Recording Error: ${errorMsg}`, { variant: 'error' });
       },
     });
   }, []);
@@ -341,11 +343,11 @@ export default function CameraScreen() {
   // Sync last recorded clip to viewer
   const handleSyncClip = useCallback(async () => {
     if (!lastRecordedClip) {
-      Alert.alert('No Clip', 'Record a clip first');
+      showToast('Record a clip first', { variant: 'warning' });
       return;
     }
     if (!isSyncReady) {
-      Alert.alert('Not Connected', 'Connect to a viewer device first');
+      showToast('Connect to a viewer device first', { variant: 'warning' });
       return;
     }
 
@@ -354,7 +356,7 @@ export default function CameraScreen() {
       await sendClip(lastRecordedClip);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Sync failed';
-      Alert.alert('Sync Failed', errorMsg);
+      showToast(`Sync Failed: ${errorMsg}`, { variant: 'error' });
     }
   }, [lastRecordedClip, isSyncReady, sendClip]);
 
