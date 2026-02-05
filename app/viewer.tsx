@@ -1,6 +1,6 @@
-import { View, Text, Alert } from 'react-native';
+import { View, Text, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
@@ -9,15 +9,17 @@ import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import { TransferProgressModal } from '@/src/components/clip-sync';
-import { Button } from '@/src/components/ui';
+import { Button, ErrorDetail } from '@/src/components/ui';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
+import { connectionErrors, getSignalingError } from '@/src/utils/error-messages';
 import type { ConnectionStep } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
+import type { RecoveryAction } from '@/src/utils/error-messages';
 
 export default function ViewerScreen() {
   const styles = useThemedStyles(createStyles);
@@ -25,6 +27,7 @@ export default function ViewerScreen() {
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('scanning-qr');
   const [isScanning, setIsScanning] = useState(true);
   const [useManualEntry, setUseManualEntry] = useState(false);
+  const [connectionErrorCode, setConnectionErrorCode] = useState<string | null>(null);
   const isProcessingScan = useRef(false);
 
   const roomCodeRef = useRef<string | null>(null);
@@ -48,8 +51,6 @@ export default function ViewerScreen() {
     remoteStream,
     handleOffer,
     handleIceCandidate,
-    restartIce,
-    renegotiate,
     isConnected,
     dataChannel,
     status: webrtcStatus,
@@ -120,11 +121,13 @@ export default function ViewerScreen() {
   const proceedWithConnection = useCallback(async (roomCode: string) => {
     roomCodeRef.current = roomCode;
     setConnectionStep('exchanging-signaling');
+    setConnectionErrorCode(null);
 
     await connectSignaling();
     const joined = await joinRoom(roomCode);
 
     if (!joined) {
+      setConnectionErrorCode('ROOM_NOT_FOUND');
       setConnectionStep('failed');
       return;
     }
@@ -174,19 +177,57 @@ export default function ViewerScreen() {
   useEffect(() => {
     if (isConnected) {
       setConnectionStep('connected');
+      setConnectionErrorCode(null);
     } else if (reconnectionState.isReconnecting) {
       setConnectionStep('reconnecting');
     } else if (reconnectionState.lastDisconnectReason && !reconnectionState.isReconnecting && reconnectionState.attempt > 0) {
+      setConnectionErrorCode('RECONNECT_FAILED');
       setConnectionStep('reconnect-failed');
     }
   }, [isConnected, reconnectionState]);
+
+  // Get the current error info based on error code
+  const currentError = useMemo(() => {
+    if (!connectionErrorCode) return null;
+
+    if (connectionErrorCode === 'RECONNECT_FAILED') {
+      return connectionErrors.reconnectFailed;
+    }
+    return getSignalingError(connectionErrorCode);
+  }, [connectionErrorCode]);
 
   const handleRescan = useCallback(() => {
     isProcessingScan.current = false;
     setIsScanning(true);
     setConnectionStep('scanning-qr');
     setUseManualEntry(false);
+    setConnectionErrorCode(null);
   }, []);
+
+  // Handle recovery actions from ErrorDetail
+  const handleErrorAction = useCallback((action: RecoveryAction['action']) => {
+    switch (action) {
+      case 'retry':
+        if (roomCodeRef.current) {
+          setConnectionErrorCode(null);
+          proceedWithConnection(roomCodeRef.current);
+        } else {
+          handleRescan();
+        }
+        break;
+      case 'rescan':
+        handleRescan();
+        break;
+      case 'settings':
+        Linking.openSettings();
+        break;
+      case 'dismiss':
+        handleRescan();
+        break;
+      default:
+        handleRescan();
+    }
+  }, [proceedWithConnection, handleRescan]);
 
   // Handle manual code entry
   const handleManualCodeSubmit = useCallback(async (code: string) => {
@@ -245,12 +286,10 @@ export default function ViewerScreen() {
           />
         )}
 
-        {connectionStep === 'failed' && (
-          <Button
-            title="Try Again"
-            onPress={handleRescan}
-            variant="primary"
-            icon="refresh"
+        {(connectionStep === 'failed' || connectionStep === 'reconnect-failed') && currentError && (
+          <ErrorDetail
+            error={currentError}
+            onAction={handleErrorAction}
           />
         )}
 
