@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
 
 import { useTheme, useToast } from '@/src/context';
-import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 import { QRCodeDisplay, QRCodeButton } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
@@ -134,6 +134,13 @@ export default function CameraScreen() {
 
   const { quality } = useConnectionQuality({
     peerConnection,
+    enabled: isConnected,
+  });
+
+  // Adaptive bitrate - adjusts video quality based on network conditions
+  const { currentPreset: qualityPreset } = useAdaptiveBitrate({
+    peerConnection,
+    quality,
     enabled: isConnected,
   });
 
@@ -424,7 +431,9 @@ export default function CameraScreen() {
           {isConnected && isStreamReady && !isRecording && (
             <View style={styles.streamingBadge}>
               <View style={styles.streamingDot} />
-              <Text style={styles.streamingFpsText}>Live</Text>
+              <Text style={styles.streamingFpsText}>
+                Live · {getPresetLabel(qualityPreset)}
+              </Text>
             </View>
           )}
         </View>

@@ -4,6 +4,7 @@ export * from './use-local-discovery';
 export * from './use-webrtc-connection';
 export * from './use-connection-cascade';
 export * from './use-connection-quality';
+export * from './use-adaptive-bitrate';
 export * from './use-vision-camera';
 export * from './use-video-recording';
 export * from './use-drawing';
