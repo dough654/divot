@@ -1,6 +1,19 @@
 import { StyleSheet, View, Text, AccessibilityInfo } from 'react-native';
 import { useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  withSequence,
+  withSpring,
+  Easing,
+  cancelAnimation,
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from 'react-native-reanimated';
 import type { ConnectionStep, ConnectionQuality } from '@/src/types';
 import { formatQuality, getQualityRating, useHaptics } from '@/src/hooks';
 
@@ -29,6 +42,18 @@ const stepInfo: Record<ConnectionStep, { label: string; icon: keyof typeof Ionic
   failed: { label: 'Connection failed', icon: 'close-circle' },
 };
 
+/** Steps that should show a spinning animation */
+const spinningSteps: ConnectionStep[] = [
+  'generating-session',
+  'scanning-qr',
+  'discovering-local',
+  'setting-up-hotspot',
+  'connecting-to-hotspot',
+  'exchanging-signaling',
+  'establishing-webrtc',
+  'reconnecting',
+];
+
 const qualityColors: Record<ReturnType<typeof getQualityRating>, string> = {
   excellent: '#4CAF50',
   good: '#8BC34A',
@@ -39,7 +64,6 @@ const qualityColors: Record<ReturnType<typeof getQualityRating>, string> = {
 
 /**
  * Returns an appropriate announcement message for screen readers based on connection step.
- * Returns null for steps that don't need explicit announcement.
  */
 const getStepAnnouncement = (step: ConnectionStep, label: string): string | null => {
   switch (step) {
@@ -54,13 +78,12 @@ const getStepAnnouncement = (step: ConnectionStep, label: string): string | null
     case 'local-discovery-failed':
       return 'Could not find device on local network.';
     default:
-      // For other transitional states, use the label
       return label;
   }
 };
 
 /**
- * Displays the current connection status with visual indicators.
+ * Displays the current connection status with animated visual indicators.
  * Announces state changes to screen readers via AccessibilityInfo.
  */
 export const ConnectionStatus = ({
@@ -73,30 +96,76 @@ export const ConnectionStatus = ({
   const isConnected = step === 'connected';
   const isFailed = step === 'failed' || step === 'reconnect-failed';
   const isReconnecting = step === 'reconnecting';
+  const isSpinning = spinningSteps.includes(step);
   const qualityRating = getQualityRating(quality ?? null);
   const haptics = useHaptics();
+
+  // Animation values
+  const rotation = useSharedValue(0);
+  const iconScale = useSharedValue(1);
+  const shakeX = useSharedValue(0);
+  const bgFlash = useSharedValue(0);
 
   // Track previous values for change detection
   const prevStepRef = useRef<ConnectionStep | null>(null);
   const prevQualityRatingRef = useRef<ReturnType<typeof getQualityRating> | null>(null);
 
+  // Spinning animation for connecting states
+  useEffect(() => {
+    if (isSpinning) {
+      rotation.value = withRepeat(
+        withTiming(360, { duration: 1000, easing: Easing.linear }),
+        -1, // infinite
+        false
+      );
+    } else {
+      cancelAnimation(rotation);
+      rotation.value = withTiming(0, { duration: 200 });
+    }
+  }, [isSpinning, rotation]);
+
+  // Success pulse animation
+  useEffect(() => {
+    if (isConnected && prevStepRef.current !== null && prevStepRef.current !== 'connected') {
+      iconScale.value = withSequence(
+        withSpring(1.3, { damping: 8, stiffness: 400 }),
+        withSpring(1, { damping: 10, stiffness: 300 })
+      );
+    }
+  }, [isConnected, iconScale]);
+
+  // Failure shake animation
+  useEffect(() => {
+    if (isFailed && prevStepRef.current !== null && !['failed', 'reconnect-failed'].includes(prevStepRef.current)) {
+      shakeX.value = withSequence(
+        withTiming(-8, { duration: 50 }),
+        withTiming(8, { duration: 50 }),
+        withTiming(-6, { duration: 50 }),
+        withTiming(6, { duration: 50 }),
+        withTiming(-4, { duration: 50 }),
+        withTiming(4, { duration: 50 }),
+        withTiming(0, { duration: 50 })
+      );
+      bgFlash.value = withSequence(
+        withTiming(1, { duration: 100 }),
+        withTiming(0, { duration: 300 })
+      );
+    }
+  }, [isFailed, shakeX, bgFlash]);
+
   // Announce connection state changes and provide haptic feedback
   useEffect(() => {
-    // Skip initial mount
     if (prevStepRef.current === null) {
       prevStepRef.current = step;
       return;
     }
 
-    // Only react if step actually changed
     if (prevStepRef.current !== step) {
-      // Accessibility announcement
       const announcement = getStepAnnouncement(step, info.label);
       if (announcement) {
         AccessibilityInfo.announceForAccessibility(announcement);
       }
 
-      // Haptic feedback based on new state
       if (step === 'connected') {
         haptics.success();
       } else if (step === 'failed' || step === 'reconnect-failed') {
@@ -111,17 +180,12 @@ export const ConnectionStatus = ({
   useEffect(() => {
     if (!isConnected || !quality) return;
 
-    // Skip initial quality reading
     if (prevQualityRatingRef.current === null) {
       prevQualityRatingRef.current = qualityRating;
       return;
     }
 
-    // Announce if quality degraded to poor
-    if (
-      prevQualityRatingRef.current !== 'poor' &&
-      qualityRating === 'poor'
-    ) {
+    if (prevQualityRatingRef.current !== 'poor' && qualityRating === 'poor') {
       AccessibilityInfo.announceForAccessibility(
         'Warning: Connection quality is poor. You may experience lag or disconnection.'
       );
@@ -137,22 +201,45 @@ export const ConnectionStatus = ({
     return isDark ? '#888' : '#666';
   };
 
+  // Animated styles
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${rotation.value}deg` },
+      { scale: iconScale.value },
+      { translateX: shakeX.value },
+    ],
+  }));
+
+  const containerAnimatedStyle = useAnimatedStyle(() => ({
+    backgroundColor: bgFlash.value > 0
+      ? `rgba(244, 67, 54, ${bgFlash.value * 0.2})`
+      : undefined,
+  }));
+
   if (compact) {
     return (
-      <View
-        style={[styles.compactContainer, isDark && styles.compactContainerDark]}
+      <Animated.View
+        style={[styles.compactContainer, isDark && styles.compactContainerDark, containerAnimatedStyle]}
         accessible
         accessibilityLabel={`Connection status: ${info.label}${isConnected && quality ? `, latency ${quality.latencyMs} milliseconds` : ''}`}
         accessibilityLiveRegion="polite"
       >
-        <Ionicons
-          name={info.icon}
-          size={16}
-          color={getStatusColor()}
-        />
-        <Text style={[styles.compactLabel, isDark && styles.compactLabelDark, isConnected && styles.labelConnected]}>
+        <Animated.View style={iconAnimatedStyle}>
+          <Ionicons
+            name={info.icon}
+            size={16}
+            color={getStatusColor()}
+          />
+        </Animated.View>
+        <Animated.Text
+          key={step}
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          layout={LinearTransition.duration(200)}
+          style={[styles.compactLabel, isDark && styles.compactLabelDark, isConnected && styles.labelConnected]}
+        >
           {info.label}
-        </Text>
+        </Animated.Text>
         {isConnected && quality && (
           <>
             <View
@@ -166,30 +253,41 @@ export const ConnectionStatus = ({
             </Text>
           </>
         )}
-      </View>
+      </Animated.View>
     );
   }
 
   return (
-    <View
-      style={[styles.container, isDark && styles.containerDark]}
+    <Animated.View
+      style={[styles.container, isDark && styles.containerDark, containerAnimatedStyle]}
       accessible
       accessibilityLabel={`Connection status: ${info.label}${isConnected && quality ? `. Quality: ${formatQuality(quality)}` : ''}`}
       accessibilityLiveRegion="polite"
     >
       <View style={styles.statusRow}>
-        <Ionicons
-          name={info.icon}
-          size={20}
-          color={getStatusColor()}
-        />
-        <Text style={[styles.label, isDark && styles.labelDark, isConnected && styles.labelConnected]}>
+        <Animated.View style={iconAnimatedStyle}>
+          <Ionicons
+            name={info.icon}
+            size={20}
+            color={getStatusColor()}
+          />
+        </Animated.View>
+        <Animated.Text
+          key={step}
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          layout={LinearTransition.duration(200)}
+          style={[styles.label, isDark && styles.labelDark, isConnected && styles.labelConnected]}
+        >
           {info.label}
-        </Text>
+        </Animated.Text>
       </View>
 
       {isConnected && quality && (
-        <View style={styles.qualityRow}>
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          style={styles.qualityRow}
+        >
           <View
             style={[
               styles.qualityDot,
@@ -199,9 +297,9 @@ export const ConnectionStatus = ({
           <Text style={[styles.qualityText, isDark && styles.qualityTextDark]}>
             {formatQuality(quality)}
           </Text>
-        </View>
+        </Animated.View>
       )}
-    </View>
+    </Animated.View>
   );
 };
 
@@ -210,6 +308,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
     padding: 12,
+    overflow: 'hidden',
   },
   containerDark: {
     backgroundColor: '#2a2a4e',
@@ -218,6 +317,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    overflow: 'hidden',
   },
   compactContainerDark: {},
   statusRow: {
