@@ -90,8 +90,6 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           video={true}
           audio={audio}
           frameProcessor={frameProcessor}
-          outputOrientation="preview"
-          androidPreviewViewType="texture-view"
         />
         {onFlipCamera && (
           <Pressable
