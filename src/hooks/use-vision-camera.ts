@@ -48,6 +48,7 @@ export const useVisionCamera = (
 
   const [position, setPosition] = useState<CameraPosition>(initialPosition);
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
+  const [hasRequestedPermissions, setHasRequestedPermissions] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const device = useCameraDevice(position);
@@ -58,6 +59,7 @@ export const useVisionCamera = (
 
   const requestPermissions = useCallback(async (): Promise<boolean> => {
     setIsRequestingPermissions(true);
+    setHasRequestedPermissions(true);
     setError(null);
 
     try {
@@ -70,7 +72,7 @@ export const useVisionCamera = (
       }
 
       if (!micGranted) {
-        setError('Microphone permission denied. Audio will not be recorded.');
+        // Don't set error here - camera.tsx handles the Alert for microphone
         // Still return true - we can record without audio
       }
 
@@ -88,12 +90,16 @@ export const useVisionCamera = (
     setPosition((prev) => (prev === 'back' ? 'front' : 'back'));
   }, []);
 
-  // Auto-request permissions on mount
+  // Auto-request permissions on mount if either is missing (only once per session)
   useEffect(() => {
-    if (autoRequestPermissions && !hasCameraPermission) {
+    if (
+      autoRequestPermissions &&
+      !hasRequestedPermissions &&
+      (!hasCameraPermission || !hasMicrophonePermission)
+    ) {
       requestPermissions();
     }
-  }, [autoRequestPermissions, hasCameraPermission, requestPermissions]);
+  }, [autoRequestPermissions, hasRequestedPermissions, hasCameraPermission, hasMicrophonePermission, requestPermissions]);
 
   // Check for device availability
   useEffect(() => {
