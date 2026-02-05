@@ -448,15 +448,30 @@ export const VideoPlayer = ({
             minimumTrackTintColor="#4CAF50"
             maximumTrackTintColor="#666"
             thumbTintColor="#4CAF50"
+            accessibilityRole="adjustable"
+            accessibilityLabel={`Video position: ${formatTime(position)} of ${formatTime(duration)}`}
+            accessibilityHint="Drag to seek through the video"
           />
 
           {/* Control buttons */}
           <View style={styles.buttonRow}>
-            <Pressable style={styles.frameButton} onPress={stepBackward}>
+            <Pressable
+              style={styles.frameButton}
+              onPress={stepBackward}
+              accessibilityRole="button"
+              accessibilityLabel="Previous frame"
+              accessibilityHint="Step back one frame"
+            >
               <Ionicons name="chevron-back" size={32} color="#fff" />
             </Pressable>
 
-            <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
+            <Pressable
+              style={styles.playPauseButton}
+              onPress={togglePlayPause}
+              accessibilityRole="button"
+              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+              accessibilityHint={isPlaying ? 'Pause video playback' : 'Start video playback'}
+            >
               <Ionicons
                 name={isPlaying ? 'pause' : 'play'}
                 size={36}
@@ -464,14 +479,26 @@ export const VideoPlayer = ({
               />
             </Pressable>
 
-            <Pressable style={styles.frameButton} onPress={stepForward}>
+            <Pressable
+              style={styles.frameButton}
+              onPress={stepForward}
+              accessibilityRole="button"
+              accessibilityLabel="Next frame"
+              accessibilityHint="Step forward one frame"
+            >
               <Ionicons name="chevron-forward" size={32} color="#fff" />
             </Pressable>
           </View>
 
           {/* Bottom row: speed + draw toggle */}
           <View style={styles.bottomRow}>
-            <Pressable style={styles.speedButton} onPress={cyclePlaybackSpeed}>
+            <Pressable
+              style={styles.speedButton}
+              onPress={cyclePlaybackSpeed}
+              accessibilityRole="button"
+              accessibilityLabel={`Playback speed ${playbackRate}x`}
+              accessibilityHint="Cycle through playback speeds"
+            >
               <Text style={styles.speedButtonText}>{playbackRate}x</Text>
             </Pressable>
 
@@ -482,6 +509,10 @@ export const VideoPlayer = ({
                   isDrawMode && styles.drawButtonActive,
                 ]}
                 onPress={toggleDrawMode}
+                accessibilityRole="button"
+                accessibilityLabel={isDrawMode ? 'Exit drawing mode' : 'Enter drawing mode'}
+                accessibilityHint={isDrawMode ? 'Exit annotation drawing' : 'Draw annotations on the video'}
+                accessibilityState={{ selected: isDrawMode }}
               >
                 <Ionicons
                   name="pencil"

@@ -15,7 +15,7 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>SwingLink</Text>
+        <Text style={styles.title} accessibilityRole="header">SwingLink</Text>
         <Text style={styles.subtitle}>P2P Golf Swing Analysis</Text>
       </View>
 
@@ -23,7 +23,12 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>Select Your Role</Text>
 
         <Link href="/camera" asChild>
-          <Pressable style={styles.roleButton}>
+          <Pressable
+            style={styles.roleButton}
+            accessibilityRole="button"
+            accessibilityLabel="Camera mode"
+            accessibilityHint="Film the swing and stream to another device"
+          >
             <View style={styles.roleIconContainer}>
               <Ionicons name="videocam" size={40} color="#4CAF50" />
             </View>
@@ -38,7 +43,12 @@ export default function HomeScreen() {
         </Link>
 
         <Link href="/viewer" asChild>
-          <Pressable style={styles.roleButton}>
+          <Pressable
+            style={styles.roleButton}
+            accessibilityRole="button"
+            accessibilityLabel="Viewer mode"
+            accessibilityHint="Watch the swing stream from another device"
+          >
             <View style={styles.roleIconContainer}>
               <Ionicons name="eye" size={40} color="#2196F3" />
             </View>
@@ -53,7 +63,12 @@ export default function HomeScreen() {
         </Link>
 
         <Link href="/clips" asChild>
-          <Pressable style={styles.roleButton}>
+          <Pressable
+            style={styles.roleButton}
+            accessibilityRole="button"
+            accessibilityLabel="My Clips"
+            accessibilityHint="View and playback recorded swing videos"
+          >
             <View style={[styles.roleIconContainer, styles.clipsIconContainer]}>
               <Ionicons name="film" size={40} color="#FF9800" />
             </View>
@@ -70,7 +85,12 @@ export default function HomeScreen() {
 
       <View style={styles.footer}>
         <Link href="/settings" asChild>
-          <Pressable style={styles.settingsButton}>
+          <Pressable
+            style={styles.settingsButton}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            accessibilityHint="Open app settings"
+          >
             <Ionicons name="settings-outline" size={24} color={isDark ? '#aaa' : '#666'} />
             <Text style={styles.settingsText}>Settings</Text>
           </Pressable>

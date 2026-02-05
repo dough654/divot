@@ -105,12 +105,17 @@ export const ManualCodeEntry = ({
         autoCorrect={false}
         keyboardType="default"
         editable={!isSubmitting}
+        accessibilityLabel="Room code input"
+        accessibilityHint="Enter the 6-character room code from the camera device"
       />
 
       {/* Visual code boxes */}
       <Pressable
         style={styles.codeBoxesContainer}
         onPress={() => inputRef.current?.focus()}
+        accessibilityRole="button"
+        accessibilityLabel={`Room code: ${code || 'empty'}. ${CODE_LENGTH - code.length} characters remaining`}
+        accessibilityHint="Tap to focus code input"
       >
         {renderCodeBoxes()}
       </Pressable>
@@ -124,6 +129,10 @@ export const ManualCodeEntry = ({
         ]}
         onPress={handleSubmit}
         disabled={code.length !== CODE_LENGTH || isSubmitting}
+        accessibilityRole="button"
+        accessibilityLabel={isSubmitting ? 'Connecting' : 'Connect'}
+        accessibilityHint="Connect to the camera device with the entered code"
+        accessibilityState={{ disabled: code.length !== CODE_LENGTH || isSubmitting }}
       >
         <Text style={styles.submitButtonText}>
           {isSubmitting ? 'Connecting...' : 'Connect'}
@@ -131,7 +140,13 @@ export const ManualCodeEntry = ({
       </Pressable>
 
       {/* Switch to scanner button */}
-      <Pressable style={styles.switchButton} onPress={onSwitchToScanner}>
+      <Pressable
+        style={styles.switchButton}
+        onPress={onSwitchToScanner}
+        accessibilityRole="button"
+        accessibilityLabel="Scan QR code instead"
+        accessibilityHint="Switch to QR code scanner to connect"
+      >
         <Ionicons
           name="qr-code-outline"
           size={20}

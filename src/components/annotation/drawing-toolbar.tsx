@@ -7,13 +7,14 @@ type AnglePhase = 'idle' | 'first-ray' | 'second-ray';
 type ToolOption = {
   tool: DrawingTool;
   icon: keyof typeof Ionicons.glyphMap;
+  label: string;
 };
 
 const TOOL_OPTIONS: ToolOption[] = [
-  { tool: 'freehand', icon: 'pencil-outline' },
-  { tool: 'straight-line', icon: 'remove-outline' },
-  { tool: 'angle', icon: 'analytics-outline' },
-  { tool: 'ellipse', icon: 'ellipse-outline' },
+  { tool: 'freehand', icon: 'pencil-outline', label: 'Freehand draw' },
+  { tool: 'straight-line', icon: 'remove-outline', label: 'Straight line' },
+  { tool: 'angle', icon: 'analytics-outline', label: 'Angle measure' },
+  { tool: 'ellipse', icon: 'ellipse-outline', label: 'Ellipse' },
 ];
 
 const ANGLE_PHASE_HINTS: Record<AnglePhase, string | null> = {
@@ -76,8 +77,8 @@ export const DrawingToolbar = ({
   return (
     <View style={styles.container}>
       {/* Tool selection row */}
-      <View style={styles.toolRow}>
-        {TOOL_OPTIONS.map(({ tool, icon }) => (
+      <View style={styles.toolRow} accessibilityRole="toolbar">
+        {TOOL_OPTIONS.map(({ tool, icon, label }) => (
           <Pressable
             key={tool}
             onPress={() => onToolSelect(tool)}
@@ -85,6 +86,9 @@ export const DrawingToolbar = ({
               styles.toolButton,
               activeTool === tool && styles.toolButtonActive,
             ]}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityState={{ selected: activeTool === tool }}
           >
             <Ionicons
               name={icon}
@@ -97,7 +101,7 @@ export const DrawingToolbar = ({
 
       {/* Color swatches + actions */}
       <View style={styles.mainRow}>
-        <View style={styles.colorRow}>
+        <View style={styles.colorRow} accessibilityRole="radiogroup" accessibilityLabel="Drawing colors">
           {presetColors.map((color) => (
             <Pressable
               key={color}
@@ -107,6 +111,9 @@ export const DrawingToolbar = ({
                 { backgroundColor: color },
                 activeColor === color && styles.colorSwatchActive,
               ]}
+              accessibilityRole="radio"
+              accessibilityLabel={`${color} color`}
+              accessibilityState={{ checked: activeColor === color }}
             />
           ))}
         </View>
@@ -116,6 +123,10 @@ export const DrawingToolbar = ({
             style={[styles.actionButton, !canSave && styles.actionButtonDisabled]}
             onPress={onSave}
             disabled={!canSave}
+            accessibilityRole="button"
+            accessibilityLabel="Save annotated frame"
+            accessibilityHint="Saves the current frame with annotations to your device"
+            accessibilityState={{ disabled: !canSave }}
           >
             <Ionicons name="download-outline" size={20} color={canSave ? '#fff' : '#666'} />
           </Pressable>
@@ -124,6 +135,10 @@ export const DrawingToolbar = ({
             style={[styles.actionButton, !canUndo && styles.actionButtonDisabled]}
             onPress={onUndo}
             disabled={!canUndo}
+            accessibilityRole="button"
+            accessibilityLabel="Undo"
+            accessibilityHint="Undo last annotation"
+            accessibilityState={{ disabled: !canUndo }}
           >
             <Ionicons name="arrow-undo" size={20} color={canUndo ? '#fff' : '#666'} />
           </Pressable>
@@ -132,11 +147,21 @@ export const DrawingToolbar = ({
             style={[styles.actionButton, !canRedo && styles.actionButtonDisabled]}
             onPress={onRedo}
             disabled={!canRedo}
+            accessibilityRole="button"
+            accessibilityLabel="Redo"
+            accessibilityHint="Redo last undone annotation"
+            accessibilityState={{ disabled: !canRedo }}
           >
             <Ionicons name="arrow-redo" size={20} color={canRedo ? '#fff' : '#666'} />
           </Pressable>
 
-          <Pressable style={styles.actionButton} onPress={onClear}>
+          <Pressable
+            style={styles.actionButton}
+            onPress={onClear}
+            accessibilityRole="button"
+            accessibilityLabel="Clear all"
+            accessibilityHint="Clears all annotations from the frame"
+          >
             <Ionicons name="trash-outline" size={20} color="#fff" />
           </Pressable>
         </View>

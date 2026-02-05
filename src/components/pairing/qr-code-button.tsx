@@ -110,6 +110,10 @@ export const QRCodeButton = ({
         style={[styles.container, isDark && styles.containerDark]}
         onPress={onPress}
         disabled={isLoading}
+        accessibilityRole="button"
+        accessibilityLabel={isLoading ? 'Generating room code' : `Room code ${roomCode}. Show QR code`}
+        accessibilityHint={isLoading ? 'Please wait while room code is generated' : 'Opens QR code for viewer to scan'}
+        accessibilityState={{ disabled: isLoading }}
       >
         <View style={[styles.qrIconContainer, isLoading && styles.qrIconContainerLoading]}>
           {isLoading ? (

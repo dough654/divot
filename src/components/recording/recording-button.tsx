@@ -72,6 +72,10 @@ export const RecordingButton = ({
         pressed && !disabled && styles.pressed,
         disabled && styles.disabled,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
+      accessibilityHint={isRecording ? 'Stops video recording' : 'Starts video recording'}
+      accessibilityState={{ disabled }}
     >
       <Animated.View
         style={[

@@ -13,6 +13,10 @@ export type ButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Custom accessibility label. Defaults to title. */
+  accessibilityLabel?: string;
+  /** Hint describing what happens when pressed. */
+  accessibilityHint?: string;
 };
 
 /**
@@ -26,6 +30,8 @@ export const Button = ({
   disabled = false,
   loading = false,
   icon,
+  accessibilityLabel,
+  accessibilityHint,
 }: ButtonProps) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -77,6 +83,10 @@ export const Button = ({
       ]}
       onPress={onPress}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: isDisabled }}
     >
       {loading ? (
         <ActivityIndicator color={getTextColor()} />

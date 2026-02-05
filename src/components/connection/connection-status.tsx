@@ -60,7 +60,12 @@ export const ConnectionStatus = ({
 
   if (compact) {
     return (
-      <View style={[styles.compactContainer, isDark && styles.compactContainerDark]}>
+      <View
+        style={[styles.compactContainer, isDark && styles.compactContainerDark]}
+        accessible
+        accessibilityLabel={`Connection status: ${info.label}${isConnected && quality ? `, latency ${quality.latencyMs} milliseconds` : ''}`}
+        accessibilityLiveRegion="polite"
+      >
         <Ionicons
           name={info.icon}
           size={16}
@@ -87,7 +92,12 @@ export const ConnectionStatus = ({
   }
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View
+      style={[styles.container, isDark && styles.containerDark]}
+      accessible
+      accessibilityLabel={`Connection status: ${info.label}${isConnected && quality ? `. Quality: ${formatQuality(quality)}` : ''}`}
+      accessibilityLiveRegion="polite"
+    >
       <View style={styles.statusRow}>
         <Ionicons
           name={info.icon}
