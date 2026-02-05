@@ -13,7 +13,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type RoleButtonProps = {
   children: React.ReactNode;
-  style: object | (object | false | undefined)[];
+  style: object;
   pressedBgColor: string;
   defaultBgColor: string;
   rippleColor?: string;
@@ -65,10 +65,9 @@ export default function HomeScreen() {
       <View style={styles.roleSection}>
         {!isLandscape && <Text style={styles.sectionTitle}>Select Your Role</Text>}
 
-        <View style={isLandscape ? styles.roleButtonsRow : undefined}>
         <Link href="/camera" asChild>
           <RoleButton
-            style={[styles.roleButton, isLandscape && styles.roleButtonLandscape]}
+            style={isLandscape ? styles.roleButtonCompact : styles.roleButton}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
@@ -76,8 +75,8 @@ export default function HomeScreen() {
             accessibilityLabel="Camera mode"
             accessibilityHint="Film the swing and stream to another device"
           >
-            <View style={styles.roleIconContainer}>
-              <Ionicons name="videocam" size={isLandscape ? 28 : 40} color={theme.colors.primary} />
+            <View style={isLandscape ? styles.roleIconContainerCompact : styles.roleIconContainer}>
+              <Ionicons name="videocam" size={isLandscape ? 24 : 40} color={theme.colors.primary} />
             </View>
             <View style={styles.roleTextContainer}>
               <Text style={styles.roleTitle}>Camera</Text>
@@ -93,7 +92,7 @@ export default function HomeScreen() {
 
         <Link href="/viewer" asChild>
           <RoleButton
-            style={[styles.roleButton, isLandscape && styles.roleButtonLandscape]}
+            style={isLandscape ? styles.roleButtonCompact : styles.roleButton}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
@@ -101,8 +100,8 @@ export default function HomeScreen() {
             accessibilityLabel="Viewer mode"
             accessibilityHint="Watch the swing stream from another device"
           >
-            <View style={styles.roleIconContainer}>
-              <Ionicons name="eye" size={isLandscape ? 28 : 40} color={theme.colors.secondary} />
+            <View style={isLandscape ? styles.roleIconContainerCompact : styles.roleIconContainer}>
+              <Ionicons name="eye" size={isLandscape ? 24 : 40} color={theme.colors.secondary} />
             </View>
             <View style={styles.roleTextContainer}>
               <Text style={styles.roleTitle}>Viewer</Text>
@@ -118,7 +117,7 @@ export default function HomeScreen() {
 
         <Link href="/clips" asChild>
           <RoleButton
-            style={[styles.roleButton, isLandscape && styles.roleButtonLandscape]}
+            style={isLandscape ? styles.roleButtonCompact : styles.roleButton}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
@@ -126,8 +125,8 @@ export default function HomeScreen() {
             accessibilityLabel="My Clips"
             accessibilityHint="View and playback recorded swing videos"
           >
-            <View style={[styles.roleIconContainer, styles.clipsIconContainer]}>
-              <Ionicons name="film" size={isLandscape ? 28 : 40} color={theme.palette.amber600} />
+            <View style={[isLandscape ? styles.roleIconContainerCompact : styles.roleIconContainer, styles.clipsIconContainer]}>
+              <Ionicons name="film" size={isLandscape ? 24 : 40} color={theme.palette.amber600} />
             </View>
             <View style={styles.roleTextContainer}>
               <Text style={styles.roleTitle}>My Clips</Text>
@@ -140,7 +139,6 @@ export default function HomeScreen() {
             <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </RoleButton>
         </Link>
-        </View>
       </View>
 
       <View style={styles.footer}>
@@ -174,8 +172,8 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   headerLandscape: {
     alignItems: 'center' as const,
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
   },
   title: {
     fontSize: 36,
@@ -189,11 +187,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   roleSection: {
     flex: 1,
-  },
-  roleButtonsRow: {
-    flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
-    gap: theme.spacing.md,
   },
   sectionTitle: {
     fontSize: theme.fontSize.sm,
@@ -212,10 +205,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     ...theme.shadows.md,
     shadowOpacity: theme.isDark ? 0.3 : 0.1,
   },
-  roleButtonLandscape: {
-    flex: 1,
+  roleButtonCompact: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
-    marginBottom: 0,
+    marginBottom: theme.spacing.sm,
+    ...theme.shadows.md,
+    shadowOpacity: theme.isDark ? 0.3 : 0.1,
   },
   roleIconContainer: {
     width: 60,
@@ -225,6 +222,15 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     marginRight: theme.spacing.lg,
+  },
+  roleIconContainerCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.backgroundSecondary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: theme.spacing.md,
   },
   clipsIconContainer: {
     backgroundColor: theme.isDark ? '#2a1a1a' : theme.palette.amber50,

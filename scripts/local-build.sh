@@ -93,7 +93,7 @@ echo "==> Committing changes for EAS..."
 ssh "${MAC_HOST}" "cd ${REMOTE_DIR} && git add -A && git diff-index --quiet HEAD || git commit -m 'build sync' --no-gpg-sign" 2>&1 | tail -1
 
 echo "==> Installing dependencies on Mac..."
-ssh "${MAC_HOST}" "cd ${REMOTE_DIR} && npm ci --prefer-offline 2>&1 | tail -1"
+ssh "${MAC_HOST}" "cd ${REMOTE_DIR} && npm ci"
 
 echo "==> Running eas build --local (platform=${PLATFORM}, profile=${PROFILE})..."
 
