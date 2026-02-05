@@ -760,6 +760,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   videoContainerLandscape: {
     flex: 1,
+    paddingTop: theme.spacing.sm,
   },
   topBar: {
     paddingHorizontal: theme.spacing.md,
