@@ -696,7 +696,7 @@ export default function CameraScreen() {
                   <QRCodeDisplay
                     value={qrPayload}
                     roomCode={formatRoomCode(roomCode!)}
-                    size={160}
+                    size={120}
                   />
                 )}
               </>
@@ -953,10 +953,12 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   modalContentLandscape: {
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
     maxHeight: '85%' as const,
     alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    overflow: 'hidden' as const,
   },
   modalCloseX: {
     position: 'absolute' as const,
