@@ -239,7 +239,32 @@ export const animation = {
 // ============================================
 
 export type ColorScheme = 'light' | 'dark';
-export type ThemeColors = typeof colors.light;
+
+/** Theme color keys - same structure for light and dark */
+export type ThemeColors = {
+  background: string;
+  backgroundSecondary: string;
+  backgroundTertiary: string;
+  surface: string;
+  surfaceElevated: string;
+  text: string;
+  textSecondary: string;
+  textTertiary: string;
+  textInverse: string;
+  border: string;
+  borderSubtle: string;
+  primary: string;
+  primaryHover: string;
+  secondary: string;
+  success: string;
+  successBackground: string;
+  error: string;
+  errorBackground: string;
+  warning: string;
+  warningBackground: string;
+  recording: string;
+};
+
 export type Spacing = keyof typeof spacing;
 export type BorderRadius = keyof typeof borderRadius;
 export type FontSize = keyof typeof fontSize;

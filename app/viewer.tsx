@@ -246,7 +246,6 @@ export default function ViewerScreen() {
             onPress={() => setUseManualEntry(true)}
             variant="secondary"
             icon="keypad-outline"
-            isDark={isDark}
           />
         )}
 
@@ -256,7 +255,6 @@ export default function ViewerScreen() {
             onPress={handleRescan}
             variant="primary"
             icon="refresh"
-            isDark={isDark}
           />
         )}
 

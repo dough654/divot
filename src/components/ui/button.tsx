@@ -1,5 +1,8 @@
-import { StyleSheet, Pressable, Text, ActivityIndicator, View } from 'react-native';
+import { Pressable, Text, ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger';
 
@@ -10,11 +13,11 @@ export type ButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
-  isDark?: boolean;
 };
 
 /**
  * Reusable button component with multiple variants.
+ * Automatically adapts to light/dark theme.
  */
 export const Button = ({
   title,
@@ -23,42 +26,43 @@ export const Button = ({
   disabled = false,
   loading = false,
   icon,
-  isDark = false,
 }: ButtonProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const isDisabled = disabled || loading;
 
   const getBackgroundColor = () => {
-    if (isDisabled) return isDark ? '#333' : '#ccc';
+    if (isDisabled) return theme.isDark ? '#333' : '#ccc';
     switch (variant) {
       case 'primary':
-        return '#4CAF50';
+        return theme.colors.primary;
       case 'secondary':
-        return isDark ? '#2a2a4e' : '#f0f0f0';
+        return theme.colors.surface;
       case 'outline':
-        return 'transparent';
+        return theme.palette.transparent;
       case 'danger':
-        return '#f44336';
+        return theme.colors.error;
     }
   };
 
   const getTextColor = () => {
-    if (isDisabled) return '#888';
+    if (isDisabled) return theme.colors.textTertiary;
     switch (variant) {
       case 'primary':
       case 'danger':
-        return '#ffffff';
+        return theme.palette.white;
       case 'secondary':
-        return isDark ? '#ffffff' : '#1a1a2e';
+        return theme.colors.text;
       case 'outline':
-        return '#4CAF50';
+        return theme.colors.primary;
     }
   };
 
   const getBorderColor = () => {
     if (variant === 'outline') {
-      return isDisabled ? '#888' : '#4CAF50';
+      return isDisabled ? theme.colors.textTertiary : theme.colors.primary;
     }
-    return 'transparent';
+    return theme.palette.transparent;
   };
 
   return (
@@ -88,28 +92,28 @@ export const Button = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   button: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing['2xl'],
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     minHeight: 64,
   },
   buttonOutline: {
     borderWidth: 2,
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   icon: {
-    marginRight: 8,
+    marginRight: theme.spacing.sm,
   },
   text: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
   },
-});
+}));
