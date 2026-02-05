@@ -1,7 +1,8 @@
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission, useCodeScanner } from 'react-native-vision-camera';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useHaptics } from '../../hooks';
 
 export type QRCodeScannerProps = {
   onScan: (data: string) => void;
@@ -20,6 +21,8 @@ export const QRCodeScanner = ({
 }: QRCodeScannerProps) => {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
+  const haptics = useHaptics();
+  const hasTriggeredRef = useRef(false);
 
   const codeScanner = useCodeScanner({
     codeTypes: ['qr'],
@@ -31,9 +34,14 @@ export const QRCodeScanner = ({
       if (!isScanning) return;
       const firstCode = codes[0];
       if (firstCode?.value) {
+        // Haptic feedback on successful scan (only once per scan session)
+        if (!hasTriggeredRef.current) {
+          hasTriggeredRef.current = true;
+          haptics.success();
+        }
         onScan(firstCode.value);
       }
-    }, [isScanning, onScan]),
+    }, [isScanning, onScan, haptics]),
   });
 
   if (!hasPermission) {

@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useCallback } from 'react';
 import { useTheme } from '../../context';
-import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import { useThemedStyles, makeThemedStyles, useHaptics } from '../../hooks';
 import type { Theme } from '../../context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -45,14 +45,16 @@ export const Button = ({
 }: ButtonProps) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const haptics = useHaptics();
   const isDisabled = disabled || loading;
 
   // Animation state
   const pressed = useSharedValue(0);
 
   const handlePressIn = useCallback(() => {
+    if (!isDisabled) haptics.light();
     pressed.value = withTiming(1, { duration: 100, easing: Easing.out(Easing.cubic) });
-  }, [pressed]);
+  }, [pressed, isDisabled, haptics]);
 
   const handlePressOut = useCallback(() => {
     pressed.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.cubic) });

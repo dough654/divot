@@ -2,7 +2,7 @@ import { StyleSheet, View, Text, AccessibilityInfo } from 'react-native';
 import { useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { ConnectionStep, ConnectionQuality } from '@/src/types';
-import { formatQuality, getQualityRating } from '@/src/hooks/use-connection-quality';
+import { formatQuality, getQualityRating, useHaptics } from '@/src/hooks';
 
 export type ConnectionStatusProps = {
   step: ConnectionStep;
@@ -74,28 +74,38 @@ export const ConnectionStatus = ({
   const isFailed = step === 'failed' || step === 'reconnect-failed';
   const isReconnecting = step === 'reconnecting';
   const qualityRating = getQualityRating(quality ?? null);
+  const haptics = useHaptics();
 
   // Track previous values for change detection
   const prevStepRef = useRef<ConnectionStep | null>(null);
   const prevQualityRatingRef = useRef<ReturnType<typeof getQualityRating> | null>(null);
 
-  // Announce connection state changes
+  // Announce connection state changes and provide haptic feedback
   useEffect(() => {
-    // Skip initial mount announcement
+    // Skip initial mount
     if (prevStepRef.current === null) {
       prevStepRef.current = step;
       return;
     }
 
-    // Only announce if step actually changed
+    // Only react if step actually changed
     if (prevStepRef.current !== step) {
+      // Accessibility announcement
       const announcement = getStepAnnouncement(step, info.label);
       if (announcement) {
         AccessibilityInfo.announceForAccessibility(announcement);
       }
+
+      // Haptic feedback based on new state
+      if (step === 'connected') {
+        haptics.success();
+      } else if (step === 'failed' || step === 'reconnect-failed') {
+        haptics.error();
+      }
+
       prevStepRef.current = step;
     }
-  }, [step, info.label]);
+  }, [step, info.label, haptics]);
 
   // Announce quality degradation
   useEffect(() => {

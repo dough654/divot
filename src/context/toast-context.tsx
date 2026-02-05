@@ -36,6 +36,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme } from './theme-context';
 import { useThemedStyles, makeThemedStyles } from '../hooks/use-themed-styles';
+import { useHaptics } from '../hooks/use-haptics';
 import type { Theme } from './theme-context';
 
 // ============================================
@@ -238,20 +239,36 @@ type ToastProviderProps = {
 export const ToastProvider = ({ children }: ToastProviderProps) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const idCounter = useRef(0);
+  const haptics = useHaptics();
 
   const show = useCallback((message: string, options?: ToastOptions): string => {
     const id = `toast-${++idCounter.current}`;
+    const variant = options?.variant ?? 'info';
     const toast: Toast = {
       id,
       message,
-      variant: options?.variant ?? 'info',
+      variant,
       duration: options?.duration ?? DEFAULT_DURATION,
       accessibilityLabel: options?.accessibilityLabel ?? message,
     };
 
+    // Haptic feedback based on variant
+    switch (variant) {
+      case 'success':
+        haptics.success();
+        break;
+      case 'error':
+        haptics.error();
+        break;
+      case 'warning':
+        haptics.warning();
+        break;
+      // info: no haptic (too frequent/intrusive)
+    }
+
     setToasts((prev) => [...prev, toast]);
     return id;
-  }, []);
+  }, [haptics]);
 
   const dismiss = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));

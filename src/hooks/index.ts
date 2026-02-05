@@ -10,3 +10,4 @@ export * from './use-drawing';
 export * from './use-vision-camera-stream';
 export * from './use-themed-styles';
 export * from './use-press-animation';
+export * from './use-haptics';

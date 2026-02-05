@@ -7,7 +7,8 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useHaptics } from '../../hooks';
 
 export type RecordingButtonProps = {
   /** Whether currently recording. */
@@ -32,6 +33,14 @@ export const RecordingButton = ({
 }: RecordingButtonProps) => {
   const scale = useSharedValue(1);
   const innerRadius = useSharedValue(size / 2 - 8);
+  const haptics = useHaptics();
+
+  const handlePress = useCallback(() => {
+    if (!disabled) {
+      haptics.heavy();
+      onPress();
+    }
+  }, [disabled, haptics, onPress]);
 
   // Pulse animation when recording
   useEffect(() => {
@@ -64,7 +73,7 @@ export const RecordingButton = ({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       disabled={disabled}
       style={({ pressed }) => [
         styles.container,
