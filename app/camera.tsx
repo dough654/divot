@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Modal, Alert, Linking } from 'react-native';
+import { View, Text, Pressable, Modal, Alert, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -760,7 +760,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   videoContainerLandscape: {
     flex: 1,
-    paddingTop: theme.spacing.sm,
+    paddingTop: Platform.select({ ios: theme.spacing.lg, default: theme.spacing.sm }),
   },
   topBar: {
     paddingHorizontal: theme.spacing.md,
