@@ -696,7 +696,7 @@ export default function CameraScreen() {
                   <QRCodeDisplay
                     value={qrPayload}
                     roomCode={formatRoomCode(roomCode!)}
-                    size={120}
+                    size={160}
                   />
                 )}
               </>
