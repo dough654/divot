@@ -1,13 +1,16 @@
-import { StyleSheet, View, Text, Pressable, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, Animated, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
+
+import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type QRCodeButtonProps = {
   roomCode: string | null;
   onPress: () => void;
   isPulsing: boolean;
   isLoading?: boolean;
-  isDark?: boolean;
 };
 
 /**
@@ -20,8 +23,9 @@ export const QRCodeButton = ({
   onPress,
   isPulsing,
   isLoading = false,
-  isDark = false,
 }: QRCodeButtonProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const glowAnim = useRef(new Animated.Value(0)).current;
   const readyAnim = useRef(new Animated.Value(0)).current;
 
@@ -80,7 +84,7 @@ export const QRCodeButton = ({
 
   const borderColor = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [isDark ? '#3a3a5e' : '#e0e0e0', '#4CAF50'],
+    outputRange: [theme.colors.border, theme.colors.primary],
   });
 
   const borderWidth = glowAnim.interpolate({
@@ -107,7 +111,7 @@ export const QRCodeButton = ({
       ]}
     >
       <Pressable
-        style={[styles.container, isDark && styles.containerDark]}
+        style={styles.container}
         onPress={onPress}
         disabled={isLoading}
         accessibilityRole="button"
@@ -117,34 +121,34 @@ export const QRCodeButton = ({
       >
         <View style={[styles.qrIconContainer, isLoading && styles.qrIconContainerLoading]}>
           {isLoading ? (
-            <ActivityIndicator size="small" color={isDark ? '#888' : '#666'} />
+            <ActivityIndicator size="small" color={theme.colors.textSecondary} />
           ) : (
-            <Ionicons name="qr-code" size={24} color={isDark ? '#ffffff' : '#1a1a2e'} />
+            <Ionicons name="qr-code" size={24} color={theme.colors.text} />
           )}
         </View>
 
         <View style={styles.content}>
-          <Text style={[styles.label, isDark && styles.labelDark]}>
+          <Text style={styles.label}>
             {isLoading ? 'Generating...' : 'Room Code'}
           </Text>
           {isLoading ? (
             <View style={styles.loadingPlaceholder}>
-              <Text style={[styles.loadingText, isDark && styles.loadingTextDark]}>--- ---</Text>
+              <Text style={styles.loadingText}>--- ---</Text>
             </View>
           ) : (
-            <Text style={[styles.code, isDark && styles.codeDark]}>{roomCode}</Text>
+            <Text style={styles.code}>{roomCode}</Text>
           )}
         </View>
 
         <View style={styles.action}>
           {isLoading ? (
-            <Text style={[styles.actionTextLoading, isDark && styles.actionTextLoadingDark]}>
+            <Text style={styles.actionTextLoading}>
               Please wait
             </Text>
           ) : (
             <>
               <Text style={styles.actionText}>Show QR</Text>
-              <Ionicons name="chevron-forward" size={16} color="#4CAF50" />
+              <Ionicons name="chevron-forward" size={16} color={theme.colors.primary} />
             </>
           )}
         </View>
@@ -153,83 +157,68 @@ export const QRCodeButton = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   animatedWrapper: {
     borderRadius: 14,
   },
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
-  },
-  containerDark: {
-    backgroundColor: '#2a2a4e',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
   },
   qrIconContainer: {
     width: 40,
     height: 40,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.backgroundSecondary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   qrIconContainerLoading: {
-    backgroundColor: '#e8e8e8',
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   content: {
     flex: 1,
   },
   label: {
     fontSize: 11,
-    color: '#666',
-    textTransform: 'uppercase',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
-  },
-  labelDark: {
-    color: '#888',
   },
   code: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a2e',
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text,
     letterSpacing: 2,
     fontFamily: 'SpaceMono',
   },
-  codeDark: {
-    color: '#ffffff',
-  },
   action: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 4,
   },
   actionText: {
     fontSize: 13,
-    color: '#4CAF50',
-    fontWeight: '500',
+    color: theme.colors.primary,
+    fontWeight: theme.fontWeight.medium,
   },
   actionTextLoading: {
     fontSize: 12,
-    color: '#888',
-  },
-  actionTextLoadingDark: {
-    color: '#666',
+    color: theme.colors.textTertiary,
   },
   loadingPlaceholder: {
     height: 22,
-    justifyContent: 'center',
+    justifyContent: 'center' as const,
   },
   loadingText: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#ccc',
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.textTertiary,
     letterSpacing: 2,
     fontFamily: 'SpaceMono',
   },
-  loadingTextDark: {
-    color: '#444',
-  },
-});
+}));

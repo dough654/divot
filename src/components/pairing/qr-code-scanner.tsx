@@ -2,12 +2,14 @@ import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission, useCodeScanner } from 'react-native-vision-camera';
 import { useCallback, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useHaptics } from '../../hooks';
+
+import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles, useHaptics } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type QRCodeScannerProps = {
   onScan: (data: string) => void;
   isScanning?: boolean;
-  isDark?: boolean;
 };
 
 /**
@@ -17,8 +19,9 @@ export type QRCodeScannerProps = {
 export const QRCodeScanner = ({
   onScan,
   isScanning = true,
-  isDark = false,
 }: QRCodeScannerProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
   const haptics = useHaptics();
@@ -46,9 +49,9 @@ export const QRCodeScanner = ({
 
   if (!hasPermission) {
     return (
-      <View style={[styles.container, styles.centered, isDark && styles.containerDark]}>
-        <Ionicons name="camera-outline" size={48} color={isDark ? '#888' : '#666'} />
-        <Text style={[styles.message, isDark && styles.messageDark]}>
+      <View style={[styles.container, styles.centered]}>
+        <Ionicons name="camera-outline" size={48} color={theme.colors.textSecondary} />
+        <Text style={styles.message}>
           Camera permission is required to scan QR codes
         </Text>
         <Pressable
@@ -67,7 +70,7 @@ export const QRCodeScanner = ({
   if (!device) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={[styles.message, isDark && styles.messageDark]}>
+        <Text style={styles.message}>
           No camera device available
         </Text>
       </View>
@@ -77,14 +80,14 @@ export const QRCodeScanner = ({
   return (
     <View style={styles.container}>
       <Camera
-        style={styles.camera}
+        style={absoluteFillStyle.camera}
         device={device}
         isActive={isScanning}
         codeScanner={codeScanner}
         androidPreviewViewType="texture-view"
         onError={(error) => console.error('[QRScanner] Camera error:', error.code, error.message)}
       />
-      <View style={styles.overlay} pointerEvents="none">
+      <View style={absoluteFillStyle.overlay} pointerEvents="none">
         <View style={styles.scanArea}>
           <View style={[styles.corner, styles.topLeft]} />
           <View style={[styles.corner, styles.topRight]} />
@@ -102,21 +105,8 @@ export const QRCodeScanner = ({
 const CORNER_SIZE = 30;
 const CORNER_THICKNESS = 4;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  containerDark: {
-    backgroundColor: '#1a1a2e',
-  },
-  centered: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
+// These styles need absolute positioning which doesn't work well with themed styles
+const absoluteFillStyle = StyleSheet.create({
   camera: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -126,16 +116,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+});
+
+const createStyles = makeThemedStyles((theme: Theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.palette.black,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden' as const,
+  },
+  centered: {
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    padding: theme.spacing['2xl'],
+    backgroundColor: theme.colors.backgroundTertiary,
+  },
   scanArea: {
     width: 250,
     height: 250,
     backgroundColor: 'transparent',
   },
   corner: {
-    position: 'absolute',
+    position: 'absolute' as const,
     width: CORNER_SIZE,
     height: CORNER_SIZE,
-    borderColor: '#4CAF50',
+    borderColor: theme.colors.primary,
   },
   topLeft: {
     top: 0,
@@ -162,30 +167,27 @@ const styles = StyleSheet.create({
     borderRightWidth: CORNER_THICKNESS,
   },
   instruction: {
-    marginTop: 24,
-    fontSize: 16,
-    color: '#ffffff',
-    textAlign: 'center',
+    marginTop: theme.spacing['2xl'],
+    fontSize: theme.fontSize.md,
+    color: theme.palette.white,
+    textAlign: 'center' as const,
   },
   message: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  messageDark: {
-    color: '#888',
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+    textAlign: 'center' as const,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
   },
   permissionButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing['2xl'],
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.sm,
   },
   permissionButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.palette.white,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
   },
-});
+}));

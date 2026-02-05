@@ -1,11 +1,14 @@
-import { StyleSheet, View, Text, Platform } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type HotspotSetupGuideProps = {
   hotspotSsid?: string;
   hotspotPassword?: string;
   isCamera?: boolean;
-  isDark?: boolean;
 };
 
 /**
@@ -16,8 +19,10 @@ export const HotspotSetupGuide = ({
   hotspotSsid,
   hotspotPassword,
   isCamera = false,
-  isDark = false,
 }: HotspotSetupGuideProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   const cameraSteps = [
     'Enable your phone\'s mobile hotspot',
     'Note the hotspot name and password',
@@ -45,14 +50,14 @@ export const HotspotSetupGuide = ({
     : viewerStepsAndroid;
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Ionicons
           name={isCamera ? 'phone-portrait' : 'wifi'}
           size={32}
-          color="#4CAF50"
+          color={theme.colors.primary}
         />
-        <Text style={[styles.title, isDark && styles.titleDark]}>
+        <Text style={styles.title}>
           {isCamera ? 'Enable Hotspot' : 'Connect to Hotspot'}
         </Text>
       </View>
@@ -63,7 +68,7 @@ export const HotspotSetupGuide = ({
             <View style={styles.stepNumber}>
               <Text style={styles.stepNumberText}>{index + 1}</Text>
             </View>
-            <Text style={[styles.stepText, isDark && styles.stepTextDark]}>
+            <Text style={styles.stepText}>
               {step}
             </Text>
           </View>
@@ -71,21 +76,21 @@ export const HotspotSetupGuide = ({
       </View>
 
       {!isCamera && hotspotSsid && (
-        <View style={[styles.credentialsBox, isDark && styles.credentialsBoxDark]}>
+        <View style={styles.credentialsBox}>
           <View style={styles.credentialRow}>
-            <Text style={[styles.credentialLabel, isDark && styles.credentialLabelDark]}>
+            <Text style={styles.credentialLabel}>
               Network:
             </Text>
-            <Text style={[styles.credentialValue, isDark && styles.credentialValueDark]}>
+            <Text style={styles.credentialValue}>
               {hotspotSsid}
             </Text>
           </View>
           {hotspotPassword && (
             <View style={styles.credentialRow}>
-              <Text style={[styles.credentialLabel, isDark && styles.credentialLabelDark]}>
+              <Text style={styles.credentialLabel}>
                 Password:
               </Text>
-              <Text style={[styles.credentialValue, isDark && styles.credentialValueDark]}>
+              <Text style={styles.credentialValue}>
                 {hotspotPassword}
               </Text>
             </View>
@@ -93,13 +98,13 @@ export const HotspotSetupGuide = ({
         </View>
       )}
 
-      <View style={[styles.infoBox, isDark && styles.infoBoxDark]}>
+      <View style={styles.infoBox}>
         <Ionicons
           name="information-circle-outline"
           size={16}
-          color={isDark ? '#888' : '#666'}
+          color={theme.colors.textSecondary}
         />
-        <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
+        <Text style={styles.infoText}>
           Hotspot mode provides the best connection quality with lowest latency.
         </Text>
       </View>
@@ -107,108 +112,84 @@ export const HotspotSetupGuide = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-  },
-  containerDark: {
-    backgroundColor: '#2a2a4e',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a1a2e',
-  },
-  titleDark: {
-    color: '#ffffff',
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
   },
   stepsContainer: {
-    gap: 12,
+    gap: theme.spacing.md,
   },
   stepRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: theme.spacing.md,
   },
   stepNumber: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#4CAF50',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   stepNumberText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
+    color: theme.palette.white,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
   },
   stepText: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
+    color: theme.colors.text,
     lineHeight: 22,
   },
-  stepTextDark: {
-    color: '#ccc',
-  },
   credentialsBox: {
-    marginTop: 20,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    padding: 12,
-    gap: 8,
-  },
-  credentialsBoxDark: {
-    backgroundColor: '#1a1a2e',
+    marginTop: theme.spacing.xl,
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   credentialRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
   },
   credentialLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  credentialLabelDark: {
-    color: '#888',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
   },
   credentialValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a2e',
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
     fontFamily: 'SpaceMono',
   },
-  credentialValueDark: {
-    color: '#ffffff',
-  },
   infoBox: {
-    marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: '#e8f5e9',
-    borderRadius: 8,
-    padding: 12,
-  },
-  infoBoxDark: {
-    backgroundColor: '#1a3a1a',
+    marginTop: theme.spacing.xl,
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.successBackground,
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.md,
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.textSecondary,
     lineHeight: 18,
   },
-  infoTextDark: {
-    color: '#888',
-  },
-});
+}));

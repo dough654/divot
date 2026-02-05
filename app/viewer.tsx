@@ -1,9 +1,10 @@
-import { StyleSheet, View, Text, Alert } from 'react-native';
+import { View, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'expo-router';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
@@ -19,8 +20,7 @@ import type { ConnectionStep } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
 
 export default function ViewerScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const styles = useThemedStyles(createStyles);
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('scanning-qr');
   const [isScanning, setIsScanning] = useState(true);
@@ -198,13 +198,11 @@ export default function ViewerScreen() {
     await proceedWithConnection(code);
   }, [proceedWithConnection]);
 
-  const styles = createStyles(isDark);
-
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       {/* Connection Status - top bar */}
       <View style={styles.topBar}>
-        <ConnectionStatus step={connectionStep} quality={quality} isDark={isDark} compact />
+        <ConnectionStatus step={connectionStep} quality={quality} compact />
       </View>
 
       {/* Video or Scanner or Manual Entry */}
@@ -225,12 +223,11 @@ export default function ViewerScreen() {
             <QRCodeScanner
               onScan={handleScan}
               isScanning={isScanning}
-              isDark={isDark}
             />
           )
         ) : (
           <View style={styles.connectingContainer}>
-            <Text style={[styles.connectingText, isDark && styles.connectingTextDark]}>
+            <Text style={styles.connectingText}>
               Connecting to camera...
             </Text>
           </View>
@@ -259,10 +256,10 @@ export default function ViewerScreen() {
 
         {isConnected && (
           <View style={styles.qualityInfo}>
-            <Text style={[styles.qualityLabel, isDark && styles.qualityLabelDark]}>
+            <Text style={styles.qualityLabel}>
               Preview
             </Text>
-            <Text style={[styles.qualityValue, isDark && styles.qualityValueDark]}>
+            <Text style={styles.qualityValue}>
               {remoteStream ? 'Live' : 'Waiting...'}
             </Text>
           </View>
@@ -280,63 +277,53 @@ export default function ViewerScreen() {
   );
 }
 
-const createStyles = (isDark: boolean) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
-    },
-    topBar: {
-      paddingHorizontal: 12,
-      paddingTop: 8,
-      paddingBottom: 8,
-    },
-    mainContent: {
-      flex: 1,
-      marginHorizontal: 12,
-      marginBottom: 8,
-      borderRadius: 16,
-      overflow: 'hidden',
-    },
-    connectingContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: isDark ? '#0a0a1e' : '#e0e0e0',
-    },
-    connectingText: {
-      fontSize: 18,
-      color: '#666',
-    },
-    connectingTextDark: {
-      color: '#888',
-    },
-    bottomBar: {
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-    },
-    qualityInfo: {
-      alignItems: 'center',
-      padding: 16,
-      backgroundColor: isDark ? '#2a2a4e' : '#ffffff',
-      borderRadius: 12,
-    },
-    qualityLabel: {
-      fontSize: 12,
-      color: '#666',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-    },
-    qualityLabelDark: {
-      color: '#888',
-    },
-    qualityValue: {
-      fontSize: 24,
-      fontWeight: '600',
-      color: '#4CAF50',
-      marginTop: 4,
-    },
-    qualityValueDark: {
-      color: '#4CAF50',
-    },
-  });
+const createStyles = makeThemedStyles((theme: Theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  topBar: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
+  },
+  mainContent: {
+    flex: 1,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.borderRadius.lg,
+    overflow: 'hidden' as const,
+  },
+  connectingContainer: {
+    flex: 1,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: theme.colors.backgroundTertiary,
+  },
+  connectingText: {
+    fontSize: 18,
+    color: theme.colors.textSecondary,
+  },
+  bottomBar: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+  },
+  qualityInfo: {
+    alignItems: 'center' as const,
+    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+  },
+  qualityLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+  },
+  qualityValue: {
+    fontSize: 24,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.success,
+    marginTop: theme.spacing.xs,
+  },
+}));

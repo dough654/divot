@@ -1,4 +1,4 @@
-import { View, Text, FlatList, Pressable, RefreshControl, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, FlatList, Pressable, RefreshControl, Alert, Modal, TextInput, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
@@ -7,7 +7,7 @@ import Animated from 'react-native-reanimated';
 
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, usePressAnimation } from '@/src/hooks';
-import { EmptyState } from '@/src/components/ui';
+import { EmptyState, SkeletonClipItem } from '@/src/components/ui';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 import type { Theme } from '@/src/context';
@@ -74,6 +74,7 @@ const ClipItem = ({ clip, onPress, onMenuPress }: ClipItemProps) => {
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      android_ripple={Platform.OS === 'android' ? { color: theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)' } : undefined}
       accessibilityRole="button"
       accessibilityLabel={`${clipName}, ${formatDuration(clip.duration)}, ${formatFileSize(clip.fileSize)}`}
       accessibilityHint="Open clip for playback"
@@ -96,6 +97,7 @@ const ClipItem = ({ clip, onPress, onMenuPress }: ClipItemProps) => {
       <Pressable
         style={styles.menuButton}
         onPress={onMenuPress}
+        android_ripple={Platform.OS === 'android' ? { color: theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)', borderless: true } : undefined}
         accessibilityRole="button"
         accessibilityLabel={`Options for ${clipName}`}
         accessibilityHint="Open menu to rename or delete clip"
@@ -213,8 +215,12 @@ export default function ClipsScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <View style={styles.centerContent}>
-          <Text style={styles.loadingText}>Loading clips...</Text>
+        <View style={styles.listContent}>
+          <SkeletonClipItem />
+          <View style={styles.separator} />
+          <SkeletonClipItem />
+          <View style={styles.separator} />
+          <SkeletonClipItem />
         </View>
       </SafeAreaView>
     );
@@ -285,6 +291,7 @@ export default function ClipsScreen() {
               <Pressable
                 style={styles.modalButtonCancel}
                 onPress={handleRenameCancel}
+                android_ripple={Platform.OS === 'android' ? { color: theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)' } : undefined}
                 accessibilityRole="button"
                 accessibilityLabel="Cancel"
                 accessibilityHint="Cancel renaming and close dialog"
@@ -294,6 +301,7 @@ export default function ClipsScreen() {
               <Pressable
                 style={styles.modalButtonConfirm}
                 onPress={handleRenameConfirm}
+                android_ripple={Platform.OS === 'android' ? { color: 'rgba(255, 255, 255, 0.3)' } : undefined}
                 accessibilityRole="button"
                 accessibilityLabel="Save"
                 accessibilityHint="Save the new clip name"
@@ -312,16 +320,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
     backgroundColor: theme.colors.backgroundSecondary,
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    padding: theme.spacing['3xl'],
-  },
-  loadingText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
   },
   listContent: {
     padding: theme.spacing.md,

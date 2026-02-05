@@ -1,10 +1,13 @@
-import { StyleSheet, View, Text, Platform, Linking, Pressable } from 'react-native';
+import { View, Text, Platform, Linking, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type HotspotConnectInstructionsProps = {
   onConnected: () => void;
   onCancel: () => void;
-  isDark?: boolean;
 };
 
 /**
@@ -14,8 +17,10 @@ export type HotspotConnectInstructionsProps = {
 export const HotspotConnectInstructions = ({
   onConnected,
   onCancel,
-  isDark = false,
 }: HotspotConnectInstructionsProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   const iosSteps = [
     'Go to Settings > Wi-Fi',
     'Look for the camera device\'s hotspot name',
@@ -58,21 +63,21 @@ export const HotspotConnectInstructions = ({
   };
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="wifi" size={32} color="#4CAF50" />
-        <Text style={[styles.title, isDark && styles.titleDark]}>
+        <Ionicons name="wifi" size={32} color={theme.colors.primary} />
+        <Text style={styles.title}>
           Connect to Camera's Hotspot
         </Text>
       </View>
 
-      <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
+      <Text style={styles.subtitle}>
         Connect this device to the camera's mobile hotspot to establish the video stream.
       </Text>
 
-      <View style={[styles.tipBox, isDark && styles.tipBoxDark]}>
-        <Ionicons name="bulb-outline" size={18} color="#FF9800" />
-        <Text style={[styles.tipText, isDark && styles.tipTextDark]}>
+      <View style={styles.tipBox}>
+        <Ionicons name="bulb-outline" size={18} color={theme.colors.warning} />
+        <Text style={styles.tipText}>
           Ask the person with the camera for their hotspot name and password
         </Text>
       </View>
@@ -83,7 +88,7 @@ export const HotspotConnectInstructions = ({
             <View style={styles.stepNumber}>
               <Text style={styles.stepNumberText}>{index + 1}</Text>
             </View>
-            <Text style={[styles.stepText, isDark && styles.stepTextDark]}>
+            <Text style={styles.stepText}>
               {step}
             </Text>
           </View>
@@ -97,30 +102,30 @@ export const HotspotConnectInstructions = ({
         accessibilityLabel="Open Wi-Fi Settings"
         accessibilityHint="Open device Wi-Fi settings to connect to hotspot"
       >
-        <Ionicons name="wifi-outline" size={18} color="#4CAF50" />
+        <Ionicons name="wifi-outline" size={18} color={theme.colors.primary} />
         <Text style={styles.settingsButtonText}>Open Wi-Fi Settings</Text>
       </Pressable>
 
       <View style={styles.actions}>
         <Pressable
-          style={[styles.button, styles.cancelButton, isDark && styles.cancelButtonDark]}
+          style={styles.cancelButton}
           onPress={onCancel}
           accessibilityRole="button"
           accessibilityLabel="Cancel"
           accessibilityHint="Skip hotspot connection"
         >
-          <Text style={[styles.cancelButtonText, isDark && styles.cancelButtonTextDark]}>
+          <Text style={styles.cancelButtonText}>
             Cancel
           </Text>
         </Pressable>
         <Pressable
-          style={[styles.button, styles.connectedButton]}
+          style={styles.connectedButton}
           onPress={onConnected}
           accessibilityRole="button"
           accessibilityLabel="I'm Connected"
           accessibilityHint="Confirm that you've connected to the hotspot"
         >
-          <Ionicons name="checkmark-circle" size={20} color="#ffffff" style={styles.buttonIcon} />
+          <Ionicons name="checkmark-circle" size={20} color={theme.palette.white} style={styles.buttonIcon} />
           <Text style={styles.connectedButtonText}>I'm Connected</Text>
         </Pressable>
       </View>
@@ -128,142 +133,122 @@ export const HotspotConnectInstructions = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-  },
-  containerDark: {
-    backgroundColor: '#2a2a4e',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a1a2e',
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
     flex: 1,
   },
-  titleDark: {
-    color: '#ffffff',
-  },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
     lineHeight: 20,
-    marginBottom: 16,
-  },
-  subtitleDark: {
-    color: '#888',
+    marginBottom: theme.spacing.lg,
   },
   tipBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 10,
-    backgroundColor: '#FFF3E0',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
-  },
-  tipBoxDark: {
-    backgroundColor: '#3a2a1a',
+    backgroundColor: theme.colors.warningBackground,
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
   },
   tipText: {
     flex: 1,
     fontSize: 13,
-    color: '#E65100',
+    color: theme.colors.warning,
     lineHeight: 18,
   },
-  tipTextDark: {
-    color: '#FFB74D',
-  },
   stepsContainer: {
-    gap: 12,
-    marginBottom: 16,
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
   stepRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: theme.spacing.md,
   },
   stepNumber: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#4CAF50',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   stepNumberText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
+    color: theme.palette.white,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
   },
   stepText: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
+    color: theme.colors.text,
     lineHeight: 22,
   },
-  stepTextDark: {
-    color: '#ccc',
-  },
   settingsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    marginBottom: 20,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
     borderWidth: 1,
-    borderColor: '#4CAF50',
-    borderRadius: 8,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.sm,
   },
   settingsButtonText: {
-    color: '#4CAF50',
-    fontSize: 14,
-    fontWeight: '500',
+    color: theme.colors.primary,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
   },
   actions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
+    flexDirection: 'row' as const,
+    gap: theme.spacing.md,
   },
   buttonIcon: {
     marginRight: 6,
   },
   cancelButton: {
-    backgroundColor: '#f0f0f0',
-  },
-  cancelButtonDark: {
-    backgroundColor: '#1a1a2e',
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 14,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.backgroundSecondary,
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  cancelButtonTextDark: {
-    color: '#888',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.textSecondary,
   },
   connectedButton: {
-    backgroundColor: '#4CAF50',
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 14,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.primary,
   },
   connectedButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.palette.white,
   },
-});
+}));

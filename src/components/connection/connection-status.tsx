@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, AccessibilityInfo } from 'react-native';
+import { View, Text, AccessibilityInfo } from 'react-native';
 import { useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -14,13 +14,15 @@ import Animated, {
   FadeOut,
   LinearTransition,
 } from 'react-native-reanimated';
+
+import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles, formatQuality, getQualityRating, useHaptics } from '../../hooks';
+import type { Theme } from '../../context';
 import type { ConnectionStep, ConnectionQuality } from '@/src/types';
-import { formatQuality, getQualityRating, useHaptics } from '@/src/hooks';
 
 export type ConnectionStatusProps = {
   step: ConnectionStep;
   quality?: ConnectionQuality | null;
-  isDark?: boolean;
   /** Compact mode for tighter layouts */
   compact?: boolean;
 };
@@ -54,14 +56,6 @@ const spinningSteps: ConnectionStep[] = [
   'reconnecting',
 ];
 
-const qualityColors: Record<ReturnType<typeof getQualityRating>, string> = {
-  excellent: '#4CAF50',
-  good: '#8BC34A',
-  fair: '#FF9800',
-  poor: '#f44336',
-  unknown: '#888',
-};
-
 /**
  * Returns an appropriate announcement message for screen readers based on connection step.
  */
@@ -89,9 +83,10 @@ const getStepAnnouncement = (step: ConnectionStep, label: string): string | null
 export const ConnectionStatus = ({
   step,
   quality,
-  isDark = false,
   compact = false,
 }: ConnectionStatusProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const info = stepInfo[step];
   const isConnected = step === 'connected';
   const isFailed = step === 'failed' || step === 'reconnect-failed';
@@ -99,6 +94,15 @@ export const ConnectionStatus = ({
   const isSpinning = spinningSteps.includes(step);
   const qualityRating = getQualityRating(quality ?? null);
   const haptics = useHaptics();
+
+  // Quality colors
+  const qualityColors: Record<ReturnType<typeof getQualityRating>, string> = {
+    excellent: theme.colors.success,
+    good: '#8BC34A',
+    fair: theme.colors.warning,
+    poor: theme.colors.error,
+    unknown: theme.colors.textTertiary,
+  };
 
   // Animation values
   const rotation = useSharedValue(0);
@@ -195,10 +199,10 @@ export const ConnectionStatus = ({
   }, [isConnected, quality, qualityRating]);
 
   const getStatusColor = () => {
-    if (isConnected) return '#4CAF50';
-    if (isReconnecting) return '#FF9800';
-    if (isFailed) return '#f44336';
-    return isDark ? '#888' : '#666';
+    if (isConnected) return theme.colors.success;
+    if (isReconnecting) return theme.colors.warning;
+    if (isFailed) return theme.colors.error;
+    return theme.colors.textSecondary;
   };
 
   // Animated styles
@@ -219,7 +223,7 @@ export const ConnectionStatus = ({
   if (compact) {
     return (
       <Animated.View
-        style={[styles.compactContainer, isDark && styles.compactContainerDark, containerAnimatedStyle]}
+        style={[styles.compactContainer, containerAnimatedStyle]}
         accessible
         accessibilityLabel={`Connection status: ${info.label}${isConnected && quality ? `, latency ${quality.latencyMs} milliseconds` : ''}`}
         accessibilityLiveRegion="polite"
@@ -236,7 +240,7 @@ export const ConnectionStatus = ({
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(150)}
           layout={LinearTransition.duration(200)}
-          style={[styles.compactLabel, isDark && styles.compactLabelDark, isConnected && styles.labelConnected]}
+          style={[styles.compactLabel, isConnected && styles.labelConnected]}
         >
           {info.label}
         </Animated.Text>
@@ -248,7 +252,7 @@ export const ConnectionStatus = ({
                 { backgroundColor: qualityColors[qualityRating] },
               ]}
             />
-            <Text style={[styles.compactQuality, isDark && styles.qualityTextDark]}>
+            <Text style={styles.compactQuality}>
               {quality.latencyMs}ms
             </Text>
           </>
@@ -259,7 +263,7 @@ export const ConnectionStatus = ({
 
   return (
     <Animated.View
-      style={[styles.container, isDark && styles.containerDark, containerAnimatedStyle]}
+      style={[styles.container, containerAnimatedStyle]}
       accessible
       accessibilityLabel={`Connection status: ${info.label}${isConnected && quality ? `. Quality: ${formatQuality(quality)}` : ''}`}
       accessibilityLiveRegion="polite"
@@ -277,7 +281,7 @@ export const ConnectionStatus = ({
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(150)}
           layout={LinearTransition.duration(200)}
-          style={[styles.label, isDark && styles.labelDark, isConnected && styles.labelConnected]}
+          style={[styles.label, isConnected && styles.labelConnected]}
         >
           {info.label}
         </Animated.Text>
@@ -294,7 +298,7 @@ export const ConnectionStatus = ({
               { backgroundColor: qualityColors[qualityRating] },
             ]}
           />
-          <Text style={[styles.qualityText, isDark && styles.qualityTextDark]}>
+          <Text style={styles.qualityText}>
             {formatQuality(quality)}
           </Text>
         </Animated.View>
@@ -303,51 +307,41 @@ export const ConnectionStatus = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    overflow: 'hidden',
-  },
-  containerDark: {
-    backgroundColor: '#2a2a4e',
+    backgroundColor: theme.colors.backgroundTertiary,
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.md,
+    overflow: 'hidden' as const,
   },
   compactContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 6,
-    overflow: 'hidden',
+    overflow: 'hidden' as const,
   },
-  compactContainerDark: {},
   statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: theme.spacing.sm,
   },
   label: {
-    fontSize: 14,
-    color: '#666',
-  },
-  labelDark: {
-    color: '#888',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
   },
   compactLabel: {
     fontSize: 13,
-    color: '#666',
-  },
-  compactLabelDark: {
-    color: '#888',
+    color: theme.colors.textSecondary,
   },
   labelConnected: {
-    color: '#4CAF50',
-    fontWeight: '600',
+    color: theme.colors.success,
+    fontWeight: theme.fontWeight.semibold,
   },
   qualityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.sm,
   },
   qualityDot: {
     width: 8,
@@ -355,16 +349,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   qualityText: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
     fontFamily: 'SpaceMono',
-  },
-  qualityTextDark: {
-    color: '#888',
   },
   compactQuality: {
     fontSize: 11,
-    color: '#666',
+    color: theme.colors.textSecondary,
     fontFamily: 'SpaceMono',
   },
-});
+}));

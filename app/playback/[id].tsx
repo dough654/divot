@@ -1,10 +1,12 @@
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { useTheme } from '@/src/context';
+import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import type { Theme } from '@/src/context';
 import { VideoPlayer } from '@/src/components/playback';
 import { getClip } from '@/src/services/recording/clip-storage';
 import type { Clip } from '@/src/types/recording';
@@ -24,8 +26,8 @@ const formatDate = (timestamp: number): string => {
 };
 
 export default function PlaybackScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -59,13 +61,11 @@ export default function PlaybackScreen() {
     loadClip();
   }, [id]);
 
-  const styles = createStyles(isDark);
-
   if (isLoading) {
     return (
       <>
         <Stack.Screen options={{ title: 'Loading...' }} />
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
           <View style={styles.centerContent}>
             <Text style={styles.loadingText}>Loading clip...</Text>
           </View>
@@ -78,9 +78,9 @@ export default function PlaybackScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Error' }} />
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <SafeAreaView style={styles.loadingContainer} edges={['bottom']}>
           <View style={styles.centerContent}>
-            <Ionicons name="alert-circle-outline" size={64} color="#f44336" />
+            <Ionicons name="alert-circle-outline" size={64} color={theme.colors.error} />
             <Text style={styles.errorTitle}>{error || 'Clip not found'}</Text>
             <Pressable
               style={styles.backButton}
@@ -118,52 +118,54 @@ export default function PlaybackScreen() {
   );
 }
 
-const createStyles = (isDark: boolean) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#1a1a2e',
-    },
-    centerContent: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 32,
-      backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
-    },
-    loadingText: {
-      fontSize: 16,
-      color: isDark ? '#888' : '#666',
-    },
-    errorTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: isDark ? '#fff' : '#1a1a2e',
-      marginTop: 16,
-      marginBottom: 24,
-    },
-    backButton: {
-      backgroundColor: '#4CAF50',
-      paddingVertical: 12,
-      paddingHorizontal: 24,
-      borderRadius: 8,
-    },
-    backButtonText: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    headerTitleContainer: {
-      alignItems: 'center',
-    },
-    headerTitle: {
-      fontSize: 17,
-      fontWeight: '600',
-      color: isDark ? '#fff' : '#1a1a2e',
-    },
-    headerDate: {
-      fontSize: 12,
-      color: isDark ? '#888' : '#666',
-      marginTop: 2,
-    },
-  });
+const createStyles = makeThemedStyles((theme: Theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    padding: theme.spacing['3xl'],
+  },
+  loadingText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing['2xl'],
+  },
+  backButton: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing['2xl'],
+    borderRadius: theme.borderRadius.sm,
+  },
+  backButtonText: {
+    color: theme.palette.white,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  headerTitleContainer: {
+    alignItems: 'center' as const,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+  },
+  headerDate: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+}));

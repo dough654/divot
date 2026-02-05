@@ -1,11 +1,13 @@
-import { StyleSheet, View, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type QRCodeDisplayProps = {
   value: string;
   size?: number;
   roomCode?: string;
-  isDark?: boolean;
 };
 
 /**
@@ -16,10 +18,11 @@ export const QRCodeDisplay = ({
   value,
   size = 200,
   roomCode,
-  isDark = false,
 }: QRCodeDisplayProps) => {
+  const styles = useThemedStyles(createStyles);
+
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={styles.container}>
       <View style={styles.qrContainer}>
         <QRCode
           value={value}
@@ -32,68 +35,56 @@ export const QRCodeDisplay = ({
 
       {roomCode && (
         <View style={styles.codeContainer}>
-          <Text style={[styles.codeLabel, isDark && styles.codeLabelDark]}>
+          <Text style={styles.codeLabel}>
             Room Code
           </Text>
-          <Text style={[styles.code, isDark && styles.codeDark]}>
+          <Text style={styles.code}>
             {roomCode}
           </Text>
         </View>
       )}
 
-      <Text style={[styles.instruction, isDark && styles.instructionDark]}>
+      <Text style={styles.instruction}>
         Scan QR code or enter code manually on viewer
       </Text>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-  },
-  containerDark: {
-    backgroundColor: '#2a2a4e',
+    alignItems: 'center' as const,
+    padding: theme.spacing['2xl'],
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
   },
   qrContainer: {
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    padding: theme.spacing.lg,
+    backgroundColor: theme.palette.white,
+    borderRadius: theme.borderRadius.md,
   },
   codeContainer: {
-    marginTop: 20,
-    alignItems: 'center',
+    marginTop: theme.spacing.xl,
+    alignItems: 'center' as const,
   },
   codeLabel: {
-    fontSize: 12,
-    color: '#666',
-    textTransform: 'uppercase',
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase' as const,
     letterSpacing: 1,
     marginBottom: 4,
   },
-  codeLabelDark: {
-    color: '#888',
-  },
   code: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#1a1a2e',
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text,
     letterSpacing: 4,
     fontFamily: 'SpaceMono',
   },
-  codeDark: {
-    color: '#ffffff',
-  },
   instruction: {
-    marginTop: 16,
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    marginTop: theme.spacing.lg,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    textAlign: 'center' as const,
   },
-  instructionDark: {
-    color: '#888',
-  },
-});
+}));

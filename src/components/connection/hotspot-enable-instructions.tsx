@@ -1,10 +1,13 @@
-import { StyleSheet, View, Text, Platform, Linking, Pressable } from 'react-native';
+import { View, Text, Platform, Linking, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type HotspotEnableInstructionsProps = {
   onEnabled: () => void;
   onCancel: () => void;
-  isDark?: boolean;
 };
 
 /**
@@ -14,8 +17,10 @@ export type HotspotEnableInstructionsProps = {
 export const HotspotEnableInstructions = ({
   onEnabled,
   onCancel,
-  isDark = false,
 }: HotspotEnableInstructionsProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   const iosSteps = [
     'Open Settings, then tap "Personal Hotspot"',
     'Turn on "Allow Others to Join"',
@@ -48,15 +53,15 @@ export const HotspotEnableInstructions = ({
   };
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="phone-portrait" size={32} color="#4CAF50" />
-        <Text style={[styles.title, isDark && styles.titleDark]}>
+        <Ionicons name="phone-portrait" size={32} color={theme.colors.primary} />
+        <Text style={styles.title}>
           Enable Your Hotspot
         </Text>
       </View>
 
-      <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
+      <Text style={styles.subtitle}>
         The viewer device will connect to this phone's hotspot for the best connection quality.
       </Text>
 
@@ -66,7 +71,7 @@ export const HotspotEnableInstructions = ({
             <View style={styles.stepNumber}>
               <Text style={styles.stepNumberText}>{index + 1}</Text>
             </View>
-            <Text style={[styles.stepText, isDark && styles.stepTextDark]}>
+            <Text style={styles.stepText}>
               {step}
             </Text>
           </View>
@@ -80,41 +85,41 @@ export const HotspotEnableInstructions = ({
         accessibilityLabel="Open Settings"
         accessibilityHint="Open device settings to enable hotspot"
       >
-        <Ionicons name="settings-outline" size={18} color="#4CAF50" />
+        <Ionicons name="settings-outline" size={18} color={theme.colors.primary} />
         <Text style={styles.settingsButtonText}>Open Settings</Text>
       </Pressable>
 
       <View style={styles.actions}>
         <Pressable
-          style={[styles.button, styles.cancelButton, isDark && styles.cancelButtonDark]}
+          style={styles.cancelButton}
           onPress={onCancel}
           accessibilityRole="button"
           accessibilityLabel="Cancel"
           accessibilityHint="Skip hotspot setup"
         >
-          <Text style={[styles.cancelButtonText, isDark && styles.cancelButtonTextDark]}>
+          <Text style={styles.cancelButtonText}>
             Cancel
           </Text>
         </Pressable>
         <Pressable
-          style={[styles.button, styles.enabledButton]}
+          style={styles.enabledButton}
           onPress={onEnabled}
           accessibilityRole="button"
           accessibilityLabel="Hotspot is Enabled"
           accessibilityHint="Confirm that hotspot has been enabled"
         >
-          <Ionicons name="checkmark-circle" size={20} color="#ffffff" style={styles.buttonIcon} />
+          <Ionicons name="checkmark-circle" size={20} color={theme.palette.white} style={styles.buttonIcon} />
           <Text style={styles.enabledButtonText}>Hotspot is Enabled</Text>
         </Pressable>
       </View>
 
-      <View style={[styles.infoBox, isDark && styles.infoBoxDark]}>
+      <View style={styles.infoBox}>
         <Ionicons
           name="information-circle-outline"
           size={16}
-          color={isDark ? '#888' : '#666'}
+          color={theme.colors.textSecondary}
         />
-        <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
+        <Text style={styles.infoText}>
           The viewer will need your hotspot name and password to connect. You'll share this after generating the QR code.
         </Text>
       </View>
@@ -122,141 +127,121 @@ export const HotspotEnableInstructions = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-  },
-  containerDark: {
-    backgroundColor: '#2a2a4e',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a1a2e',
-  },
-  titleDark: {
-    color: '#ffffff',
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
     lineHeight: 20,
-    marginBottom: 20,
-  },
-  subtitleDark: {
-    color: '#888',
+    marginBottom: theme.spacing.xl,
   },
   stepsContainer: {
-    gap: 12,
-    marginBottom: 16,
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
   stepRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: theme.spacing.md,
   },
   stepNumber: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#4CAF50',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   stepNumberText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
+    color: theme.palette.white,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
   },
   stepText: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
+    color: theme.colors.text,
     lineHeight: 22,
   },
-  stepTextDark: {
-    color: '#ccc',
-  },
   settingsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    marginBottom: 20,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
     borderWidth: 1,
-    borderColor: '#4CAF50',
-    borderRadius: 8,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.sm,
   },
   settingsButtonText: {
-    color: '#4CAF50',
-    fontSize: 14,
-    fontWeight: '500',
+    color: theme.colors.primary,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
   },
   actions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
+    flexDirection: 'row' as const,
+    gap: theme.spacing.md,
   },
   buttonIcon: {
     marginRight: 6,
   },
   cancelButton: {
-    backgroundColor: '#f0f0f0',
-  },
-  cancelButtonDark: {
-    backgroundColor: '#1a1a2e',
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 14,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.backgroundSecondary,
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  cancelButtonTextDark: {
-    color: '#888',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.textSecondary,
   },
   enabledButton: {
-    backgroundColor: '#4CAF50',
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingVertical: 14,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.primary,
   },
   enabledButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.palette.white,
   },
   infoBox: {
-    marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: '#e8f5e9',
-    borderRadius: 8,
-    padding: 12,
-  },
-  infoBoxDark: {
-    backgroundColor: '#1a3a1a',
+    marginTop: theme.spacing.xl,
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.successBackground,
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.md,
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.textSecondary,
     lineHeight: 18,
   },
-  infoTextDark: {
-    color: '#888',
-  },
-});
+}));

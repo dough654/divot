@@ -1,4 +1,4 @@
-import { View, Text, Pressable, GestureResponderEvent } from 'react-native';
+import { View, Text, Pressable, GestureResponderEvent, Platform } from 'react-native';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,7 @@ type RoleButtonProps = {
   style: object;
   pressedBgColor: string;
   defaultBgColor: string;
+  rippleColor?: string;
   accessibilityRole: 'button';
   accessibilityLabel: string;
   accessibilityHint: string;
@@ -27,7 +28,7 @@ type RoleButtonProps = {
  * Forwards ref for use with Link asChild.
  */
 const RoleButton = forwardRef<View, RoleButtonProps>(
-  ({ children, style, pressedBgColor, defaultBgColor, ...props }, ref) => {
+  ({ children, style, pressedBgColor, defaultBgColor, rippleColor, ...props }, ref) => {
     const { animatedStyle, handlePressIn, handlePressOut } = usePressAnimation({
       defaultColor: defaultBgColor,
       pressedColor: pressedBgColor,
@@ -39,6 +40,7 @@ const RoleButton = forwardRef<View, RoleButtonProps>(
         style={[style, animatedStyle]}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        android_ripple={Platform.OS === 'android' ? { color: rippleColor || 'rgba(0, 0, 0, 0.1)' } : undefined}
         {...props}
       >
         {children}
@@ -67,6 +69,7 @@ export default function HomeScreen() {
             style={styles.roleButton}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
+            rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
             accessibilityRole="button"
             accessibilityLabel="Camera mode"
             accessibilityHint="Film the swing and stream to another device"
@@ -89,6 +92,7 @@ export default function HomeScreen() {
             style={styles.roleButton}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
+            rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
             accessibilityRole="button"
             accessibilityLabel="Viewer mode"
             accessibilityHint="Watch the swing stream from another device"
@@ -111,6 +115,7 @@ export default function HomeScreen() {
             style={styles.roleButton}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
+            rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
             accessibilityRole="button"
             accessibilityLabel="My Clips"
             accessibilityHint="View and playback recorded swing videos"
@@ -133,6 +138,7 @@ export default function HomeScreen() {
         <Link href="/settings" asChild>
           <Pressable
             style={styles.settingsButton}
+            android_ripple={Platform.OS === 'android' ? { color: theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)', borderless: true } : undefined}
             accessibilityRole="button"
             accessibilityLabel="Settings"
             accessibilityHint="Open app settings"

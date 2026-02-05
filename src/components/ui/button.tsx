@@ -1,4 +1,4 @@
-import { Pressable, Text, ActivityIndicator, View } from 'react-native';
+import { Pressable, Text, ActivityIndicator, View, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useAnimatedStyle,
@@ -108,6 +108,18 @@ export const Button = ({
     return theme.palette.transparent;
   };
 
+  const getRippleColor = () => {
+    switch (variant) {
+      case 'primary':
+      case 'danger':
+        return 'rgba(255, 255, 255, 0.3)';
+      case 'secondary':
+        return theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)';
+      case 'outline':
+        return 'rgba(76, 175, 80, 0.2)';
+    }
+  };
+
   const defaultBg = getBackgroundColor();
   const pressedBg = getPressedBackgroundColor();
 
@@ -132,6 +144,7 @@ export const Button = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={isDisabled}
+      android_ripple={Platform.OS === 'android' ? { color: getRippleColor() } : undefined}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityHint={accessibilityHint}
