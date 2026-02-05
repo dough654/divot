@@ -1,8 +1,10 @@
-import { StyleSheet, View, Pressable } from 'react-native';
-import { useRef, forwardRef, useImperativeHandle } from 'react';
+import { StyleSheet, View, Pressable, Platform } from 'react-native';
+import { useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { Camera, CameraDevice, VideoFile, type ReadonlyFrameProcessor } from 'react-native-vision-camera';
 import { File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
+
+import { useOrientation } from '../../hooks';
 
 export type VisionCameraRecorderProps = {
   /** The camera device to use. */
@@ -38,6 +40,11 @@ export type VisionCameraRecorderRef = {
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
   ({ device, isActive, audio = true, onFlipCamera, frameProcessor }, ref) => {
     const cameraRef = useRef<Camera>(null);
+    const { isLandscape } = useOrientation();
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+    // Android SurfaceView doesn't rotate — we apply a manual transform
+    const needsRotationFix = Platform.OS === 'android' && isLandscape && containerSize.width > 0;
 
     useImperativeHandle(ref, () => ({
       startRecording: (options) => {
@@ -81,10 +88,20 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
     }));
 
     return (
-      <View style={styles.container}>
+      <View
+        style={styles.container}
+        onLayout={(e) => {
+          const { width, height } = e.nativeEvent.layout;
+          setContainerSize({ width, height });
+        }}
+      >
         <Camera
           ref={cameraRef}
-          style={styles.camera}
+          style={needsRotationFix ? {
+            width: containerSize.height,
+            height: containerSize.width,
+            transform: [{ rotate: '90deg' }],
+          } : styles.camera}
           device={device}
           isActive={isActive}
           video={true}
