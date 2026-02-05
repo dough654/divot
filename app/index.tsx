@@ -2,17 +2,11 @@ import { View, Text, Pressable, GestureResponderEvent } from 'react-native';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  interpolateColor,
-  Easing,
-} from 'react-native-reanimated';
-import { forwardRef, useCallback } from 'react';
+import Animated from 'react-native-reanimated';
+import { forwardRef } from 'react';
 
 import { useTheme } from '@/src/context';
-import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, usePressAnimation } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -34,24 +28,10 @@ type RoleButtonProps = {
  */
 const RoleButton = forwardRef<View, RoleButtonProps>(
   ({ children, style, pressedBgColor, defaultBgColor, ...props }, ref) => {
-    const pressed = useSharedValue(0);
-
-    const handlePressIn = useCallback(() => {
-      pressed.value = withTiming(1, { duration: 100, easing: Easing.out(Easing.cubic) });
-    }, [pressed]);
-
-    const handlePressOut = useCallback(() => {
-      pressed.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.cubic) });
-    }, [pressed]);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: 1 - pressed.value * 0.02 }],
-      backgroundColor: interpolateColor(
-        pressed.value,
-        [0, 1],
-        [defaultBgColor, pressedBgColor]
-      ),
-    }));
+    const { animatedStyle, handlePressIn, handlePressOut } = usePressAnimation({
+      defaultColor: defaultBgColor,
+      pressedColor: pressedBgColor,
+    });
 
     return (
       <AnimatedPressable

@@ -3,10 +3,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 
 import { useTheme } from '@/src/context';
-import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, usePressAnimation } from '@/src/hooks';
 import { EmptyState } from '@/src/components/ui';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 import type { Theme } from '@/src/context';
 import { listClips, deleteClip, renameClip } from '@/src/services/recording/clip-storage';
 import type { Clip } from '@/src/types/recording';
@@ -58,12 +61,19 @@ const ClipItem = ({ clip, onPress, onMenuPress }: ClipItemProps) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createItemStyles);
 
+  const { animatedStyle, handlePressIn, handlePressOut } = usePressAnimation({
+    defaultColor: theme.colors.surface,
+    pressedColor: theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary,
+  });
+
   const clipName = clip.name || `Swing ${formatDate(clip.timestamp)}`;
 
   return (
-    <Pressable
-      style={styles.container}
+    <AnimatedPressable
+      style={[styles.container, animatedStyle]}
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       accessibilityRole="button"
       accessibilityLabel={`${clipName}, ${formatDuration(clip.duration)}, ${formatFileSize(clip.fileSize)}`}
       accessibilityHint="Open clip for playback"
@@ -92,7 +102,7 @@ const ClipItem = ({ clip, onPress, onMenuPress }: ClipItemProps) => {
       >
         <Ionicons name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
       </Pressable>
-    </Pressable>
+    </AnimatedPressable>
   );
 };
 
@@ -377,7 +387,6 @@ const createItemStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
   },
