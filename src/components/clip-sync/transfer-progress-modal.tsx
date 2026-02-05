@@ -90,11 +90,23 @@ export const TransferProgressModal = ({
 
           <View style={styles.buttons}>
             {isActive ? (
-              <Pressable style={styles.cancelButton} onPress={onCancel}>
+              <Pressable
+                style={styles.cancelButton}
+                onPress={onCancel}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel transfer"
+                accessibilityHint="Stop the current file transfer"
+              >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
             ) : (
-              <Pressable style={styles.dismissButton} onPress={onDismiss}>
+              <Pressable
+                style={styles.dismissButton}
+                onPress={onDismiss}
+                accessibilityRole="button"
+                accessibilityLabel={isComplete ? 'Done' : 'Close'}
+                accessibilityHint="Close this dialog"
+              >
                 <Text style={styles.dismissButtonText}>
                   {isComplete ? 'Done' : 'Close'}
                 </Text>

@@ -90,7 +90,13 @@ export const HotspotConnectInstructions = ({
         ))}
       </View>
 
-      <Pressable style={styles.settingsButton} onPress={openWifiSettings}>
+      <Pressable
+        style={styles.settingsButton}
+        onPress={openWifiSettings}
+        accessibilityRole="button"
+        accessibilityLabel="Open Wi-Fi Settings"
+        accessibilityHint="Open device Wi-Fi settings to connect to hotspot"
+      >
         <Ionicons name="wifi-outline" size={18} color="#4CAF50" />
         <Text style={styles.settingsButtonText}>Open Wi-Fi Settings</Text>
       </Pressable>
@@ -99,12 +105,21 @@ export const HotspotConnectInstructions = ({
         <Pressable
           style={[styles.button, styles.cancelButton, isDark && styles.cancelButtonDark]}
           onPress={onCancel}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Skip hotspot connection"
         >
           <Text style={[styles.cancelButtonText, isDark && styles.cancelButtonTextDark]}>
             Cancel
           </Text>
         </Pressable>
-        <Pressable style={[styles.button, styles.connectedButton]} onPress={onConnected}>
+        <Pressable
+          style={[styles.button, styles.connectedButton]}
+          onPress={onConnected}
+          accessibilityRole="button"
+          accessibilityLabel="I'm Connected"
+          accessibilityHint="Confirm that you've connected to the hotspot"
+        >
           <Ionicons name="checkmark-circle" size={20} color="#ffffff" style={styles.buttonIcon} />
           <Text style={styles.connectedButtonText}>I'm Connected</Text>
         </Pressable>

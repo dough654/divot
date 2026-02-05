@@ -43,7 +43,13 @@ export const QRCodeScanner = ({
         <Text style={[styles.message, isDark && styles.messageDark]}>
           Camera permission is required to scan QR codes
         </Text>
-        <Pressable style={styles.permissionButton} onPress={requestPermission}>
+        <Pressable
+          style={styles.permissionButton}
+          onPress={requestPermission}
+          accessibilityRole="button"
+          accessibilityLabel="Grant Permission"
+          accessibilityHint="Allow camera access to scan QR codes"
+        >
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
         </Pressable>
       </View>

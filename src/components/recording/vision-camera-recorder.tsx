@@ -90,7 +90,13 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           frameProcessor={frameProcessor}
         />
         {onFlipCamera && (
-          <Pressable style={styles.flipButton} onPress={onFlipCamera}>
+          <Pressable
+            style={styles.flipButton}
+            onPress={onFlipCamera}
+            accessibilityRole="button"
+            accessibilityLabel="Flip camera"
+            accessibilityHint="Switch between front and back camera"
+          >
             <Ionicons name="camera-reverse" size={28} color="#fff" />
           </Pressable>
         )}

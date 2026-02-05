@@ -81,6 +81,9 @@ export const HotspotCredentialsForm = ({
             <Pressable
               style={styles.eyeButton}
               onPress={() => setShowPassword(!showPassword)}
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+              accessibilityHint="Toggle password visibility"
             >
               <Ionicons
                 name={showPassword ? 'eye-off' : 'eye'}
@@ -99,6 +102,9 @@ export const HotspotCredentialsForm = ({
         <Pressable
           style={[styles.button, styles.cancelButton, isDark && styles.cancelButtonDark]}
           onPress={onCancel}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Skip hotspot credential setup"
         >
           <Text style={[styles.cancelButtonText, isDark && styles.cancelButtonTextDark]}>
             Cancel
@@ -108,6 +114,10 @@ export const HotspotCredentialsForm = ({
           style={[styles.button, styles.submitButton, !isValid && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={!isValid}
+          accessibilityRole="button"
+          accessibilityLabel="Generate QR Code"
+          accessibilityHint="Create a QR code with the hotspot credentials"
+          accessibilityState={{ disabled: !isValid }}
         >
           <Text style={styles.submitButtonText}>
             Generate QR Code

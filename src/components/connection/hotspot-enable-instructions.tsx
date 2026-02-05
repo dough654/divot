@@ -73,7 +73,13 @@ export const HotspotEnableInstructions = ({
         ))}
       </View>
 
-      <Pressable style={styles.settingsButton} onPress={openSettings}>
+      <Pressable
+        style={styles.settingsButton}
+        onPress={openSettings}
+        accessibilityRole="button"
+        accessibilityLabel="Open Settings"
+        accessibilityHint="Open device settings to enable hotspot"
+      >
         <Ionicons name="settings-outline" size={18} color="#4CAF50" />
         <Text style={styles.settingsButtonText}>Open Settings</Text>
       </Pressable>
@@ -82,12 +88,21 @@ export const HotspotEnableInstructions = ({
         <Pressable
           style={[styles.button, styles.cancelButton, isDark && styles.cancelButtonDark]}
           onPress={onCancel}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          accessibilityHint="Skip hotspot setup"
         >
           <Text style={[styles.cancelButtonText, isDark && styles.cancelButtonTextDark]}>
             Cancel
           </Text>
         </Pressable>
-        <Pressable style={[styles.button, styles.enabledButton]} onPress={onEnabled}>
+        <Pressable
+          style={[styles.button, styles.enabledButton]}
+          onPress={onEnabled}
+          accessibilityRole="button"
+          accessibilityLabel="Hotspot is Enabled"
+          accessibilityHint="Confirm that hotspot has been enabled"
+        >
           <Ionicons name="checkmark-circle" size={20} color="#ffffff" style={styles.buttonIcon} />
           <Text style={styles.enabledButtonText}>Hotspot is Enabled</Text>
         </Pressable>
