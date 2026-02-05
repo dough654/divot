@@ -424,29 +424,8 @@ export default function CameraScreen() {
       <View style={isLandscape ? styles.landscapeWrapper : styles.portraitWrapper}>
         {/* Video Preview - full width in portrait, left side in landscape */}
         <View style={isLandscape ? styles.videoContainerLandscape : styles.videoContainerPortrait}>
-          {/* Connection Status - overlay on video in landscape, top bar in portrait */}
-          {isLandscape ? (
-            <View style={styles.topBarOverlay}>
-              <View style={styles.topBarContent}>
-                <ConnectionStatus step={connectionStep} quality={quality} compact />
-                {isRecording && (
-                  <RecordingIndicator
-                    duration={recordingDuration}
-                    visible={isRecording}
-                    compact
-                  />
-                )}
-                {isConnected && isStreamReady && !isRecording && (
-                  <View style={styles.streamingBadge}>
-                    <View style={styles.streamingDot} />
-                    <Text style={styles.streamingFpsText}>
-                      Live · {getPresetLabel(qualityPreset)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          ) : (
+          {/* Connection Status - top bar in portrait only (landscape moves to side panel) */}
+          {!isLandscape && (
             <View style={styles.topBar}>
               <View style={styles.topBarContent}>
                 <ConnectionStatus step={connectionStep} quality={quality} compact />
@@ -507,6 +486,28 @@ export default function CameraScreen() {
 
         {/* Controls - bottom bar in portrait, right side panel in landscape */}
         <View style={isLandscape ? styles.sidePanel : styles.bottomBar}>
+        {/* Connection Status in landscape - sits above controls in side panel */}
+        {isLandscape && (
+          <View style={styles.sidePanelStatus}>
+            <ConnectionStatus step={connectionStep} quality={quality} compact />
+            {isRecording && (
+              <RecordingIndicator
+                duration={recordingDuration}
+                visible={isRecording}
+                compact
+              />
+            )}
+            {isConnected && isStreamReady && !isRecording && (
+              <View style={styles.streamingBadge}>
+                <View style={styles.streamingDot} />
+                <Text style={styles.streamingFpsText}>
+                  Live · {getPresetLabel(qualityPreset)}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {cameraState === 'connecting' && (
           <>
             {/* QR Code Button */}
@@ -763,16 +764,12 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
   },
-  topBarOverlay: {
-    position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  sidePanelStatus: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    flexWrap: 'wrap' as const,
+    gap: theme.spacing.xs,
   },
   topBarContent: {
     flexDirection: 'row' as const,
@@ -956,7 +953,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   modalContentLandscape: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
+    padding: theme.spacing.xl,
     maxHeight: '95%' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
