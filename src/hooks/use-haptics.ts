@@ -2,8 +2,12 @@ import { useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
+// Import settings context directly to avoid circular dependency through index
+import { useSettings } from '../context/settings-context';
+
 /**
  * Hook for triggering haptic feedback throughout the app.
+ * Respects the global hapticsEnabled setting from SettingsContext.
  * Gracefully no-ops on unsupported devices (web, older Android).
  *
  * @example
@@ -24,40 +28,51 @@ import { Platform } from 'react-native';
 export const useHaptics = () => {
   const isSupported = Platform.OS === 'ios' || Platform.OS === 'android';
 
+  // Try to get haptics setting, default to enabled if context not available
+  let hapticsEnabled = true;
+  try {
+    const { settings } = useSettings();
+    hapticsEnabled = settings.hapticsEnabled;
+  } catch {
+    // Settings context not available, default to enabled
+  }
+
+  const isEnabled = isSupported && hapticsEnabled;
+
   const light = useCallback(() => {
-    if (!isSupported) return;
+    if (!isEnabled) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-  }, [isSupported]);
+  }, [isEnabled]);
 
   const medium = useCallback(() => {
-    if (!isSupported) return;
+    if (!isEnabled) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-  }, [isSupported]);
+  }, [isEnabled]);
 
   const heavy = useCallback(() => {
-    if (!isSupported) return;
+    if (!isEnabled) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
-  }, [isSupported]);
+  }, [isEnabled]);
 
   const success = useCallback(() => {
-    if (!isSupported) return;
+    if (!isEnabled) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-  }, [isSupported]);
+  }, [isEnabled]);
 
   const warning = useCallback(() => {
-    if (!isSupported) return;
+    if (!isEnabled) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-  }, [isSupported]);
+  }, [isEnabled]);
 
   const error = useCallback(() => {
-    if (!isSupported) return;
+    if (!isEnabled) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-  }, [isSupported]);
+  }, [isEnabled]);
 
   const selection = useCallback(() => {
-    if (!isSupported) return;
+    if (!isEnabled) return;
     Haptics.selectionAsync().catch(() => {});
-  }, [isSupported]);
+  }, [isEnabled]);
 
   return {
     /** Light impact - for button presses, selections */

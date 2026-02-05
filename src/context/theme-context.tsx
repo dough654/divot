@@ -100,15 +100,26 @@ const buildTheme = (colorScheme: ColorScheme): Theme => ({
 
 type ThemeProviderProps = {
   children: ReactNode;
+  /** External theme mode override (from settings). If provided, overrides internal state. */
+  themeMode?: ColorScheme | 'system';
+  /** Callback when theme mode changes. Used to sync with settings. */
+  onThemeModeChange?: (mode: ColorScheme | 'system') => void;
 };
 
 /**
  * Provides theme context to the app with system color scheme detection
  * and manual override capability.
  */
-export const AppThemeProvider = ({ children }: ThemeProviderProps) => {
+export const AppThemeProvider = ({
+  children,
+  themeMode: externalThemeMode,
+  onThemeModeChange,
+}: ThemeProviderProps) => {
   const systemColorScheme = useSystemColorScheme();
-  const [manualScheme, setManualScheme] = useState<ColorScheme | 'system'>('system');
+  const [internalScheme, setInternalScheme] = useState<ColorScheme | 'system'>('system');
+
+  // Use external theme mode if provided, otherwise use internal state
+  const manualScheme = externalThemeMode ?? internalScheme;
 
   const colorScheme: ColorScheme = useMemo(() => {
     if (manualScheme === 'system') {
@@ -120,8 +131,12 @@ export const AppThemeProvider = ({ children }: ThemeProviderProps) => {
   const theme = useMemo(() => buildTheme(colorScheme), [colorScheme]);
 
   const setColorScheme = useCallback((scheme: ColorScheme | 'system') => {
-    setManualScheme(scheme);
-  }, []);
+    if (onThemeModeChange) {
+      onThemeModeChange(scheme);
+    } else {
+      setInternalScheme(scheme);
+    }
+  }, [onThemeModeChange]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({

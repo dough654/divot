@@ -2,22 +2,63 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, ReactNode } from 'react';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { useColorScheme } from '@/components/useColorScheme';
-import { AppThemeProvider, ToastProvider } from '@/src/context';
+import { AppThemeProvider, ToastProvider, SettingsProvider, useSettings, useTheme } from '@/src/context';
+import type { ThemeMode } from '@/src/context';
 
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
 
+/**
+ * Bridge component that connects SettingsProvider to AppThemeProvider.
+ * Reads theme mode from settings and passes to theme provider.
+ */
+const ThemedApp = ({ children }: { children: ReactNode }) => {
+  const { settings, setThemeMode } = useSettings();
+
+  return (
+    <AppThemeProvider
+      themeMode={settings.themeMode}
+      onThemeModeChange={(mode) => setThemeMode(mode as ThemeMode)}
+    >
+      {children}
+    </AppThemeProvider>
+  );
+};
+
+/**
+ * Inner layout that has access to theme context for navigation styling.
+ */
+const NavigationLayout = ({ children }: { children: ReactNode }) => {
+  const { theme, isDark } = useTheme();
+
+  return (
+    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: theme.colors.background,
+          },
+          headerTintColor: theme.colors.text,
+          headerTitleStyle: {
+            fontWeight: '600',
+          },
+        }}
+      >
+        {children}
+      </Stack>
+    </ThemeProvider>
+  );
+};
+
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
-  const colorScheme = useColorScheme();
 
   useEffect(() => {
     if (error) throw error;
@@ -35,20 +76,10 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppThemeProvider>
-        <ToastProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack
-              screenOptions={{
-                headerStyle: {
-                  backgroundColor: colorScheme === 'dark' ? '#1a1a2e' : '#ffffff',
-                },
-                headerTintColor: colorScheme === 'dark' ? '#ffffff' : '#1a1a2e',
-                headerTitleStyle: {
-                  fontWeight: '600',
-                },
-              }}
-            >
+      <SettingsProvider>
+        <ThemedApp>
+          <ToastProvider>
+            <NavigationLayout>
               <Stack.Screen
                 name="index"
                 options={{
@@ -91,10 +122,10 @@ export default function RootLayout() {
                   headerBackTitle: 'Clips',
                 }}
               />
-            </Stack>
-          </ThemeProvider>
-        </ToastProvider>
-      </AppThemeProvider>
+            </NavigationLayout>
+          </ToastProvider>
+        </ThemedApp>
+      </SettingsProvider>
     </GestureHandlerRootView>
   );
 }
