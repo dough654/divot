@@ -702,34 +702,24 @@ export default function CameraScreen() {
               </>
             ) : (
               <>
-                {/* Portrait: vertical stack */}
+                {/* Portrait: QR with X dismiss */}
+                <Pressable
+                  style={styles.modalCloseX}
+                  onPress={() => setShowQRModal(false)}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                  accessibilityHint="Close the QR code modal"
+                >
+                  <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
+                </Pressable>
                 {qrPayload && (
                   <QRCodeDisplay
                     value={qrPayload}
                     roomCode={formatRoomCode(roomCode!)}
-                    size={180}
+                    size={200}
                   />
                 )}
-                <View style={[styles.tipSection, styles.tipSectionPortrait]}>
-                  <View style={styles.tipHeader}>
-                    <Ionicons name="flash" size={18} color={theme.colors.warning} />
-                    <Text style={styles.tipTitle}>
-                      Best Performance Tip
-                    </Text>
-                  </View>
-                  <Text style={styles.tipText}>
-                    For lowest latency: Enable this phone's hotspot, connect the viewer to it, then scan.
-                  </Text>
-                </View>
-                <Pressable
-                  style={[styles.closeButton, styles.closeButtonPortrait]}
-                  onPress={() => setShowQRModal(false)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Done"
-                  accessibilityHint="Close the QR code modal"
-                >
-                  <Text style={styles.closeButtonText}>Done</Text>
-                </Pressable>
               </>
             )}
           </View>
@@ -958,12 +948,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     padding: theme.spacing.xl,
     width: '100%' as const,
     maxWidth: 340,
+    maxHeight: '85%' as const,
     alignItems: 'center' as const,
   },
   modalContentLandscape: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.lg,
+    maxHeight: '85%' as const,
     alignItems: 'center' as const,
   },
   modalCloseX: {
@@ -972,46 +964,5 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     right: theme.spacing.sm,
     zIndex: 1,
     padding: theme.spacing.xs,
-  },
-  tipSection: {
-    backgroundColor: theme.colors.warningBackground,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-  },
-  tipSectionPortrait: {
-    width: '100%' as const,
-    marginTop: theme.spacing.lg,
-  },
-  tipHeader: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: theme.spacing.sm,
-    marginBottom: 6,
-  },
-  tipTitle: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.warning,
-  },
-  tipText: {
-    fontSize: 13,
-    color: theme.isDark ? '#BCAAA4' : '#795548',
-    lineHeight: 18,
-  },
-  closeButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.sm,
-    alignItems: 'center' as const,
-  },
-  closeButtonPortrait: {
-    marginTop: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing['3xl'],
-  },
-  closeButtonText: {
-    color: theme.palette.white,
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    textAlign: 'center' as const,
   },
 }));
