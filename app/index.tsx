@@ -1,11 +1,71 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, GestureResponderEvent } from 'react-native';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  interpolateColor,
+  Easing,
+} from 'react-native-reanimated';
+import { forwardRef, useCallback } from 'react';
 
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import type { Theme } from '@/src/context';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+type RoleButtonProps = {
+  children: React.ReactNode;
+  style: object;
+  pressedBgColor: string;
+  defaultBgColor: string;
+  accessibilityRole: 'button';
+  accessibilityLabel: string;
+  accessibilityHint: string;
+  onPress?: (e: GestureResponderEvent) => void;
+};
+
+/**
+ * Animated role button with scale and color feedback on press.
+ * Forwards ref for use with Link asChild.
+ */
+const RoleButton = forwardRef<View, RoleButtonProps>(
+  ({ children, style, pressedBgColor, defaultBgColor, ...props }, ref) => {
+    const pressed = useSharedValue(0);
+
+    const handlePressIn = useCallback(() => {
+      pressed.value = withTiming(1, { duration: 100, easing: Easing.out(Easing.cubic) });
+    }, [pressed]);
+
+    const handlePressOut = useCallback(() => {
+      pressed.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.cubic) });
+    }, [pressed]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: 1 - pressed.value * 0.02 }],
+      backgroundColor: interpolateColor(
+        pressed.value,
+        [0, 1],
+        [defaultBgColor, pressedBgColor]
+      ),
+    }));
+
+    return (
+      <AnimatedPressable
+        ref={ref}
+        style={[style, animatedStyle]}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        {...props}
+      >
+        {children}
+      </AnimatedPressable>
+    );
+  }
+);
 
 export default function HomeScreen() {
   const { theme } = useTheme();
@@ -23,8 +83,10 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>Select Your Role</Text>
 
         <Link href="/camera" asChild>
-          <Pressable
+          <RoleButton
             style={styles.roleButton}
+            defaultBgColor={theme.colors.surface}
+            pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             accessibilityRole="button"
             accessibilityLabel="Camera mode"
             accessibilityHint="Film the swing and stream to another device"
@@ -39,12 +101,14 @@ export default function HomeScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
-          </Pressable>
+          </RoleButton>
         </Link>
 
         <Link href="/viewer" asChild>
-          <Pressable
+          <RoleButton
             style={styles.roleButton}
+            defaultBgColor={theme.colors.surface}
+            pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             accessibilityRole="button"
             accessibilityLabel="Viewer mode"
             accessibilityHint="Watch the swing stream from another device"
@@ -59,12 +123,14 @@ export default function HomeScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
-          </Pressable>
+          </RoleButton>
         </Link>
 
         <Link href="/clips" asChild>
-          <Pressable
+          <RoleButton
             style={styles.roleButton}
+            defaultBgColor={theme.colors.surface}
+            pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             accessibilityRole="button"
             accessibilityLabel="My Clips"
             accessibilityHint="View and playback recorded swing videos"
@@ -79,7 +145,7 @@ export default function HomeScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
-          </Pressable>
+          </RoleButton>
         </Link>
       </View>
 
@@ -135,7 +201,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   roleButton: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.xl,
     marginBottom: theme.spacing.lg,
