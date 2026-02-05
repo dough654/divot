@@ -276,6 +276,7 @@ export default function ClipsScreen() {
         transparent
         animationType="fade"
         onRequestClose={handleRenameCancel}
+        supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>

@@ -52,6 +52,7 @@ export const TransferProgressModal = ({
       transparent
       animationType="fade"
       onRequestClose={isActive ? undefined : onDismiss}
+      supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
     >
       <View style={styles.overlay}>
         <View style={styles.content}>

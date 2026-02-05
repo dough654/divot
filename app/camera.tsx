@@ -670,6 +670,7 @@ export default function CameraScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setShowQRModal(false)}
+        supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
       >
         <Pressable
           style={styles.modalOverlay}
