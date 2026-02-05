@@ -220,7 +220,6 @@ export default function ViewerScreen() {
               onSubmit={handleManualCodeSubmit}
               onSwitchToScanner={() => setUseManualEntry(false)}
               isSubmitting={connectionStep === 'exchanging-signaling'}
-              isDark={isDark}
             />
           ) : (
             <QRCodeScanner

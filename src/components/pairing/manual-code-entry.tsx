@@ -1,12 +1,15 @@
-import { StyleSheet, View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, Pressable } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+
+import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type ManualCodeEntryProps = {
   onSubmit: (code: string) => void;
   onSwitchToScanner: () => void;
   isSubmitting?: boolean;
-  isDark?: boolean;
 };
 
 const CODE_LENGTH = 6;
@@ -19,8 +22,9 @@ export const ManualCodeEntry = ({
   onSubmit,
   onSwitchToScanner,
   isSubmitting = false,
-  isDark = false,
 }: ManualCodeEntryProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [code, setCode] = useState('');
   const inputRef = useRef<TextInput>(null);
 
@@ -64,13 +68,10 @@ export const ManualCodeEntry = ({
           key={i}
           style={[
             styles.codeBox,
-            isDark && styles.codeBoxDark,
             isActive && styles.codeBoxActive,
           ]}
         >
-          <Text style={[styles.codeChar, isDark && styles.codeCharDark]}>
-            {char}
-          </Text>
+          <Text style={styles.codeChar}>{char}</Text>
         </View>
       );
     }
@@ -78,19 +79,17 @@ export const ManualCodeEntry = ({
   };
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={styles.container}>
       <View style={styles.iconContainer}>
         <Ionicons
           name="keypad-outline"
           size={48}
-          color={isDark ? '#888' : '#666'}
+          color={theme.colors.textSecondary}
         />
       </View>
 
-      <Text style={[styles.title, isDark && styles.titleDark]}>
-        Enter Room Code
-      </Text>
-      <Text style={[styles.subtitle, isDark && styles.subtitleDark]}>
+      <Text style={styles.title}>Enter Room Code</Text>
+      <Text style={styles.subtitle}>
         Enter the 6-character code shown on the camera device
       </Text>
 
@@ -150,7 +149,7 @@ export const ManualCodeEntry = ({
         <Ionicons
           name="qr-code-outline"
           size={20}
-          color="#4CAF50"
+          color={theme.colors.primary}
           style={styles.switchIcon}
         />
         <Text style={styles.switchButtonText}>Scan QR Code Instead</Text>
@@ -159,101 +158,85 @@ export const ManualCodeEntry = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    borderRadius: 12,
-  },
-  containerDark: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: theme.colors.backgroundSecondary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    padding: theme.spacing['2xl'],
+    borderRadius: theme.borderRadius.md,
   },
   iconContainer: {
-    marginBottom: 16,
+    marginBottom: theme.spacing.lg,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1a1a2e',
-    marginBottom: 8,
-  },
-  titleDark: {
-    color: '#ffffff',
+    fontSize: theme.fontSize.xl,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  subtitleDark: {
-    color: '#888',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    textAlign: 'center' as const,
+    marginBottom: theme.spacing['3xl'],
   },
   hiddenInput: {
-    position: 'absolute',
+    position: 'absolute' as const,
     opacity: 0,
     height: 0,
     width: 0,
   },
   codeBoxesContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 32,
+    flexDirection: 'row' as const,
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing['3xl'],
   },
   codeBox: {
     width: 44,
     height: 56,
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.surface,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  codeBoxDark: {
-    backgroundColor: '#2a2a4e',
-    borderColor: '#3a3a5e',
+    borderColor: theme.colors.border,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   codeBoxActive: {
-    borderColor: '#4CAF50',
+    borderColor: theme.colors.primary,
   },
   codeChar: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1a1a2e',
-  },
-  codeCharDark: {
-    color: '#ffffff',
+    fontSize: theme.fontSize.xl,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
   },
   submitButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 14,
     paddingHorizontal: 48,
-    borderRadius: 12,
-    marginBottom: 16,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.lg,
   },
   submitButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.border,
   },
   submitButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.palette.white,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
   },
   switchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    padding: theme.spacing.md,
   },
   switchIcon: {
-    marginRight: 8,
+    marginRight: theme.spacing.sm,
   },
   switchButtonText: {
-    color: '#4CAF50',
-    fontSize: 14,
-    fontWeight: '500',
+    color: theme.colors.primary,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
   },
-});
+}));

@@ -1,6 +1,11 @@
-import { StyleSheet, View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+
+import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
+import { TextInput } from '../ui';
 
 export type HotspotCredentials = {
   ssid: string;
@@ -10,7 +15,6 @@ export type HotspotCredentials = {
 export type HotspotCredentialsFormProps = {
   onSubmit: (credentials: HotspotCredentials) => void;
   onCancel: () => void;
-  isDark?: boolean;
 };
 
 /**
@@ -20,8 +24,9 @@ export type HotspotCredentialsFormProps = {
 export const HotspotCredentialsForm = ({
   onSubmit,
   onCancel,
-  isDark = false,
 }: HotspotCredentialsFormProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [ssid, setSsid] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,81 +39,67 @@ export const HotspotCredentialsForm = ({
     }
   };
 
+  const passwordError = password.length > 0 && password.length < 8
+    ? 'Password must be at least 8 characters'
+    : undefined;
+
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="phone-portrait" size={32} color="#4CAF50" />
-        <Text style={[styles.title, isDark && styles.titleDark]}>
-          Hotspot Setup
-        </Text>
+        <Ionicons name="phone-portrait" size={32} color={theme.colors.primary} />
+        <Text style={styles.title}>Hotspot Setup</Text>
       </View>
 
-      <Text style={[styles.instructions, isDark && styles.instructionsDark]}>
+      <Text style={styles.instructions}>
         Enable your phone's mobile hotspot, then enter the network name and password below.
       </Text>
 
       <View style={styles.form}>
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, isDark && styles.labelDark]}>
-            Hotspot Name (SSID)
-          </Text>
+        <TextInput
+          label="Hotspot Name (SSID)"
+          value={ssid}
+          onChangeText={setSsid}
+          placeholder="e.g., iPhone or Galaxy S22"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        <View style={styles.passwordContainer}>
           <TextInput
-            style={[styles.input, isDark && styles.inputDark]}
-            value={ssid}
-            onChangeText={setSsid}
-            placeholder="e.g., iPhone or Galaxy S22"
-            placeholderTextColor={isDark ? '#666' : '#999'}
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Hotspot password"
+            secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoCorrect={false}
+            error={passwordError}
           />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, isDark && styles.labelDark]}>
-            Password
-          </Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={[styles.input, styles.passwordInput, isDark && styles.inputDark]}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Hotspot password"
-              placeholderTextColor={isDark ? '#666' : '#999'}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
+          <Pressable
+            style={styles.eyeButton}
+            onPress={() => setShowPassword(!showPassword)}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+            accessibilityHint="Toggle password visibility"
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off' : 'eye'}
+              size={20}
+              color={theme.colors.textSecondary}
             />
-            <Pressable
-              style={styles.eyeButton}
-              onPress={() => setShowPassword(!showPassword)}
-              accessibilityRole="button"
-              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-              accessibilityHint="Toggle password visibility"
-            >
-              <Ionicons
-                name={showPassword ? 'eye-off' : 'eye'}
-                size={20}
-                color={isDark ? '#888' : '#666'}
-              />
-            </Pressable>
-          </View>
-          {password.length > 0 && password.length < 8 && (
-            <Text style={styles.hint}>Password must be at least 8 characters</Text>
-          )}
+          </Pressable>
         </View>
       </View>
 
       <View style={styles.actions}>
         <Pressable
-          style={[styles.button, styles.cancelButton, isDark && styles.cancelButtonDark]}
+          style={[styles.button, styles.cancelButton]}
           onPress={onCancel}
           accessibilityRole="button"
           accessibilityLabel="Cancel"
           accessibilityHint="Skip hotspot credential setup"
         >
-          <Text style={[styles.cancelButtonText, isDark && styles.cancelButtonTextDark]}>
-            Cancel
-          </Text>
+          <Text style={styles.cancelButtonText}>Cancel</Text>
         </Pressable>
         <Pressable
           style={[styles.button, styles.submitButton, !isValid && styles.submitButtonDisabled]}
@@ -119,19 +110,17 @@ export const HotspotCredentialsForm = ({
           accessibilityHint="Create a QR code with the hotspot credentials"
           accessibilityState={{ disabled: !isValid }}
         >
-          <Text style={styles.submitButtonText}>
-            Generate QR Code
-          </Text>
+          <Text style={styles.submitButtonText}>Generate QR Code</Text>
         </Pressable>
       </View>
 
-      <View style={[styles.infoBox, isDark && styles.infoBoxDark]}>
+      <View style={styles.infoBox}>
         <Ionicons
           name="information-circle-outline"
           size={16}
-          color={isDark ? '#888' : '#666'}
+          color={theme.colors.textSecondary}
         />
-        <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
+        <Text style={styles.infoText}>
           The viewer device will need to connect to this hotspot before the video stream can start.
         </Text>
       </View>
@@ -139,140 +128,86 @@ export const HotspotCredentialsForm = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-  },
-  containerDark: {
-    backgroundColor: '#2a2a4e',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1a1a2e',
-  },
-  titleDark: {
-    color: '#ffffff',
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
   },
   instructions: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
     lineHeight: 20,
-    marginBottom: 20,
-  },
-  instructionsDark: {
-    color: '#888',
+    marginBottom: theme.spacing.xl,
   },
   form: {
-    gap: 16,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-  },
-  labelDark: {
-    color: '#ccc',
-  },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1a1a2e',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  inputDark: {
-    backgroundColor: '#1a1a2e',
-    borderColor: '#3a3a5e',
-    color: '#ffffff',
+    gap: theme.spacing.lg,
   },
   passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 48,
+    position: 'relative' as const,
   },
   eyeButton: {
-    position: 'absolute',
-    right: 12,
-    top: 0,
+    position: 'absolute' as const,
+    right: theme.spacing.md,
+    top: 28, // Account for label height
     bottom: 0,
-    justifyContent: 'center',
-  },
-  hint: {
-    fontSize: 12,
-    color: '#f44336',
-    marginTop: 4,
+    justifyContent: 'center' as const,
+    height: 48,
   },
   actions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
+    flexDirection: 'row' as const,
+    gap: theme.spacing.md,
+    marginTop: theme.spacing['2xl'],
   },
   button: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
+    borderRadius: theme.borderRadius.md,
+    alignItems: 'center' as const,
   },
   cancelButton: {
-    backgroundColor: '#f0f0f0',
-  },
-  cancelButtonDark: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: theme.colors.backgroundTertiary,
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  cancelButtonTextDark: {
-    color: '#888',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.textSecondary,
   },
   submitButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary,
   },
   submitButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.border,
   },
   submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.palette.white,
   },
   infoBox: {
-    marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: '#e8f5e9',
-    borderRadius: 8,
-    padding: 12,
-  },
-  infoBoxDark: {
-    backgroundColor: '#1a3a1a',
+    marginTop: theme.spacing.xl,
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.successBackground,
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.md,
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: '#666',
+    color: theme.colors.textSecondary,
     lineHeight: 18,
   },
-  infoTextDark: {
-    color: '#888',
-  },
-});
+}));
