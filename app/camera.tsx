@@ -687,20 +687,20 @@ export default function CameraScreen() {
                     <QRCodeDisplay
                       value={qrPayload}
                       roomCode={formatRoomCode(roomCode!)}
-                      size={160}
+                      size={140}
                     />
                   )}
                 </View>
                 <View style={styles.modalRightColumn}>
-                  <View style={styles.tipSection}>
+                  <View style={[styles.tipSection, styles.tipSectionLandscape]}>
                     <View style={styles.tipHeader}>
-                      <Ionicons name="flash" size={18} color={theme.colors.warning} />
+                      <Ionicons name="flash" size={16} color={theme.colors.warning} />
                       <Text style={styles.tipTitle}>
-                        Best Performance Tip
+                        Performance Tip
                       </Text>
                     </View>
                     <Text style={styles.tipText}>
-                      For lowest latency: Enable this phone's hotspot, connect the viewer to it, then scan.
+                      Use this phone's hotspot for lowest latency.
                     </Text>
                   </View>
                   <Pressable
@@ -724,7 +724,7 @@ export default function CameraScreen() {
                     size={180}
                   />
                 )}
-                <View style={styles.tipSection}>
+                <View style={[styles.tipSection, styles.tipSectionPortrait]}>
                   <View style={styles.tipHeader}>
                     <Ionicons name="flash" size={18} color={theme.colors.warning} />
                     <Text style={styles.tipTitle}>
@@ -736,7 +736,7 @@ export default function CameraScreen() {
                   </Text>
                 </View>
                 <Pressable
-                  style={styles.closeButton}
+                  style={[styles.closeButton, styles.closeButtonPortrait]}
                   onPress={() => setShowQRModal(false)}
                   accessibilityRole="button"
                   accessibilityLabel="Done"
@@ -977,25 +977,30 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   modalContentLandscape: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.xl,
+    padding: theme.spacing.lg,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    maxWidth: 560,
-    gap: theme.spacing.xl,
+    maxWidth: 480,
+    gap: theme.spacing.md,
   },
   modalLeftColumn: {
     alignItems: 'center' as const,
   },
   modalRightColumn: {
     flex: 1,
-    gap: theme.spacing.lg,
+    justifyContent: 'center' as const,
   },
   tipSection: {
-    width: '100%' as const,
     backgroundColor: theme.colors.warningBackground,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
+  },
+  tipSectionPortrait: {
+    width: '100%' as const,
     marginTop: theme.spacing.lg,
+  },
+  tipSectionLandscape: {
+    marginBottom: theme.spacing.md,
   },
   tipHeader: {
     flexDirection: 'row' as const,
@@ -1014,15 +1019,19 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     lineHeight: 18,
   },
   closeButton: {
-    marginTop: theme.spacing.lg,
     backgroundColor: theme.colors.primary,
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing['3xl'],
     borderRadius: theme.borderRadius.sm,
+    alignItems: 'center' as const,
+  },
+  closeButtonPortrait: {
+    marginTop: theme.spacing.lg,
   },
   closeButtonText: {
     color: theme.palette.white,
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,
+    textAlign: 'center' as const,
   },
 }));
