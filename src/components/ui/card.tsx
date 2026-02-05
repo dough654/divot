@@ -1,8 +1,17 @@
 import { Pressable, View, ViewStyle, StyleProp } from 'react-native';
-import { ReactNode } from 'react';
+import { ReactNode, useCallback } from 'react';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  interpolateColor,
+  Easing,
+} from 'react-native-reanimated';
 import { useTheme } from '../../context';
 import { useThemedStyles, makeThemedStyles } from '../../hooks';
 import type { Theme } from '../../context';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export type CardVariant = 'default' | 'elevated' | 'outlined';
 export type CardPadding = 'sm' | 'md' | 'lg' | 'none';
@@ -64,6 +73,31 @@ export const Card = ({
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
 
+  // Animation state for pressable cards
+  const pressed = useSharedValue(0);
+
+  const handlePressIn = useCallback(() => {
+    pressed.value = withTiming(1, { duration: 100, easing: Easing.out(Easing.cubic) });
+  }, [pressed]);
+
+  const handlePressOut = useCallback(() => {
+    pressed.value = withTiming(0, { duration: 150, easing: Easing.out(Easing.cubic) });
+  }, [pressed]);
+
+  const defaultBg = variant === 'outlined' ? theme.palette.transparent : theme.colors.surface;
+  const pressedBg = variant === 'outlined'
+    ? (theme.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)')
+    : (theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - pressed.value * 0.02 }],
+    backgroundColor: interpolateColor(
+      pressed.value,
+      [0, 1],
+      [defaultBg, pressedBg]
+    ),
+  }));
+
   const cardStyle: StyleProp<ViewStyle> = [
     styles.base,
     { padding: PADDING_MAP[padding] },
@@ -74,22 +108,17 @@ export const Card = ({
 
   if (onPress) {
     return (
-      <Pressable
-        style={({ pressed }) => [
-          cardStyle,
-          pressed && styles.pressed,
-        ]}
+      <AnimatedPressable
+        style={[cardStyle, animatedStyle]}
         onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
-        android_ripple={{
-          color: theme.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-          borderless: false,
-        }}
       >
         {children}
-      </Pressable>
+      </AnimatedPressable>
     );
   }
 
@@ -109,8 +138,5 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     backgroundColor: theme.palette.transparent,
     borderWidth: 1,
     borderColor: theme.colors.border,
-  },
-  pressed: {
-    opacity: 0.9,
   },
 }));
