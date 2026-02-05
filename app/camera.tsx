@@ -697,6 +697,7 @@ export default function CameraScreen() {
                     value={qrPayload}
                     roomCode={formatRoomCode(roomCode!)}
                     size={160}
+                    compact
                   />
                 )}
               </>
