@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 
-import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, useOrientation } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
@@ -23,6 +23,7 @@ import type { RecoveryAction } from '@/src/utils/error-messages';
 
 export default function ViewerScreen() {
   const styles = useThemedStyles(createStyles);
+  const { isLandscape, lockToPortrait, unlock } = useOrientation();
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('scanning-qr');
   const [isScanning, setIsScanning] = useState(true);
@@ -109,6 +110,18 @@ export default function ViewerScreen() {
     reconnectSignaling,
     rejoinRoom,
   });
+
+  // Lock to portrait during QR scanning, unlock when connected
+  useEffect(() => {
+    if (isScanning) {
+      lockToPortrait();
+    } else {
+      unlock();
+    }
+    return () => {
+      unlock();
+    };
+  }, [isScanning, lockToPortrait, unlock]);
 
   // Show transfer modal when receiving
   useEffect(() => {
@@ -240,11 +253,20 @@ export default function ViewerScreen() {
   }, [proceedWithConnection]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Connection Status - top bar */}
-      <View style={styles.topBar}>
-        <ConnectionStatus step={connectionStep} quality={quality} compact />
-      </View>
+    <SafeAreaView
+      style={styles.container}
+      edges={isLandscape ? ['bottom', 'left', 'right'] : ['bottom']}
+    >
+      {/* Connection Status - top bar or overlay */}
+      {isLandscape && isConnected ? (
+        <View style={styles.topBarOverlay}>
+          <ConnectionStatus step={connectionStep} quality={quality} compact />
+        </View>
+      ) : (
+        <View style={styles.topBar}>
+          <ConnectionStatus step={connectionStep} quality={quality} compact />
+        </View>
+      )}
 
       {/* Video or Scanner or Manual Entry */}
       <View style={styles.mainContent}>
@@ -293,7 +315,7 @@ export default function ViewerScreen() {
           />
         )}
 
-        {isConnected && (
+        {isConnected && !isLandscape && (
           <View style={styles.qualityInfo}>
             <Text style={styles.qualityLabel}>
               Preview
@@ -325,6 +347,17 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
+  },
+  topBarOverlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   mainContent: {
     flex: 1,
