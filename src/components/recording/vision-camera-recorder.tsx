@@ -90,16 +90,11 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
       },
     }));
 
-    // On Android in landscape: the SurfaceView stays in portrait orientation
-    // while the UI rotates. Counter-rotate and scale the camera view so the
-    // preview fills the container correctly. The scale factor ensures the
-    // rotated content covers the full width (some top/bottom cropping occurs,
-    // similar to a standard camera preview "cover" crop).
+    // Debug: no rotation, just scale to verify transform is being applied
     const cameraStyle = needsRotationFix
       ? [styles.camera, {
           transform: [
-            { rotate: '-90deg' },
-            { scale: containerSize.width / containerSize.height },
+            { scale: 0.5 },
           ],
         }]
       : styles.camera;
