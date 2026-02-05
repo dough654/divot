@@ -681,38 +681,24 @@ export default function CameraScreen() {
           <View style={isLandscape ? styles.modalContentLandscape : styles.modalContent}>
             {isLandscape ? (
               <>
-                {/* Landscape: QR left, tip + button right */}
-                <View style={styles.modalLeftColumn}>
-                  {qrPayload && (
-                    <QRCodeDisplay
-                      value={qrPayload}
-                      roomCode={formatRoomCode(roomCode!)}
-                      size={140}
-                    />
-                  )}
-                </View>
-                <View style={styles.modalRightColumn}>
-                  <View style={[styles.tipSection, styles.tipSectionLandscape]}>
-                    <View style={styles.tipHeader}>
-                      <Ionicons name="flash" size={16} color={theme.colors.warning} />
-                      <Text style={styles.tipTitle}>
-                        Performance Tip
-                      </Text>
-                    </View>
-                    <Text style={styles.tipText}>
-                      Use this phone's hotspot for lowest latency.
-                    </Text>
-                  </View>
-                  <Pressable
-                    style={[styles.closeButton, styles.closeButtonLandscape]}
-                    onPress={() => setShowQRModal(false)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Done"
-                    accessibilityHint="Close the QR code modal"
-                  >
-                    <Text style={styles.closeButtonText}>Done</Text>
-                  </Pressable>
-                </View>
+                {/* Landscape: compact QR with X dismiss */}
+                <Pressable
+                  style={styles.modalCloseX}
+                  onPress={() => setShowQRModal(false)}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                  accessibilityHint="Close the QR code modal"
+                >
+                  <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
+                </Pressable>
+                {qrPayload && (
+                  <QRCodeDisplay
+                    value={qrPayload}
+                    roomCode={formatRoomCode(roomCode!)}
+                    size={160}
+                  />
+                )}
               </>
             ) : (
               <>
@@ -977,19 +963,15 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   modalContentLandscape: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.xl,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    maxWidth: 560,
-    gap: theme.spacing.lg,
-  },
-  modalLeftColumn: {
+    padding: theme.spacing.lg,
     alignItems: 'center' as const,
   },
-  modalRightColumn: {
-    flex: 1,
-    justifyContent: 'center' as const,
+  modalCloseX: {
+    position: 'absolute' as const,
+    top: theme.spacing.sm,
+    right: theme.spacing.sm,
+    zIndex: 1,
+    padding: theme.spacing.xs,
   },
   tipSection: {
     backgroundColor: theme.colors.warningBackground,
@@ -999,10 +981,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   tipSectionPortrait: {
     width: '100%' as const,
     marginTop: theme.spacing.lg,
-  },
-  tipSectionLandscape: {
-    marginBottom: theme.spacing.sm,
-    padding: theme.spacing.sm,
   },
   tipHeader: {
     flexDirection: 'row' as const,
@@ -1029,10 +1007,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     marginTop: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing['3xl'],
-  },
-  closeButtonLandscape: {
-    paddingVertical: theme.spacing.sm,
-    alignSelf: 'stretch' as const,
   },
   closeButtonText: {
     color: theme.palette.white,
