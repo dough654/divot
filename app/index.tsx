@@ -6,14 +6,14 @@ import Animated from 'react-native-reanimated';
 import { forwardRef } from 'react';
 
 import { useTheme } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, usePressAnimation } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, usePressAnimation, useOrientation } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type RoleButtonProps = {
   children: React.ReactNode;
-  style: object;
+  style: object | (object | false | undefined)[];
   pressedBgColor: string;
   defaultBgColor: string;
   rippleColor?: string;
@@ -53,20 +53,22 @@ export default function HomeScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
+  const { isLandscape } = useOrientation();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
+      <View style={isLandscape ? styles.headerLandscape : styles.header}>
         <Text style={styles.title} accessibilityRole="header">SwingLink</Text>
-        <Text style={styles.subtitle}>P2P Golf Swing Analysis</Text>
+        {!isLandscape && <Text style={styles.subtitle}>P2P Golf Swing Analysis</Text>}
       </View>
 
       <View style={styles.roleSection}>
-        <Text style={styles.sectionTitle}>Select Your Role</Text>
+        {!isLandscape && <Text style={styles.sectionTitle}>Select Your Role</Text>}
 
+        <View style={isLandscape ? styles.roleButtonsRow : undefined}>
         <Link href="/camera" asChild>
           <RoleButton
-            style={styles.roleButton}
+            style={[styles.roleButton, isLandscape && styles.roleButtonLandscape]}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
@@ -75,13 +77,15 @@ export default function HomeScreen() {
             accessibilityHint="Film the swing and stream to another device"
           >
             <View style={styles.roleIconContainer}>
-              <Ionicons name="videocam" size={40} color={theme.colors.primary} />
+              <Ionicons name="videocam" size={isLandscape ? 28 : 40} color={theme.colors.primary} />
             </View>
             <View style={styles.roleTextContainer}>
               <Text style={styles.roleTitle}>Camera</Text>
-              <Text style={styles.roleDescription}>
-                Film the swing and stream to another device
-              </Text>
+              {!isLandscape && (
+                <Text style={styles.roleDescription}>
+                  Film the swing and stream to another device
+                </Text>
+              )}
             </View>
             <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </RoleButton>
@@ -89,7 +93,7 @@ export default function HomeScreen() {
 
         <Link href="/viewer" asChild>
           <RoleButton
-            style={styles.roleButton}
+            style={[styles.roleButton, isLandscape && styles.roleButtonLandscape]}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
@@ -98,13 +102,15 @@ export default function HomeScreen() {
             accessibilityHint="Watch the swing stream from another device"
           >
             <View style={styles.roleIconContainer}>
-              <Ionicons name="eye" size={40} color={theme.colors.secondary} />
+              <Ionicons name="eye" size={isLandscape ? 28 : 40} color={theme.colors.secondary} />
             </View>
             <View style={styles.roleTextContainer}>
               <Text style={styles.roleTitle}>Viewer</Text>
-              <Text style={styles.roleDescription}>
-                Watch the swing stream from another device
-              </Text>
+              {!isLandscape && (
+                <Text style={styles.roleDescription}>
+                  Watch the swing stream from another device
+                </Text>
+              )}
             </View>
             <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </RoleButton>
@@ -112,7 +118,7 @@ export default function HomeScreen() {
 
         <Link href="/clips" asChild>
           <RoleButton
-            style={styles.roleButton}
+            style={[styles.roleButton, isLandscape && styles.roleButtonLandscape]}
             defaultBgColor={theme.colors.surface}
             pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
             rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
@@ -121,17 +127,20 @@ export default function HomeScreen() {
             accessibilityHint="View and playback recorded swing videos"
           >
             <View style={[styles.roleIconContainer, styles.clipsIconContainer]}>
-              <Ionicons name="film" size={40} color={theme.palette.amber600} />
+              <Ionicons name="film" size={isLandscape ? 28 : 40} color={theme.palette.amber600} />
             </View>
             <View style={styles.roleTextContainer}>
               <Text style={styles.roleTitle}>My Clips</Text>
-              <Text style={styles.roleDescription}>
-                View and playback recorded swing videos
-              </Text>
+              {!isLandscape && (
+                <Text style={styles.roleDescription}>
+                  View and playback recorded swing videos
+                </Text>
+              )}
             </View>
             <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </RoleButton>
         </Link>
+        </View>
       </View>
 
       <View style={styles.footer}>
@@ -163,6 +172,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     marginTop: 40,
     marginBottom: 60,
   },
+  headerLandscape: {
+    alignItems: 'center' as const,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
   title: {
     fontSize: 36,
     fontWeight: theme.fontWeight.bold,
@@ -175,6 +189,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   roleSection: {
     flex: 1,
+  },
+  roleButtonsRow: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: theme.spacing.md,
   },
   sectionTitle: {
     fontSize: theme.fontSize.sm,
@@ -192,6 +211,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     marginBottom: theme.spacing.lg,
     ...theme.shadows.md,
     shadowOpacity: theme.isDark ? 0.3 : 0.1,
+  },
+  roleButtonLandscape: {
+    flex: 1,
+    padding: theme.spacing.md,
+    marginBottom: 0,
   },
   roleIconContainer: {
     width: 60,

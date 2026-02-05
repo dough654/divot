@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
 
 import { useTheme } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, usePressAnimation } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, usePressAnimation, useOrientation } from '@/src/hooks';
 import { EmptyState, SkeletonClipItem } from '@/src/components/ui';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -112,6 +112,7 @@ export default function ClipsScreen() {
   const { theme } = useTheme();
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
+  const { isLandscape } = useOrientation();
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -246,7 +247,9 @@ export default function ClipsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <FlatList
+        key={isLandscape ? 'landscape-2col' : 'portrait-1col'}
         data={clips}
+        numColumns={isLandscape ? 2 : 1}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <ClipItem
@@ -255,6 +258,7 @@ export default function ClipsScreen() {
             onMenuPress={() => handleClipLongPress(item)}
           />
         )}
+        columnWrapperStyle={isLandscape ? styles.columnWrapper : undefined}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -324,6 +328,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   listContent: {
     padding: theme.spacing.md,
   },
+  columnWrapper: {
+    gap: theme.spacing.sm,
+  },
   separator: {
     height: theme.spacing.sm,
   },
@@ -383,6 +390,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
 
 const createItemStyles = makeThemedStyles((theme: Theme) => ({
   container: {
+    flex: 1,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     borderRadius: theme.borderRadius.md,

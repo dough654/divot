@@ -1,10 +1,10 @@
 import { View, Text, Switch, Pressable, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import { useTheme, useSettings } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, useHaptics, useOrientation } from '@/src/hooks';
 import { useToast } from '@/src/context';
 import { Card } from '@/src/components/ui';
 import { clearAllClips, listClips } from '@/src/services/recording/clip-storage';
@@ -24,7 +24,16 @@ export default function SettingsScreen() {
   const styles = useThemedStyles(createStyles);
   const haptics = useHaptics();
   const { show: showToast } = useToast();
+  const { lockToPortrait, unlock } = useOrientation();
   const [isClearing, setIsClearing] = useState(false);
+
+  // Lock settings screen to portrait
+  useEffect(() => {
+    lockToPortrait();
+    return () => {
+      unlock();
+    };
+  }, [lockToPortrait, unlock]);
 
   const handleHapticsToggle = (value: boolean) => {
     // Trigger haptic before potentially disabling
