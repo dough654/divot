@@ -49,8 +49,23 @@ final class VisionCameraFrameForwarder: NSObject {
   }
 
   /// Convert UIImage.Orientation (from VisionCamera Frame) to RTCVideoRotation.
-  /// iPhone rear camera sensor is landscape with "top" pointing to the device's right side.
-  /// VisionCamera reports this as the frame's UIImageOrientation.
+  ///
+  /// VisionCamera uses CoreMotion (accelerometer) to determine orientation, NOT UIDevice orientation.
+  /// This means it works regardless of the app's UI orientation lock — rotating the physical device
+  /// will produce the correct orientation value even if the UI stays portrait.
+  ///
+  /// iPhone rear camera sensor is physically mounted in landscape, with "top" pointing toward the
+  /// device's right edge. VisionCamera normalizes this and reports the frame's UIImageOrientation
+  /// relative to the device's physical position:
+  ///
+  ///   Device position    → UIImage.Orientation → RTCVideoRotation
+  ///   Portrait (upright) → .up                 → ._0   (no rotation needed)
+  ///   Landscape left     → .left               → ._90  (90° clockwise)
+  ///   Upside down        → .down               → ._180
+  ///   Landscape right    → .right              → ._270 (90° counter-clockwise)
+  ///
+  /// Mirrored variants (front camera) use the same rotation degrees — the mirror flip
+  /// is handled separately by the WebRTC video track.
   private func rtcRotation(from orientation: UIImage.Orientation) -> RTCVideoRotation {
     switch orientation {
     case .up:            return ._0
