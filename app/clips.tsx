@@ -1,10 +1,12 @@
-import { StyleSheet, View, Text, FlatList, Pressable, RefreshControl, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, FlatList, Pressable, RefreshControl, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { useTheme } from '@/src/context';
+import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import type { Theme } from '@/src/context';
 import { listClips, deleteClip, renameClip } from '@/src/services/recording/clip-storage';
 import type { Clip } from '@/src/types/recording';
 
@@ -49,11 +51,11 @@ type ClipItemProps = {
   clip: Clip;
   onPress: () => void;
   onMenuPress: () => void;
-  isDark: boolean;
 };
 
-const ClipItem = ({ clip, onPress, onMenuPress, isDark }: ClipItemProps) => {
-  const styles = createItemStyles(isDark);
+const ClipItem = ({ clip, onPress, onMenuPress }: ClipItemProps) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createItemStyles);
 
   const clipName = clip.name || `Swing ${formatDate(clip.timestamp)}`;
 
@@ -66,7 +68,7 @@ const ClipItem = ({ clip, onPress, onMenuPress, isDark }: ClipItemProps) => {
       accessibilityHint="Open clip for playback"
     >
       <View style={styles.thumbnail}>
-        <Ionicons name="videocam" size={24} color="#888" />
+        <Ionicons name="videocam" size={24} color={theme.colors.textTertiary} />
       </View>
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={1}>
@@ -87,16 +89,16 @@ const ClipItem = ({ clip, onPress, onMenuPress, isDark }: ClipItemProps) => {
         accessibilityLabel={`Options for ${clipName}`}
         accessibilityHint="Open menu to rename or delete clip"
       >
-        <Ionicons name="ellipsis-vertical" size={20} color={isDark ? '#888' : '#666'} />
+        <Ionicons name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
       </Pressable>
     </Pressable>
   );
 };
 
 export default function ClipsScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { theme } = useTheme();
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -197,8 +199,6 @@ export default function ClipsScreen() {
     setRenameText('');
   }, []);
 
-  const styles = createStyles(isDark);
-
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -213,7 +213,7 @@ export default function ClipsScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.centerContent}>
-          <Ionicons name="videocam-off-outline" size={64} color={isDark ? '#444' : '#ccc'} />
+          <Ionicons name="videocam-off-outline" size={64} color={theme.colors.border} />
           <Text style={styles.emptyTitle}>No Clips Yet</Text>
           <Text style={styles.emptySubtitle}>
             Record your first swing in Camera mode to see it here.
@@ -225,7 +225,7 @@ export default function ClipsScreen() {
             accessibilityLabel="Go to Camera"
             accessibilityHint="Navigate to camera mode to record clips"
           >
-            <Ionicons name="videocam" size={20} color="#fff" />
+            <Ionicons name="videocam" size={20} color={theme.palette.white} />
             <Text style={styles.recordButtonText}>Go to Camera</Text>
           </Pressable>
         </View>
@@ -243,7 +243,6 @@ export default function ClipsScreen() {
             clip={item}
             onPress={() => handleClipPress(item)}
             onMenuPress={() => handleClipLongPress(item)}
-            isDark={isDark}
           />
         )}
         contentContainerStyle={styles.listContent}
@@ -251,7 +250,7 @@ export default function ClipsScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            tintColor={isDark ? '#fff' : '#000'}
+            tintColor={theme.colors.text}
           />
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -272,7 +271,7 @@ export default function ClipsScreen() {
               value={renameText}
               onChangeText={setRenameText}
               placeholder="Enter clip name"
-              placeholderTextColor={isDark ? '#666' : '#999'}
+              placeholderTextColor={theme.colors.textTertiary}
               autoFocus
               selectTextOnFocus
               accessibilityLabel="Clip name"
@@ -305,152 +304,150 @@ export default function ClipsScreen() {
   );
 }
 
-const createStyles = (isDark: boolean) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
-    },
-    centerContent: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 32,
-    },
-    loadingText: {
-      fontSize: 16,
-      color: isDark ? '#888' : '#666',
-    },
-    emptyTitle: {
-      fontSize: 20,
-      fontWeight: '600',
-      color: isDark ? '#fff' : '#1a1a2e',
-      marginTop: 16,
-      marginBottom: 8,
-    },
-    emptySubtitle: {
-      fontSize: 14,
-      color: isDark ? '#888' : '#666',
-      textAlign: 'center',
-      lineHeight: 20,
-      marginBottom: 24,
-    },
-    recordButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: '#4CAF50',
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 8,
-    },
-    recordButtonText: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    listContent: {
-      padding: 12,
-    },
-    separator: {
-      height: 8,
-    },
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 32,
-    },
-    modalContent: {
-      width: '100%',
-      backgroundColor: isDark ? '#2a2a4e' : '#fff',
-      borderRadius: 16,
-      padding: 24,
-    },
-    modalTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: isDark ? '#fff' : '#1a1a2e',
-      marginBottom: 16,
-    },
-    modalInput: {
-      backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
-      borderRadius: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      fontSize: 16,
-      color: isDark ? '#fff' : '#1a1a2e',
-      marginBottom: 20,
-    },
-    modalButtons: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      gap: 12,
-    },
-    modalButtonCancel: {
-      paddingVertical: 10,
-      paddingHorizontal: 20,
-    },
-    modalButtonCancelText: {
-      fontSize: 16,
-      color: isDark ? '#888' : '#666',
-    },
-    modalButtonConfirm: {
-      backgroundColor: '#4CAF50',
-      paddingVertical: 10,
-      paddingHorizontal: 20,
-      borderRadius: 8,
-    },
-    modalButtonConfirmText: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: '#fff',
-    },
-  });
+const createStyles = makeThemedStyles((theme: Theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.backgroundSecondary,
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    padding: theme.spacing['3xl'],
+  },
+  loadingText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+  },
+  emptyTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+  },
+  emptySubtitle: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    textAlign: 'center' as const,
+    lineHeight: 20,
+    marginBottom: theme.spacing['2xl'],
+  },
+  recordButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
+    borderRadius: theme.borderRadius.sm,
+  },
+  recordButtonText: {
+    color: theme.palette.white,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  listContent: {
+    padding: theme.spacing.md,
+  },
+  separator: {
+    height: theme.spacing.sm,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    padding: theme.spacing['3xl'],
+  },
+  modalContent: {
+    width: '100%' as const,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing['2xl'],
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.lg,
+  },
+  modalInput: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xl,
+  },
+  modalButtons: {
+    flexDirection: 'row' as const,
+    justifyContent: 'flex-end' as const,
+    gap: theme.spacing.md,
+  },
+  modalButtonCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: theme.spacing.xl,
+  },
+  modalButtonCancelText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+  },
+  modalButtonConfirm: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: theme.spacing.xl,
+    borderRadius: theme.borderRadius.sm,
+  },
+  modalButtonConfirmText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.palette.white,
+  },
+}));
 
-const createItemStyles = (isDark: boolean) =>
-  StyleSheet.create({
-    container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: isDark ? '#2a2a4e' : '#fff',
-      borderRadius: 12,
-      padding: 12,
-    },
-    thumbnail: {
-      width: 56,
-      height: 56,
-      borderRadius: 8,
-      backgroundColor: isDark ? '#1a1a2e' : '#f0f0f0',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-    },
-    info: {
-      flex: 1,
-    },
-    title: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: isDark ? '#fff' : '#1a1a2e',
-      marginBottom: 4,
-    },
-    meta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    metaText: {
-      fontSize: 13,
-      color: isDark ? '#888' : '#666',
-    },
-    metaDot: {
-      fontSize: 13,
-      color: isDark ? '#555' : '#999',
-      marginHorizontal: 6,
-    },
-    menuButton: {
-      padding: 8,
-      marginLeft: 4,
-    },
-  });
+const createItemStyles = makeThemedStyles((theme: Theme) => ({
+  container: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+  },
+  thumbnail: {
+    width: 56,
+    height: 56,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.backgroundSecondary,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    marginRight: theme.spacing.md,
+  },
+  info: {
+    flex: 1,
+  },
+  title: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  meta: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
+  metaText: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+  },
+  metaDot: {
+    fontSize: 13,
+    color: theme.colors.textTertiary,
+    marginHorizontal: 6,
+  },
+  menuButton: {
+    padding: theme.spacing.sm,
+    marginLeft: 4,
+  },
+}));

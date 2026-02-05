@@ -1,16 +1,16 @@
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { useTheme } from '@/src/context';
+import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import type { Theme } from '@/src/context';
 
 export default function HomeScreen() {
-  const colorScheme = useColorScheme();
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const isDark = colorScheme === 'dark';
-
-  const styles = createStyles(isDark);
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -30,7 +30,7 @@ export default function HomeScreen() {
             accessibilityHint="Film the swing and stream to another device"
           >
             <View style={styles.roleIconContainer}>
-              <Ionicons name="videocam" size={40} color="#4CAF50" />
+              <Ionicons name="videocam" size={40} color={theme.colors.primary} />
             </View>
             <View style={styles.roleTextContainer}>
               <Text style={styles.roleTitle}>Camera</Text>
@@ -38,7 +38,7 @@ export default function HomeScreen() {
                 Film the swing and stream to another device
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={isDark ? '#888' : '#666'} />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </Pressable>
         </Link>
 
@@ -50,7 +50,7 @@ export default function HomeScreen() {
             accessibilityHint="Watch the swing stream from another device"
           >
             <View style={styles.roleIconContainer}>
-              <Ionicons name="eye" size={40} color="#2196F3" />
+              <Ionicons name="eye" size={40} color={theme.colors.secondary} />
             </View>
             <View style={styles.roleTextContainer}>
               <Text style={styles.roleTitle}>Viewer</Text>
@@ -58,7 +58,7 @@ export default function HomeScreen() {
                 Watch the swing stream from another device
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={isDark ? '#888' : '#666'} />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </Pressable>
         </Link>
 
@@ -70,7 +70,7 @@ export default function HomeScreen() {
             accessibilityHint="View and playback recorded swing videos"
           >
             <View style={[styles.roleIconContainer, styles.clipsIconContainer]}>
-              <Ionicons name="film" size={40} color="#FF9800" />
+              <Ionicons name="film" size={40} color={theme.palette.amber600} />
             </View>
             <View style={styles.roleTextContainer}>
               <Text style={styles.roleTitle}>My Clips</Text>
@@ -78,7 +78,7 @@ export default function HomeScreen() {
                 View and playback recorded swing videos
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={isDark ? '#888' : '#666'} />
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
           </Pressable>
         </Link>
       </View>
@@ -91,7 +91,7 @@ export default function HomeScreen() {
             accessibilityLabel="Settings"
             accessibilityHint="Open app settings"
           >
-            <Ionicons name="settings-outline" size={24} color={isDark ? '#aaa' : '#666'} />
+            <Ionicons name="settings-outline" size={24} color={theme.colors.textSecondary} />
             <Text style={styles.settingsText}>Settings</Text>
           </Pressable>
         </Link>
@@ -100,90 +100,86 @@ export default function HomeScreen() {
   );
 }
 
-const createStyles = (isDark: boolean) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: isDark ? '#1a1a2e' : '#f5f5f5',
-      padding: 20,
-    },
-    header: {
-      alignItems: 'center',
-      marginTop: 40,
-      marginBottom: 60,
-    },
-    title: {
-      fontSize: 36,
-      fontWeight: '700',
-      color: isDark ? '#ffffff' : '#1a1a2e',
-      marginBottom: 8,
-    },
-    subtitle: {
-      fontSize: 16,
-      color: isDark ? '#888' : '#666',
-    },
-    roleSection: {
-      flex: 1,
-    },
-    sectionTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: isDark ? '#888' : '#666',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      marginBottom: 16,
-    },
-    roleButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: isDark ? '#2a2a4e' : '#ffffff',
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: isDark ? 0.3 : 0.1,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    roleIconContainer: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      backgroundColor: isDark ? '#1a1a2e' : '#f0f0f0',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 16,
-    },
-    clipsIconContainer: {
-      backgroundColor: isDark ? '#2a1a1a' : '#fff3e0',
-    },
-    roleTextContainer: {
-      flex: 1,
-    },
-    roleTitle: {
-      fontSize: 20,
-      fontWeight: '600',
-      color: isDark ? '#ffffff' : '#1a1a2e',
-      marginBottom: 4,
-    },
-    roleDescription: {
-      fontSize: 14,
-      color: isDark ? '#888' : '#666',
-      lineHeight: 20,
-    },
-    footer: {
-      alignItems: 'center',
-      paddingBottom: 20,
-    },
-    settingsButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: 12,
-    },
-    settingsText: {
-      fontSize: 16,
-      color: isDark ? '#aaa' : '#666',
-      marginLeft: 8,
-    },
-  });
+const createStyles = makeThemedStyles((theme: Theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.backgroundSecondary,
+    padding: theme.spacing.xl,
+  },
+  header: {
+    alignItems: 'center' as const,
+    marginTop: 40,
+    marginBottom: 60,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  subtitle: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+  },
+  roleSection: {
+    flex: 1,
+  },
+  sectionTitle: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+    marginBottom: theme.spacing.lg,
+  },
+  roleButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
+    ...theme.shadows.md,
+    shadowOpacity: theme.isDark ? 0.3 : 0.1,
+  },
+  roleIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.backgroundSecondary,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: theme.spacing.lg,
+  },
+  clipsIconContainer: {
+    backgroundColor: theme.isDark ? '#2a1a1a' : theme.palette.amber50,
+  },
+  roleTextContainer: {
+    flex: 1,
+  },
+  roleTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  roleDescription: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+  },
+  footer: {
+    alignItems: 'center' as const,
+    paddingBottom: theme.spacing.xl,
+  },
+  settingsButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    padding: theme.spacing.md,
+  },
+  settingsText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
+    marginLeft: theme.spacing.sm,
+  },
+}));
