@@ -1,4 +1,5 @@
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, AccessibilityInfo } from 'react-native';
+import { useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { ConnectionStep, ConnectionQuality } from '@/src/types';
 import { formatQuality, getQualityRating } from '@/src/hooks/use-connection-quality';
@@ -37,7 +38,30 @@ const qualityColors: Record<ReturnType<typeof getQualityRating>, string> = {
 };
 
 /**
+ * Returns an appropriate announcement message for screen readers based on connection step.
+ * Returns null for steps that don't need explicit announcement.
+ */
+const getStepAnnouncement = (step: ConnectionStep, label: string): string | null => {
+  switch (step) {
+    case 'connected':
+      return 'Connected successfully';
+    case 'reconnecting':
+      return 'Connection lost. Attempting to reconnect.';
+    case 'reconnect-failed':
+      return 'Reconnection failed. Please try again.';
+    case 'failed':
+      return 'Connection failed. Please try again.';
+    case 'local-discovery-failed':
+      return 'Could not find device on local network.';
+    default:
+      // For other transitional states, use the label
+      return label;
+  }
+};
+
+/**
  * Displays the current connection status with visual indicators.
+ * Announces state changes to screen readers via AccessibilityInfo.
  */
 export const ConnectionStatus = ({
   step,
@@ -50,6 +74,51 @@ export const ConnectionStatus = ({
   const isFailed = step === 'failed' || step === 'reconnect-failed';
   const isReconnecting = step === 'reconnecting';
   const qualityRating = getQualityRating(quality ?? null);
+
+  // Track previous values for change detection
+  const prevStepRef = useRef<ConnectionStep | null>(null);
+  const prevQualityRatingRef = useRef<ReturnType<typeof getQualityRating> | null>(null);
+
+  // Announce connection state changes
+  useEffect(() => {
+    // Skip initial mount announcement
+    if (prevStepRef.current === null) {
+      prevStepRef.current = step;
+      return;
+    }
+
+    // Only announce if step actually changed
+    if (prevStepRef.current !== step) {
+      const announcement = getStepAnnouncement(step, info.label);
+      if (announcement) {
+        AccessibilityInfo.announceForAccessibility(announcement);
+      }
+      prevStepRef.current = step;
+    }
+  }, [step, info.label]);
+
+  // Announce quality degradation
+  useEffect(() => {
+    if (!isConnected || !quality) return;
+
+    // Skip initial quality reading
+    if (prevQualityRatingRef.current === null) {
+      prevQualityRatingRef.current = qualityRating;
+      return;
+    }
+
+    // Announce if quality degraded to poor
+    if (
+      prevQualityRatingRef.current !== 'poor' &&
+      qualityRating === 'poor'
+    ) {
+      AccessibilityInfo.announceForAccessibility(
+        'Warning: Connection quality is poor. You may experience lag or disconnection.'
+      );
+    }
+
+    prevQualityRatingRef.current = qualityRating;
+  }, [isConnected, quality, qualityRating]);
 
   const getStatusColor = () => {
     if (isConnected) return '#4CAF50';
