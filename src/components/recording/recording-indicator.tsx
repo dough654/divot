@@ -104,17 +104,17 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   text: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: theme.fontFamily.bodyBold,
     fontVariant: ['tabular-nums' as const],
     textTransform: 'lowercase' as const,
   },
   textCompact: {
-    fontSize: 8,
+    fontSize: 10,
   },
   label: {
     color: theme.colors.recording,
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: theme.fontFamily.bodyBold,
     marginLeft: 2,
     textTransform: 'lowercase' as const,

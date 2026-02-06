@@ -334,13 +334,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     gap: theme.spacing.sm,
   },
   label: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: theme.fontFamily.body,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
   },
   compactLabel: {
-    fontSize: 8,
+    fontSize: 10,
     fontFamily: theme.fontFamily.body,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
@@ -361,13 +361,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     borderRadius: 2.5,
   },
   qualityText: {
-    fontSize: 8,
+    fontSize: 10,
     color: theme.colors.textSecondary,
     fontFamily: theme.fontFamily.mono,
     textTransform: 'lowercase' as const,
   },
   compactQuality: {
-    fontSize: 8,
+    fontSize: 10,
     color: theme.colors.textSecondary,
     fontFamily: theme.fontFamily.mono,
   },

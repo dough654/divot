@@ -81,7 +81,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   codeLabel: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 9,
+    fontSize: 11,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
     marginBottom: 4,
@@ -99,13 +99,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   instruction: {
     fontFamily: theme.fontFamily.body,
     marginTop: theme.spacing.lg,
-    fontSize: 9,
+    fontSize: 11,
     color: theme.colors.textSecondary,
     textAlign: 'center' as const,
     textTransform: 'lowercase' as const,
   },
   instructionCompact: {
     marginTop: theme.spacing.xs,
-    fontSize: 8,
+    fontSize: 10,
   },
 }));

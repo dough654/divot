@@ -397,7 +397,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   qualityLabel: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 7,
+    fontSize: 10,
     textTransform: 'lowercase' as const,
     color: theme.colors.textTertiary,
   },
@@ -430,7 +430,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   livePillText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 8,
+    fontSize: 10,
     color: theme.colors.success,
     textTransform: 'lowercase' as const,
   },
@@ -446,7 +446,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   resPillText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 8,
+    fontSize: 10,
     color: 'rgba(255,255,255,0.7)',
     textTransform: 'lowercase' as const,
   },

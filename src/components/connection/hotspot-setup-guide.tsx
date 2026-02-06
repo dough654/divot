@@ -172,7 +172,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   credentialLabel: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 9,
+    fontSize: 11,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
   },

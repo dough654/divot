@@ -32,15 +32,15 @@ export const palette = {
   dark950: '#080808',
   dark900: '#0D0D0D',
   dark800: '#1A1A1A',
-  dark700: '#333333',
-  dark600: '#666666',
+  dark700: '#555555',
+  dark600: '#999999',
 
   // Light neutrals
   light100: '#F5F5F5',
   light200: '#FAFAFA',
   light300: '#E0E0E0',
-  light400: '#BBBBBB',
-  light500: '#777777',
+  light400: '#999999',
+  light500: '#666666',
 
   // Gold accent
   gold: '#E5A020',

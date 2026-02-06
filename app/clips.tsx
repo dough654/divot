@@ -341,7 +341,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   backText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 9,
+    fontSize: 11,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
   },
@@ -359,7 +359,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   headerCount: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 9,
+    fontSize: 11,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
     marginTop: 2,
@@ -464,7 +464,7 @@ const createItemStyles = makeThemedStyles((theme: Theme) => ({
   },
   meta: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 9,
+    fontSize: 11,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
   },

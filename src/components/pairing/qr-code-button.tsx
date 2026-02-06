@@ -185,7 +185,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   label: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 9,
+    fontSize: 11,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
   },
@@ -202,7 +202,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   actionText: {
     fontFamily: theme.fontFamily.bodyMedium,
-    fontSize: 9,
+    fontSize: 11,
     color: theme.colors.accent,
     textTransform: 'lowercase' as const,
   },
