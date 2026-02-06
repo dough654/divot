@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   },
   hintText: {
     color: '#E5A020',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
 });

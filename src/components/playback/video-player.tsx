@@ -568,7 +568,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   loadingText: {
     fontFamily: theme.fontFamily.body,
     color: theme.colors.textSecondary,
-    fontSize: 11,
+    fontSize: 13,
     textTransform: 'lowercase' as const,
   },
   controls: {
@@ -585,7 +585,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   timeText: {
     fontFamily: theme.fontFamily.mono,
     color: theme.colors.textSecondary,
-    fontSize: 11,
+    fontSize: 13,
     fontVariant: ['tabular-nums' as const],
   },
   slider: {
@@ -631,7 +631,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   speedButtonText: {
     fontFamily: theme.fontFamily.bodySemiBold,
     color: theme.colors.text,
-    fontSize: 11,
+    fontSize: 13,
     textTransform: 'lowercase' as const,
   },
   drawButton: {
@@ -657,6 +657,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   saveMessageText: {
     fontFamily: theme.fontFamily.bodySemiBold,
     color: theme.colors.text,
-    fontSize: 11,
+    fontSize: 13,
   },
 }));

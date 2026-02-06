@@ -137,7 +137,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   loadingText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 11,
+    fontSize: 14,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
   },
@@ -173,7 +173,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   headerDate: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 11,
+    fontSize: 13,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
     marginTop: 2,
