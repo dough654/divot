@@ -10,6 +10,9 @@ import { StaticAnnotationOverlay } from '@/src/components/annotation/static-anno
 import { DrawingToolbar } from '@/src/components/annotation/drawing-toolbar';
 import { useDrawing } from '@/src/hooks/use-drawing';
 import { captureAnnotatedFrame, saveBase64ImageToGallery } from '@/src/services/annotation/frame-capture';
+import { useTheme } from '@/src/context';
+import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import type { Theme } from '@/src/context';
 
 export type VideoPlayerProps = {
   /** URI of the video to play. */
@@ -65,6 +68,9 @@ export const VideoPlayer = ({
   const wasPlayingBeforeSeek = useRef(false);
   const lastSeekTime = useRef(0);
   const pendingSeek = useRef<number | null>(null);
+
+  const { theme } = useTheme();
+  const themedStyles = useThemedStyles(createStyles);
 
   const drawingEnabled = !!clipId;
   const drawing = useDrawing({ clipId: clipId ?? '' });
@@ -321,10 +327,10 @@ export const VideoPlayer = ({
   const showAnnotations = drawingEnabled;
 
   return (
-    <View style={styles.container}>
+    <View style={themedStyles.container}>
       <Pressable
         ref={videoContainerRef}
-        style={styles.videoContainer}
+        style={themedStyles.videoContainer}
         onPress={isDrawMode ? undefined : togglePlayPause}
         disabled={isDrawMode}
         onLayout={(event) => {
@@ -335,7 +341,7 @@ export const VideoPlayer = ({
         <Video
           ref={videoRef}
           source={{ uri }}
-          style={styles.video}
+          style={themedStyles.video}
           resizeMode={ResizeMode.CONTAIN}
           isLooping={loop}
           onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
@@ -349,7 +355,7 @@ export const VideoPlayer = ({
         {captureFrameUri && (
           <Image
             source={{ uri: captureFrameUri }}
-            style={styles.captureFrame}
+            style={themedStyles.captureFrame}
             resizeMode="contain"
             onLoad={() => {
               captureFrameReady.current?.();
@@ -394,7 +400,7 @@ export const VideoPlayer = ({
 
         {/* Drawing toolbar - absolutely positioned inside video container */}
         {isDrawMode && !isSaving && (
-          <View style={styles.toolbarContainer}>
+          <View style={themedStyles.toolbarContainer}>
             <DrawingToolbar
               activeColor={drawing.color}
               presetColors={drawing.presetColors}
@@ -415,58 +421,58 @@ export const VideoPlayer = ({
 
         {/* Save feedback message */}
         {saveMessage && (
-          <View style={styles.saveMessageOverlay}>
-            <Text style={styles.saveMessageText}>{saveMessage}</Text>
+          <View style={themedStyles.saveMessageOverlay}>
+            <Text style={themedStyles.saveMessageText}>{saveMessage}</Text>
           </View>
         )}
 
         {/* Loading indicator */}
         {!isLoaded && (
-          <View style={styles.loadingOverlay}>
-            <Text style={styles.loadingText}>Loading...</Text>
+          <View style={themedStyles.loadingOverlay}>
+            <Text style={themedStyles.loadingText}>Loading...</Text>
           </View>
         )}
       </Pressable>
 
       {showControls && isLoaded && (
-        <View style={styles.controls}>
+        <View style={themedStyles.controls}>
           {/* Time display */}
-          <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatTime(position)}</Text>
-            <Text style={styles.timeText}>{formatTime(duration)}</Text>
+          <View style={themedStyles.timeRow}>
+            <Text style={themedStyles.timeText}>{formatTime(position)}</Text>
+            <Text style={themedStyles.timeText}>{formatTime(duration)}</Text>
           </View>
 
           {/* Timeline scrubber */}
           <Slider
-            style={styles.slider}
+            style={themedStyles.slider}
             minimumValue={0}
             maximumValue={duration}
             value={position}
             onSlidingStart={handleSeekStart}
             onSlidingComplete={handleSeekComplete}
             onValueChange={handleSeekChange}
-            minimumTrackTintColor="#4CAF50"
-            maximumTrackTintColor="#666"
-            thumbTintColor="#4CAF50"
+            minimumTrackTintColor={theme.colors.accent}
+            maximumTrackTintColor={theme.colors.textTertiary}
+            thumbTintColor={theme.colors.accent}
             accessibilityRole="adjustable"
             accessibilityLabel={`Video position: ${formatTime(position)} of ${formatTime(duration)}`}
             accessibilityHint="Drag to seek through the video"
           />
 
           {/* Control buttons */}
-          <View style={styles.buttonRow}>
+          <View style={themedStyles.buttonRow}>
             <Pressable
-              style={styles.frameButton}
+              style={themedStyles.frameButton}
               onPress={stepBackward}
               accessibilityRole="button"
               accessibilityLabel="Previous frame"
               accessibilityHint="Step back one frame"
             >
-              <Ionicons name="chevron-back" size={32} color="#fff" />
+              <Ionicons name="chevron-back" size={32} color={theme.colors.text} />
             </Pressable>
 
             <Pressable
-              style={styles.playPauseButton}
+              style={themedStyles.playPauseButton}
               onPress={togglePlayPause}
               accessibilityRole="button"
               accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
@@ -475,38 +481,38 @@ export const VideoPlayer = ({
               <Ionicons
                 name={isPlaying ? 'pause' : 'play'}
                 size={36}
-                color="#fff"
+                color={theme.isDark ? theme.palette.black : theme.palette.white}
               />
             </Pressable>
 
             <Pressable
-              style={styles.frameButton}
+              style={themedStyles.frameButton}
               onPress={stepForward}
               accessibilityRole="button"
               accessibilityLabel="Next frame"
               accessibilityHint="Step forward one frame"
             >
-              <Ionicons name="chevron-forward" size={32} color="#fff" />
+              <Ionicons name="chevron-forward" size={32} color={theme.colors.text} />
             </Pressable>
           </View>
 
           {/* Bottom row: speed + draw toggle */}
-          <View style={styles.bottomRow}>
+          <View style={themedStyles.bottomRow}>
             <Pressable
-              style={styles.speedButton}
+              style={themedStyles.speedButton}
               onPress={cyclePlaybackSpeed}
               accessibilityRole="button"
               accessibilityLabel={`Playback speed ${playbackRate}x`}
               accessibilityHint="Cycle through playback speeds"
             >
-              <Text style={styles.speedButtonText}>{playbackRate}x</Text>
+              <Text style={themedStyles.speedButtonText}>{playbackRate}x</Text>
             </Pressable>
 
             {drawingEnabled && (
               <Pressable
                 style={[
-                  styles.drawButton,
-                  isDrawMode && styles.drawButtonActive,
+                  themedStyles.drawButton,
+                  isDrawMode && themedStyles.drawButtonActive,
                 ]}
                 onPress={toggleDrawMode}
                 accessibilityRole="button"
@@ -517,7 +523,7 @@ export const VideoPlayer = ({
                 <Ionicons
                   name="pencil"
                   size={18}
-                  color={isDrawMode ? '#fff' : '#ccc'}
+                  color={isDrawMode ? theme.colors.text : theme.colors.textTertiary}
                 />
               </Pressable>
             )}
@@ -528,69 +534,68 @@ export const VideoPlayer = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: theme.colors.background,
   },
   videoContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 12,
-    marginTop: 12,
-    marginBottom: 8,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#12121f',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    overflow: 'hidden' as const,
+    backgroundColor: theme.colors.background,
   },
   video: {
-    width: '100%',
-    height: '100%',
+    width: '100%' as const,
+    height: '100%' as const,
   },
   captureFrame: {
     ...StyleSheet.absoluteFillObject,
   },
   toolbarContainer: {
-    position: 'absolute',
+    position: 'absolute' as const,
     bottom: 0,
     left: 0,
     right: 0,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(26, 26, 46, 0.8)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   loadingText: {
-    color: '#fff',
-    fontSize: 16,
+    fontFamily: theme.fontFamily.body,
+    color: theme.colors.textSecondary,
+    fontSize: 9,
+    textTransform: 'lowercase' as const,
   },
   controls: {
-    backgroundColor: '#1a1a2e',
+    backgroundColor: theme.colors.background,
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 32,
   },
   timeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
     marginBottom: 4,
   },
   timeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
+    fontFamily: theme.fontFamily.mono,
+    color: theme.colors.textSecondary,
+    fontSize: 9,
+    fontVariant: ['tabular-nums' as const],
   },
   slider: {
-    width: '100%',
+    width: '100%' as const,
     height: 40,
   },
   buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     gap: 32,
     marginTop: 8,
   },
@@ -598,59 +603,60 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
   playPauseButton: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: theme.colors.accent,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
   bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     marginTop: 12,
     gap: 12,
   },
   speedButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: theme.borderRadius.sm,
   },
   speedButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontFamily: theme.fontFamily.bodySemiBold,
+    color: theme.colors.text,
+    fontSize: 9,
+    textTransform: 'lowercase' as const,
   },
   drawButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
   drawButtonActive: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.accent,
   },
   saveMessageOverlay: {
-    position: 'absolute',
+    position: 'absolute' as const,
     bottom: 12,
-    alignSelf: 'center',
+    alignSelf: 'center' as const,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: theme.borderRadius.sm,
   },
   saveMessageText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontFamily: theme.fontFamily.bodySemiBold,
+    color: theme.colors.text,
+    fontSize: 9,
   },
-});
+}));

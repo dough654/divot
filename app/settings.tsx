@@ -1,12 +1,10 @@
 import { View, Text, Switch, Pressable, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
 
 import { useTheme, useSettings } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics, useOrientation } from '@/src/hooks';
 import { useToast } from '@/src/context';
-import { Card } from '@/src/components/ui';
 import { clearAllClips, listClips } from '@/src/services/recording/clip-storage';
 import type { Theme, ThemeMode } from '@/src/context';
 
@@ -91,126 +89,106 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <Text style={styles.screenTitle}>SETTINGS</Text>
+
       {/* Preferences Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
+        <Text style={styles.sectionTitle}>preferences</Text>
 
-        <Card style={styles.settingsCard}>
-          {/* Haptic Feedback Toggle */}
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="hand-left-outline" size={22} color={theme.colors.text} />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Haptic Feedback</Text>
-                <Text style={styles.settingDescription}>Vibration on button presses</Text>
-              </View>
-            </View>
-            <Switch
-              value={settings.hapticsEnabled}
-              onValueChange={handleHapticsToggle}
-              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-              thumbColor={theme.palette.white}
-              accessibilityLabel="Toggle haptic feedback"
-              accessibilityHint={settings.hapticsEnabled ? 'Disable haptic feedback' : 'Enable haptic feedback'}
-            />
+        {/* Haptic Feedback Toggle */}
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingLabel}>HAPTIC FEEDBACK</Text>
+            <Text style={styles.settingDescription}>vibration on button presses</Text>
           </View>
+          <Switch
+            value={settings.hapticsEnabled}
+            onValueChange={handleHapticsToggle}
+            trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
+            thumbColor={theme.palette.white}
+            accessibilityLabel="Toggle haptic feedback"
+            accessibilityHint={settings.hapticsEnabled ? 'Disable haptic feedback' : 'Enable haptic feedback'}
+          />
+        </View>
 
-          <View style={styles.divider} />
+        <View style={styles.divider} />
 
-          {/* Theme Mode Selector */}
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="moon-outline" size={22} color={theme.colors.text} />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Appearance</Text>
-                <Text style={styles.settingDescription}>Choose light or dark theme</Text>
-              </View>
-            </View>
+        {/* Theme Mode Selector */}
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingLabel}>APPEARANCE</Text>
+            <Text style={styles.settingDescription}>choose light or dark theme</Text>
           </View>
+        </View>
 
-          <View style={styles.themeOptions}>
-            {THEME_OPTIONS.map((option) => (
-              <Pressable
-                key={option.value}
+        <View style={styles.themeOptions}>
+          {THEME_OPTIONS.map((option) => (
+            <Pressable
+              key={option.value}
+              style={[
+                styles.themeOption,
+                settings.themeMode === option.value && styles.themeOptionSelected,
+              ]}
+              onPress={() => handleThemeModeChange(option.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: settings.themeMode === option.value }}
+              accessibilityLabel={`${option.label} theme`}
+            >
+              <Text
                 style={[
-                  styles.themeOption,
-                  settings.themeMode === option.value && styles.themeOptionSelected,
+                  styles.themeOptionText,
+                  settings.themeMode === option.value && styles.themeOptionTextSelected,
                 ]}
-                onPress={() => handleThemeModeChange(option.value)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: settings.themeMode === option.value }}
-                accessibilityLabel={`${option.label} theme`}
               >
-                <Text
-                  style={[
-                    styles.themeOptionText,
-                    settings.themeMode === option.value && styles.themeOptionTextSelected,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </Card>
+                {option.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       {/* Data Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data</Text>
+        <Text style={styles.sectionTitle}>data</Text>
 
-        <Card style={styles.settingsCard}>
-          <Pressable
-            style={styles.actionRow}
-            onPress={handleClearClips}
-            disabled={isClearing}
-            accessibilityRole="button"
-            accessibilityLabel="Clear all clips"
-            accessibilityHint="Deletes all recorded clips from the app"
-          >
-            <View style={styles.settingInfo}>
-              <Ionicons name="trash-outline" size={22} color={theme.colors.error} />
-              <Text style={[styles.settingLabel, styles.dangerText]}>
-                {isClearing ? 'Clearing...' : 'Clear All Clips'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
-          </Pressable>
-        </Card>
+        <Pressable
+          style={styles.actionRow}
+          onPress={handleClearClips}
+          disabled={isClearing}
+          accessibilityRole="button"
+          accessibilityLabel="Clear all clips"
+          accessibilityHint="Deletes all recorded clips from the app"
+        >
+          <Text style={[styles.settingLabel, styles.dangerText]}>
+            {isClearing ? 'CLEARING...' : 'CLEAR ALL CLIPS'}
+          </Text>
+          <Text style={styles.actionArrow}>→</Text>
+        </Pressable>
       </View>
 
       {/* Support Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Support</Text>
+        <Text style={styles.sectionTitle}>support</Text>
 
-        <Card style={styles.settingsCard}>
-          <Pressable
-            style={styles.actionRow}
-            onPress={handleSendFeedback}
-            accessibilityRole="button"
-            accessibilityLabel="Send feedback"
-            accessibilityHint="Opens email to send feedback"
-          >
-            <View style={styles.settingInfo}>
-              <Ionicons name="mail-outline" size={22} color={theme.colors.text} />
-              <Text style={styles.settingLabel}>Send Feedback</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textTertiary} />
-          </Pressable>
-        </Card>
+        <Pressable
+          style={styles.actionRow}
+          onPress={handleSendFeedback}
+          accessibilityRole="button"
+          accessibilityLabel="Send feedback"
+          accessibilityHint="Opens email to send feedback"
+        >
+          <Text style={styles.settingLabel}>SEND FEEDBACK</Text>
+          <Text style={styles.actionArrow}>→</Text>
+        </Pressable>
       </View>
 
-      {/* About Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-
-        <Card padding="lg" style={styles.infoCard}>
-          <Text style={styles.appName}>SwingLink</Text>
-          <Text style={styles.version}>Version 1.0.0</Text>
-          <Text style={styles.description}>
-            P2P video streaming for golfers. One device films, the other views in real-time.
-          </Text>
-        </Card>
+      {/* About */}
+      <View style={styles.aboutSection}>
+        <Text style={styles.appName}>swinglink</Text>
+        <Text style={styles.version}>v1.0.0</Text>
+        <Text style={styles.description}>
+          p2p video streaming for golfers
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -219,59 +197,59 @@ export default function SettingsScreen() {
 const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: theme.colors.background,
     padding: theme.spacing.lg,
+  },
+  screenTitle: {
+    fontFamily: theme.fontFamily.display,
+    fontSize: 32,
+    color: theme.colors.text,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.5,
+    lineHeight: 36,
+    marginBottom: theme.spacing.xl,
   },
   section: {
     marginBottom: theme.spacing['2xl'],
   },
   sectionTitle: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.textSecondary,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
+    color: theme.colors.accent,
+    textTransform: 'lowercase' as const,
     marginBottom: theme.spacing.md,
-    marginLeft: theme.spacing.xs,
-  },
-  settingsCard: {
-    padding: 0,
-    overflow: 'hidden' as const,
   },
   settingRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
-    padding: theme.spacing.lg,
-  },
-  settingInfo: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: theme.spacing.md,
-    flex: 1,
+    paddingVertical: 12,
   },
   settingText: {
     flex: 1,
   },
   settingLabel: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fontFamily.display,
+    fontSize: 15,
     color: theme.colors.text,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.3,
   },
   settingDescription: {
-    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
     color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
     marginTop: 2,
   },
   divider: {
     height: 1,
     backgroundColor: theme.colors.border,
-    marginHorizontal: theme.spacing.lg,
   },
   themeOptions: {
     flexDirection: 'row' as const,
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.md,
     gap: theme.spacing.sm,
   },
   themeOption: {
@@ -279,47 +257,59 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.backgroundTertiary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     alignItems: 'center' as const,
   },
   themeOptionSelected: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
   },
   themeOptionText: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fontFamily.bodyMedium,
+    fontSize: 9,
     color: theme.colors.textSecondary,
+    textTransform: 'lowercase' as const,
   },
   themeOptionTextSelected: {
-    color: theme.palette.white,
+    color: theme.isDark ? theme.palette.black : theme.palette.white,
   },
   actionRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
-    padding: theme.spacing.lg,
+    paddingVertical: 12,
+  },
+  actionArrow: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 14,
+    color: theme.colors.textTertiary,
   },
   dangerText: {
     color: theme.colors.error,
   },
-  infoCard: {
+  aboutSection: {
+    marginTop: 'auto' as const,
     alignItems: 'center' as const,
+    paddingBottom: theme.spacing.lg,
   },
   appName: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-    marginBottom: 4,
+    fontFamily: theme.fontFamily.bodyMedium,
+    fontSize: 9,
+    color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
   },
   version: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.md,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 8,
+    color: theme.colors.textTertiary,
+    marginTop: 2,
   },
   description: {
-    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 8,
     color: theme.colors.textTertiary,
-    textAlign: 'center' as const,
-    lineHeight: 20,
+    textTransform: 'lowercase' as const,
+    marginTop: 4,
   },
 }));

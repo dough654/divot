@@ -57,13 +57,13 @@ type ClipItemProps = {
   onMenuPress: () => void;
 };
 
-const ClipItem = ({ clip, onPress, onMenuPress }: ClipItemProps) => {
+const ClipItem = ({ clip, onPress, onMenuPress, index }: ClipItemProps & { index: number }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createItemStyles);
 
   const { animatedStyle, handlePressIn, handlePressOut } = usePressAnimation({
-    defaultColor: theme.colors.surface,
-    pressedColor: theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary,
+    defaultColor: 'transparent',
+    pressedColor: theme.colors.accentDim,
   });
 
   const clipName = clip.name || `Swing ${formatDate(clip.timestamp)}`;
@@ -74,35 +74,29 @@ const ClipItem = ({ clip, onPress, onMenuPress }: ClipItemProps) => {
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      android_ripple={Platform.OS === 'android' ? { color: theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)' } : undefined}
+      android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim } : undefined}
       accessibilityRole="button"
       accessibilityLabel={`${clipName}, ${formatDuration(clip.duration)}, ${formatFileSize(clip.fileSize)}`}
       accessibilityHint="Open clip for playback"
     >
-      <View style={styles.thumbnail}>
-        <Ionicons name="videocam" size={24} color={theme.colors.textTertiary} />
-      </View>
+      <Text style={styles.number}>{String(index + 1).padStart(2, '0')}</Text>
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={1}>
           {clipName}
         </Text>
-        <View style={styles.meta}>
-          <Text style={styles.metaText}>{formatDuration(clip.duration)}</Text>
-          <Text style={styles.metaDot}>·</Text>
-          <Text style={styles.metaText}>{formatFileSize(clip.fileSize)}</Text>
-          <Text style={styles.metaDot}>·</Text>
-          <Text style={styles.metaText}>{clip.fps}fps</Text>
-        </View>
+        <Text style={styles.meta}>
+          {formatDuration(clip.duration)} · {formatFileSize(clip.fileSize)} · {clip.fps}fps
+        </Text>
       </View>
       <Pressable
         style={styles.menuButton}
         onPress={onMenuPress}
-        android_ripple={Platform.OS === 'android' ? { color: theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)', borderless: true } : undefined}
+        android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim, borderless: true } : undefined}
         accessibilityRole="button"
         accessibilityLabel={`Options for ${clipName}`}
         accessibilityHint="Open menu to rename or delete clip"
       >
-        <Ionicons name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
+        <Ionicons name="ellipsis-vertical" size={18} color={theme.colors.textTertiary} />
       </Pressable>
     </AnimatedPressable>
   );
@@ -251,15 +245,22 @@ export default function ClipsScreen() {
         data={clips}
         numColumns={isLandscape ? 2 : 1}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <ClipItem
             clip={item}
+            index={index}
             onPress={() => handleClipPress(item)}
             onMenuPress={() => handleClipLongPress(item)}
           />
         )}
         columnWrapperStyle={isLandscape ? styles.columnWrapper : undefined}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>CLIPS</Text>
+            <Text style={styles.headerCount}>{clips.length} clip{clips.length !== 1 ? 's' : ''}</Text>
+          </View>
+        }
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -324,16 +325,37 @@ export default function ClipsScreen() {
 const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: theme.colors.background,
+  },
+  header: {
+    paddingHorizontal: 4,
+    marginBottom: theme.spacing.lg,
+  },
+  headerTitle: {
+    fontFamily: theme.fontFamily.display,
+    fontSize: 32,
+    color: theme.colors.text,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.5,
+    lineHeight: 36,
+  },
+  headerCount: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
+    color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
+    marginTop: 2,
   },
   listContent: {
-    padding: theme.spacing.md,
+    padding: theme.spacing.lg,
   },
   columnWrapper: {
     gap: theme.spacing.sm,
   },
   separator: {
-    height: theme.spacing.sm,
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginLeft: 48,
   },
   modalOverlay: {
     flex: 1,
@@ -349,16 +371,21 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     padding: theme.spacing['2xl'],
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: theme.fontWeight.semibold,
+    fontFamily: theme.fontFamily.display,
+    fontSize: 22,
     color: theme.colors.text,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.5,
     marginBottom: theme.spacing.lg,
   },
   modalInput: {
     backgroundColor: theme.colors.backgroundSecondary,
     borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
+    fontFamily: theme.fontFamily.body,
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
     marginBottom: theme.spacing.xl,
@@ -373,19 +400,20 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.xl,
   },
   modalButtonCancelText: {
+    fontFamily: theme.fontFamily.body,
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
   },
   modalButtonConfirm: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.accent,
     paddingVertical: 10,
     paddingHorizontal: theme.spacing.xl,
     borderRadius: theme.borderRadius.sm,
   },
   modalButtonConfirmText: {
+    fontFamily: theme.fontFamily.bodySemiBold,
     fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.palette.white,
+    color: theme.isDark ? theme.palette.black : theme.palette.white,
   },
 }));
 
@@ -394,42 +422,35 @@ const createItemStyles = makeThemedStyles((theme: Theme) => ({
     flex: 1,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    gap: 12,
   },
-  thumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.backgroundSecondary,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    marginRight: theme.spacing.md,
+  number: {
+    fontFamily: theme.fontFamily.display,
+    fontSize: 22,
+    color: theme.colors.textTertiary,
+    width: 32,
+    textAlign: 'right' as const,
   },
   info: {
     flex: 1,
   },
   title: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fontFamily.display,
+    fontSize: 15,
     color: theme.colors.text,
-    marginBottom: 4,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.3,
+    marginBottom: 2,
   },
   meta: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-  },
-  metaText: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-  },
-  metaDot: {
-    fontSize: 13,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
     color: theme.colors.textTertiary,
-    marginHorizontal: 6,
+    textTransform: 'lowercase' as const,
   },
   menuButton: {
     padding: theme.spacing.sm,
-    marginLeft: 4,
   },
 }));

@@ -127,7 +127,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: theme.colors.background,
   },
   centerContent: {
     flex: 1,
@@ -136,38 +136,46 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     padding: theme.spacing['3xl'],
   },
   loadingText: {
-    fontSize: theme.fontSize.md,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
     color: theme.colors.textSecondary,
+    textTransform: 'lowercase' as const,
   },
   errorTitle: {
+    fontFamily: theme.fontFamily.display,
     fontSize: 18,
-    fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.3,
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing['2xl'],
   },
   backButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.accent,
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing['2xl'],
     borderRadius: theme.borderRadius.sm,
   },
   backButtonText: {
-    color: theme.palette.white,
+    fontFamily: theme.fontFamily.bodySemiBold,
+    color: theme.isDark ? theme.palette.black : theme.palette.white,
     fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
   },
   headerTitleContainer: {
     alignItems: 'center' as const,
   },
   headerTitle: {
+    fontFamily: theme.fontFamily.display,
     fontSize: 17,
-    fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.3,
   },
   headerDate: {
-    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
     color: theme.colors.textSecondary,
+    textTransform: 'lowercase' as const,
     marginTop: 2,
   },
 }));
