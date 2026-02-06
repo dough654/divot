@@ -263,14 +263,14 @@ export default function ViewerScreen() {
       {isLandscape && isConnected ? (
         <View style={[styles.topBarOverlay, { top: insets.top }]}>
           <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={28} color="#fff" />
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
       ) : (
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={28} color="#fff" />
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
