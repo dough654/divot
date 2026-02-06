@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,6 +8,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type RecordingIndicatorProps = {
   /** Duration in seconds. */
@@ -29,13 +31,14 @@ const formatDuration = (seconds: number): string => {
 
 /**
  * Recording indicator with pulsing red dot and duration timer.
- * Shows the current recording duration and a pulsing indicator.
+ * Stark style: frosted pill with lowercase text.
  */
 export const RecordingIndicator = ({
   duration,
   visible,
   compact = false,
 }: RecordingIndicatorProps) => {
+  const styles = useThemedStyles(createStyles);
   const opacity = useSharedValue(1);
 
   // Pulse animation for the red dot
@@ -66,53 +69,54 @@ export const RecordingIndicator = ({
     <View style={[styles.container, compact && styles.containerCompact]}>
       <Animated.View style={[styles.dot, compact && styles.dotCompact, animatedDotStyle]} />
       <Text style={[styles.text, compact && styles.textCompact]}>
-        {compact ? 'REC' : formatDuration(duration)}
+        {compact ? 'rec' : formatDuration(duration)}
       </Text>
-      {!compact && <Text style={styles.label}>REC</Text>}
+      {!compact && <Text style={styles.label}>rec</Text>}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 8,
-  },
-  containerCompact: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
+    borderRadius: 6,
+    gap: 5,
+  },
+  containerCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
   },
   dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#ff3b30',
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: theme.colors.recording,
   },
   dotCompact: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   text: {
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
+    fontSize: 9,
+    fontFamily: theme.fontFamily.bodyBold,
+    fontVariant: ['tabular-nums' as const],
+    textTransform: 'lowercase' as const,
   },
   textCompact: {
-    fontSize: 12,
+    fontSize: 8,
   },
   label: {
-    color: '#ff3b30',
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 4,
+    color: theme.colors.recording,
+    fontSize: 9,
+    fontFamily: theme.fontFamily.bodyBold,
+    marginLeft: 2,
+    textTransform: 'lowercase' as const,
   },
-});
+}));

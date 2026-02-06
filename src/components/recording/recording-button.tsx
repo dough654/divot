@@ -1,4 +1,4 @@
-import { StyleSheet, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useEffect, useCallback } from 'react';
 import { useHaptics } from '../../hooks';
+import { useTheme } from '../../context';
 
 export type RecordingButtonProps = {
   /** Whether currently recording. */
@@ -17,22 +18,22 @@ export type RecordingButtonProps = {
   onPress: () => void;
   /** Whether the button is disabled. */
   disabled?: boolean;
-  /** Size of the button. Defaults to 72. */
+  /** Size of the button. Defaults to 44. */
   size?: number;
 };
 
 /**
- * Circular record button that changes appearance when recording.
- * Shows a red circle when idle, transforms to a rounded square when recording.
+ * Record button — Stark style: red border circle with square inner when recording.
  */
 export const RecordingButton = ({
   isRecording,
   onPress,
   disabled = false,
-  size = 72,
+  size = 44,
 }: RecordingButtonProps) => {
+  const { theme } = useTheme();
   const scale = useSharedValue(1);
-  const innerRadius = useSharedValue(size / 2 - 8);
+  const innerRadius = useSharedValue(size / 2 - 6);
   const haptics = useHaptics();
 
   const handlePress = useCallback(() => {
@@ -47,16 +48,16 @@ export const RecordingButton = ({
     if (isRecording) {
       scale.value = withRepeat(
         withSequence(
-          withTiming(1.1, { duration: 500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1.08, { duration: 500, easing: Easing.inOut(Easing.ease) }),
           withTiming(1, { duration: 500, easing: Easing.inOut(Easing.ease) })
         ),
         -1,
         true
       );
-      innerRadius.value = withTiming(8, { duration: 200 });
+      innerRadius.value = withTiming(3, { duration: 200 });
     } else {
       scale.value = withTiming(1, { duration: 200 });
-      innerRadius.value = withTiming(size / 2 - 8, { duration: 200 });
+      innerRadius.value = withTiming(size / 2 - 6, { duration: 200 });
     }
   }, [isRecording, scale, innerRadius, size]);
 
@@ -68,18 +69,22 @@ export const RecordingButton = ({
     borderRadius: innerRadius.value,
   }));
 
-  const outerSize = size;
-  const innerSize = size - 16;
+  const innerSize = size - 12;
 
   return (
     <Pressable
       onPress={handlePress}
       disabled={disabled}
       style={({ pressed }) => [
-        styles.container,
-        { width: outerSize, height: outerSize, borderRadius: outerSize / 2 },
-        pressed && !disabled && styles.pressed,
-        disabled && styles.disabled,
+        {
+          justifyContent: 'center' as const,
+          alignItems: 'center' as const,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+        },
+        pressed && !disabled && { opacity: 0.8 },
+        disabled && { opacity: 0.5 },
       ]}
       accessibilityRole="button"
       accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
@@ -88,18 +93,24 @@ export const RecordingButton = ({
     >
       <Animated.View
         style={[
-          styles.outer,
-          { width: outerSize, height: outerSize, borderRadius: outerSize / 2 },
+          {
+            justifyContent: 'center' as const,
+            alignItems: 'center' as const,
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: 2,
+            borderColor: theme.colors.recording,
+          },
           animatedOuterStyle,
         ]}
       >
         <Animated.View
           style={[
-            styles.inner,
             {
               width: innerSize,
               height: innerSize,
-              backgroundColor: isRecording ? '#ff3b30' : '#ff453a',
+              backgroundColor: theme.colors.recording,
             },
             animatedInnerStyle,
           ]}
@@ -108,25 +119,3 @@ export const RecordingButton = ({
     </Pressable>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  outer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#ffffff',
-  },
-  inner: {
-    backgroundColor: '#ff453a',
-  },
-  pressed: {
-    opacity: 0.8,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});

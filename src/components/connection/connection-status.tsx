@@ -78,7 +78,7 @@ const getStepAnnouncement = (step: ConnectionStep, label: string): string | null
 
 /**
  * Displays the current connection status with animated visual indicators.
- * Announces state changes to screen readers via AccessibilityInfo.
+ * Stark style: pill-shaped frosted glass with lowercase text.
  */
 export const ConnectionStatus = ({
   step,
@@ -119,7 +119,7 @@ export const ConnectionStatus = ({
     if (isSpinning) {
       rotation.value = withRepeat(
         withTiming(360, { duration: 1000, easing: Easing.linear }),
-        -1, // infinite
+        -1,
         false
       );
     } else {
@@ -216,22 +216,22 @@ export const ConnectionStatus = ({
 
   const containerAnimatedStyle = useAnimatedStyle(() => ({
     backgroundColor: bgFlash.value > 0
-      ? `rgba(244, 67, 54, ${bgFlash.value * 0.2})`
+      ? `rgba(255, 45, 45, ${bgFlash.value * 0.2})`
       : undefined,
   }));
 
   if (compact) {
     return (
       <Animated.View
-        style={[styles.compactContainer, containerAnimatedStyle]}
+        style={[styles.compactContainer, isConnected && styles.compactConnected, containerAnimatedStyle]}
         accessible
         accessibilityLabel={`Connection status: ${info.label}${isConnected && quality ? `, latency ${quality.latencyMs} milliseconds` : ''}`}
         accessibilityLiveRegion="polite"
       >
         <Animated.View style={iconAnimatedStyle}>
           <Ionicons
-            name={info.icon}
-            size={16}
+            name={isConnected ? 'ellipse' : info.icon}
+            size={isConnected ? 5 : 14}
             color={getStatusColor()}
           />
         </Animated.View>
@@ -242,7 +242,7 @@ export const ConnectionStatus = ({
           layout={LinearTransition.duration(200)}
           style={[styles.compactLabel, isConnected && styles.labelConnected]}
         >
-          {info.label}
+          {info.label.toLowerCase()}
         </Animated.Text>
         {isConnected && quality && (
           <>
@@ -272,7 +272,7 @@ export const ConnectionStatus = ({
         <Animated.View style={iconAnimatedStyle}>
           <Ionicons
             name={info.icon}
-            size={20}
+            size={18}
             color={getStatusColor()}
           />
         </Animated.View>
@@ -283,7 +283,7 @@ export const ConnectionStatus = ({
           layout={LinearTransition.duration(200)}
           style={[styles.label, isConnected && styles.labelConnected]}
         >
-          {info.label}
+          {info.label.toLowerCase()}
         </Animated.Text>
       </View>
 
@@ -309,7 +309,7 @@ export const ConnectionStatus = ({
 
 const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
-    backgroundColor: theme.colors.backgroundTertiary,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     borderRadius: theme.borderRadius.sm,
     padding: theme.spacing.md,
     overflow: 'hidden' as const,
@@ -317,8 +317,16 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   compactContainer: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 6,
+    gap: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 6,
     overflow: 'hidden' as const,
+  },
+  compactConnected: {
+    backgroundColor: theme.colors.successBackground,
+    borderWidth: 1,
+    borderColor: 'rgba(0,204,102,0.15)',
   },
   statusRow: {
     flexDirection: 'row' as const,
@@ -326,16 +334,20 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     gap: theme.spacing.sm,
   },
   label: {
-    fontSize: theme.fontSize.sm,
+    fontSize: 9,
+    fontFamily: theme.fontFamily.body,
     color: theme.colors.textSecondary,
+    textTransform: 'lowercase' as const,
   },
   compactLabel: {
-    fontSize: 13,
+    fontSize: 8,
+    fontFamily: theme.fontFamily.body,
     color: theme.colors.textSecondary,
+    textTransform: 'lowercase' as const,
   },
   labelConnected: {
     color: theme.colors.success,
-    fontWeight: theme.fontWeight.semibold,
+    fontFamily: theme.fontFamily.bodySemiBold,
   },
   qualityRow: {
     flexDirection: 'row' as const,
@@ -344,18 +356,19 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     gap: theme.spacing.sm,
   },
   qualityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   qualityText: {
-    fontSize: theme.fontSize.xs,
+    fontSize: 8,
     color: theme.colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    fontFamily: theme.fontFamily.mono,
+    textTransform: 'lowercase' as const,
   },
   compactQuality: {
-    fontSize: 11,
+    fontSize: 8,
     color: theme.colors.textSecondary,
-    fontFamily: 'SpaceMono',
+    fontFamily: theme.fontFamily.mono,
   },
 }));

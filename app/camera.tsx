@@ -537,7 +537,7 @@ export default function CameraScreen() {
             {isConnected && (
               <View style={styles.connectedSection}>
                 <View style={styles.connectedBadge}>
-                  <Ionicons name="videocam" size={18} color="#4CAF50" />
+                  <Ionicons name="videocam" size={18} color={theme.colors.success} />
                   <Text style={styles.connectedText}>Streaming to viewer</Text>
                 </View>
               </View>
@@ -552,7 +552,7 @@ export default function CameraScreen() {
               accessibilityHint="Enter recording mode. Preview continues while recording"
             >
               <View style={styles.armButtonIcon}>
-                <Ionicons name="radio-button-on" size={20} color="#ff453a" />
+                <Ionicons name="radio-button-on" size={20} color={theme.colors.recording} />
               </View>
               <Text style={styles.armButtonText}>
                 Arm Recording
@@ -745,7 +745,7 @@ export default function CameraScreen() {
 const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: theme.colors.background,
   },
   portraitWrapper: {
     flex: 1,
@@ -763,9 +763,16 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingTop: Platform.select({ ios: theme.spacing.lg, default: theme.spacing.sm }),
   },
   topBar: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: theme.borderRadius.md,
   },
   sidePanelStatus: {
     flexDirection: 'row' as const,
@@ -788,7 +795,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 6,
-    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    backgroundColor: theme.colors.successBackground,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.borderRadius.md,
@@ -801,14 +808,12 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   streamingFpsText: {
     fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.success,
   },
   videoContainer: {
     flex: 1,
-    marginHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
-    borderRadius: theme.borderRadius.lg,
     overflow: 'hidden' as const,
   },
   cameraPlaceholder: {
@@ -840,15 +845,23 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     left: theme.spacing.lg,
   },
   bottomBar: {
+    position: 'absolute' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
     gap: theme.spacing.md,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: theme.borderRadius.md,
   },
   sidePanel: {
     width: 240,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
     gap: theme.spacing.md,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   connectedSection: {
     marginBottom: theme.spacing.sm,
@@ -864,6 +877,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   connectedText: {
     fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.success,
   },
@@ -879,12 +893,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   armButtonText: {
     fontSize: theme.fontSize.md,
+    fontFamily: theme.fontFamily.display,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
   armButtonSubtext: {
     fontSize: 13,
+    fontFamily: theme.fontFamily.body,
     color: theme.colors.textSecondary,
   },
   recordingControls: {
@@ -907,6 +923,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   syncButtonText: {
     fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
     fontWeight: theme.fontWeight.semibold,
     color: theme.palette.white,
   },
@@ -924,6 +941,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   secondaryButtonText: {
     fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.text,
   },
@@ -938,6 +956,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   disarmButtonText: {
     fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.text,
   },
@@ -972,5 +991,33 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     right: theme.spacing.sm,
     zIndex: 1,
     padding: theme.spacing.xs,
+  },
+  floatingTopLeft: {
+    position: 'absolute' as const,
+    top: 52,
+    left: 14,
+    zIndex: 10,
+  },
+  floatingTopRight: {
+    position: 'absolute' as const,
+    top: 52,
+    right: 14,
+    zIndex: 10,
+  },
+  pill: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+  },
+  pillConnection: {
+    backgroundColor: theme.colors.successBackground,
+    borderWidth: 1,
+    borderColor: 'rgba(0,204,102,0.15)',
+  },
+  pillQuality: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
 }));
