@@ -432,7 +432,7 @@ export default function CameraScreen() {
             <View style={[styles.topBar, { top: insets.top }]}>
               <View style={styles.topBarContent}>
                 <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-                  <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+                  <Ionicons name="chevron-back" size={22} color="#fff" />
                 </Pressable>
                 <ConnectionStatus step={connectionStep} quality={quality} compact />
                 {isRecording && (
@@ -496,7 +496,7 @@ export default function CameraScreen() {
         {isLandscape && (
           <View style={styles.sidePanelStatus}>
             <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+              <Ionicons name="chevron-back" size={22} color="#fff" />
             </Pressable>
             <ConnectionStatus step={connectionStep} quality={quality} compact />
             {isRecording && (

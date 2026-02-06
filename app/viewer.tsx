@@ -5,7 +5,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 
 import { useThemedStyles, makeThemedStyles, useOrientation } from '@/src/hooks';
-import { useTheme } from '@/src/context';
 import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
@@ -24,7 +23,6 @@ import type { Clip } from '@/src/types/recording';
 import type { RecoveryAction } from '@/src/utils/error-messages';
 
 export default function ViewerScreen() {
-  const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { isLandscape, lockToPortrait, unlock } = useOrientation();
@@ -265,14 +263,14 @@ export default function ViewerScreen() {
       {isLandscape && isConnected ? (
         <View style={[styles.topBarOverlay, { top: insets.top }]}>
           <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+            <Ionicons name="chevron-back" size={22} color="#fff" />
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
       ) : (
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+            <Ionicons name="chevron-back" size={22} color="#fff" />
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
@@ -360,8 +358,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: theme.borderRadius.md,
   },
   topBarOverlay: {
     position: 'absolute' as const,
@@ -375,8 +371,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: theme.borderRadius.md,
   },
   backButton: {
     padding: 4,
