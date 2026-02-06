@@ -424,35 +424,34 @@ export default function CameraScreen() {
       style={styles.container}
       edges={isLandscape ? ['bottom', 'left', 'right'] : ['bottom']}
     >
+      {/* Connection Status - top bar in portrait only (landscape moves to side panel) */}
+      {!isLandscape && (
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={28} color="#fff" />
+          </Pressable>
+          <ConnectionStatus step={connectionStep} quality={quality} compact />
+          {isRecording && (
+            <RecordingIndicator
+              duration={recordingDuration}
+              visible={isRecording}
+              compact
+            />
+          )}
+          {isConnected && isStreamReady && !isRecording && (
+            <View style={styles.streamingBadge}>
+              <View style={styles.streamingDot} />
+              <Text style={styles.streamingFpsText}>
+                Live · {getPresetLabel(qualityPreset)}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
       <View style={isLandscape ? styles.landscapeWrapper : styles.portraitWrapper}>
         {/* Video Preview - full width in portrait, left side in landscape */}
         <View style={isLandscape ? styles.videoContainerLandscape : styles.videoContainerPortrait}>
-          {/* Connection Status - top bar in portrait only (landscape moves to side panel) */}
-          {!isLandscape && (
-            <View style={[styles.topBar, { top: insets.top }]}>
-              <View style={styles.topBarContent}>
-                <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-                  <Ionicons name="chevron-back" size={28} color="#fff" />
-                </Pressable>
-                <ConnectionStatus step={connectionStep} quality={quality} compact />
-                {isRecording && (
-                  <RecordingIndicator
-                    duration={recordingDuration}
-                    visible={isRecording}
-                    compact
-                  />
-                )}
-                {isConnected && isStreamReady && !isRecording && (
-                  <View style={styles.streamingBadge}>
-                    <View style={styles.streamingDot} />
-                    <Text style={styles.streamingFpsText}>
-                      Live · {getPresetLabel(qualityPreset)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
 
           <View style={styles.videoContainer}>
             {showVisionCamera ? (
@@ -772,11 +771,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingTop: Platform.select({ ios: theme.spacing.lg, default: theme.spacing.sm }),
   },
   topBar: {
-    position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
@@ -792,11 +789,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flex: 1,
     justifyContent: 'center' as const,
     gap: theme.spacing.md,
-  },
-  topBarContent: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
   },
   backButton: {
     padding: 4,
