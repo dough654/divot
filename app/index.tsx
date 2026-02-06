@@ -11,7 +11,7 @@ import type { Theme } from '@/src/context';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-type RoleButtonProps = {
+type StripButtonProps = {
   children: React.ReactNode;
   style: object;
   pressedBgColor: string;
@@ -24,10 +24,10 @@ type RoleButtonProps = {
 };
 
 /**
- * Animated role button with scale and color feedback on press.
+ * Animated strip button with scale and color feedback on press.
  * Forwards ref for use with Link asChild.
  */
-const RoleButton = forwardRef<View, RoleButtonProps>(
+const StripButton = forwardRef<View, StripButtonProps>(
   ({ children, style, pressedBgColor, defaultBgColor, rippleColor, ...props }, ref) => {
     const { animatedStyle, handlePressIn, handlePressOut } = usePressAnimation({
       defaultColor: defaultBgColor,
@@ -55,106 +55,81 @@ export default function HomeScreen() {
   const styles = useThemedStyles(createStyles);
   const { isLandscape } = useOrientation();
 
+  const strips = [
+    {
+      href: '/camera' as const,
+      icon: 'videocam' as const,
+      title: 'CAMERA',
+      description: 'film & stream',
+      label: 'Camera mode',
+      hint: 'Film the swing and stream to another device',
+      active: true,
+    },
+    {
+      href: '/viewer' as const,
+      icon: 'eye' as const,
+      title: 'VIEWER',
+      description: 'watch the stream',
+      label: 'Viewer mode',
+      hint: 'Watch the swing stream from another device',
+      active: false,
+    },
+    {
+      href: '/clips' as const,
+      icon: 'film' as const,
+      title: 'MY CLIPS',
+      description: 'review swings',
+      label: 'My Clips',
+      hint: 'View and playback recorded swing videos',
+      active: false,
+    },
+  ];
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={isLandscape ? styles.headerLandscape : styles.header}>
-        <Text style={styles.title} accessibilityRole="header">SwingLink</Text>
-        {!isLandscape && <Text style={styles.subtitle}>P2P Golf Swing Analysis</Text>}
+      <View style={styles.topBar}>
+        <Text style={styles.brandMark}>swinglink</Text>
+        <Text style={styles.versionText}>v1.0</Text>
       </View>
 
-      <View style={isLandscape ? styles.roleSectionLandscape : styles.roleSection}>
-        {!isLandscape && <Text style={styles.sectionTitle}>Select Your Role</Text>}
-
-        <Link href="/camera" asChild>
-          <RoleButton
-            style={isLandscape ? styles.roleCard : styles.roleButton}
-            defaultBgColor={theme.colors.surface}
-            pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
-            rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
-            accessibilityRole="button"
-            accessibilityLabel="Camera mode"
-            accessibilityHint="Film the swing and stream to another device"
-          >
-            <View style={isLandscape ? styles.cardIconContainer : styles.roleIconContainer}>
-              <Ionicons name="videocam" size={isLandscape ? 32 : 40} color={theme.colors.primary} />
-            </View>
-            <View style={isLandscape ? styles.cardTextContainer : styles.roleTextContainer}>
-              <Text style={isLandscape ? styles.cardTitle : styles.roleTitle}>Camera</Text>
-              <Text style={isLandscape ? styles.cardDescription : styles.roleDescription}>
-                Film and stream
-              </Text>
-            </View>
-            {!isLandscape && (
-              <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
-            )}
-          </RoleButton>
-        </Link>
-
-        <Link href="/viewer" asChild>
-          <RoleButton
-            style={isLandscape ? styles.roleCard : styles.roleButton}
-            defaultBgColor={theme.colors.surface}
-            pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
-            rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
-            accessibilityRole="button"
-            accessibilityLabel="Viewer mode"
-            accessibilityHint="Watch the swing stream from another device"
-          >
-            <View style={isLandscape ? styles.cardIconContainer : styles.roleIconContainer}>
-              <Ionicons name="eye" size={isLandscape ? 32 : 40} color={theme.colors.secondary} />
-            </View>
-            <View style={isLandscape ? styles.cardTextContainer : styles.roleTextContainer}>
-              <Text style={isLandscape ? styles.cardTitle : styles.roleTitle}>Viewer</Text>
-              <Text style={isLandscape ? styles.cardDescription : styles.roleDescription}>
-                Watch the stream
-              </Text>
-            </View>
-            {!isLandscape && (
-              <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
-            )}
-          </RoleButton>
-        </Link>
-
-        <Link href="/clips" asChild>
-          <RoleButton
-            style={isLandscape ? styles.roleCard : styles.roleButton}
-            defaultBgColor={theme.colors.surface}
-            pressedBgColor={theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary}
-            rippleColor={theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'}
-            accessibilityRole="button"
-            accessibilityLabel="My Clips"
-            accessibilityHint="View and playback recorded swing videos"
-          >
-            <View style={isLandscape
-              ? [styles.cardIconContainer, styles.clipsIconContainer]
-              : [styles.roleIconContainer, styles.clipsIconContainer]
-            }>
-              <Ionicons name="film" size={isLandscape ? 32 : 40} color={theme.colors.accent} />
-            </View>
-            <View style={isLandscape ? styles.cardTextContainer : styles.roleTextContainer}>
-              <Text style={isLandscape ? styles.cardTitle : styles.roleTitle}>My Clips</Text>
-              <Text style={isLandscape ? styles.cardDescription : styles.roleDescription}>
-                Recorded swings
-              </Text>
-            </View>
-            {!isLandscape && (
-              <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
-            )}
-          </RoleButton>
-        </Link>
+      <View style={isLandscape ? styles.stripsLandscape : styles.strips}>
+        {strips.map((strip) => (
+          <Link key={strip.href} href={strip.href} asChild>
+            <StripButton
+              style={[styles.strip, strip.active && styles.stripActive]}
+              defaultBgColor={strip.active ? theme.colors.accentDim : theme.palette.transparent}
+              pressedBgColor={theme.colors.accentDim}
+              rippleColor={theme.colors.accentDim}
+              accessibilityRole="button"
+              accessibilityLabel={strip.label}
+              accessibilityHint={strip.hint}
+            >
+              <Ionicons
+                name={strip.icon}
+                size={28}
+                color={strip.active ? theme.colors.accent : theme.colors.textTertiary}
+                style={styles.stripIcon}
+              />
+              <View style={styles.stripBody}>
+                <Text style={styles.stripTitle}>{strip.title}</Text>
+                <Text style={styles.stripDescription}>{strip.description}</Text>
+              </View>
+              <Text style={styles.stripArrow}>→</Text>
+            </StripButton>
+          </Link>
+        ))}
       </View>
 
-      <View style={styles.footer}>
+      <View style={styles.bottomBar}>
         <Link href="/settings" asChild>
           <Pressable
-            style={styles.settingsButton}
-            android_ripple={Platform.OS === 'android' ? { color: theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)', borderless: true } : undefined}
+            style={styles.settingsLink}
+            android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim, borderless: true } : undefined}
             accessibilityRole="button"
             accessibilityLabel="Settings"
             accessibilityHint="Open app settings"
           >
-            <Ionicons name="settings-outline" size={24} color={theme.colors.textSecondary} />
-            <Text style={styles.settingsText}>Settings</Text>
+            <Text style={styles.settingsText}>settings →</Text>
           </Pressable>
         </Link>
       </View>
@@ -165,127 +140,91 @@ export default function HomeScreen() {
 const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.backgroundSecondary,
-    padding: theme.spacing.xl,
+    backgroundColor: theme.colors.background,
+    paddingHorizontal: theme.spacing.lg,
   },
-  header: {
-    alignItems: 'center' as const,
-    marginTop: 40,
-    marginBottom: 60,
-  },
-  headerLandscape: {
-    alignItems: 'center' as const,
-    marginTop: theme.spacing.xs,
-    marginBottom: theme.spacing.md,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
-  },
-  subtitle: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-  },
-  roleSection: {
-    flex: 1,
-  },
-  roleSectionLandscape: {
-    flex: 1,
+  topBar: {
     flexDirection: 'row' as const,
-    gap: theme.spacing.md,
+    justifyContent: 'space-between' as const,
+    alignItems: 'baseline' as const,
+    paddingHorizontal: 4,
+    paddingTop: theme.spacing.xs,
   },
-  sectionTitle: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.textSecondary,
+  brandMark: {
+    fontFamily: theme.fontFamily.bodyMedium,
+    fontSize: 9,
+    color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
+  },
+  versionText: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 8,
+    color: theme.colors.textTertiary,
+  },
+  strips: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    gap: 6,
+  },
+  stripsLandscape: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    gap: 4,
+    paddingVertical: theme.spacing.sm,
+  },
+  strip: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: theme.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+  },
+  stripActive: {
+    borderBottomColor: theme.palette.transparent,
+    borderRadius: theme.borderRadius.lg,
+  },
+  stripIcon: {
+    width: 28,
+    opacity: 0.7,
+  },
+  stripBody: {
+    flex: 1,
+  },
+  stripTitle: {
+    fontFamily: theme.fontFamily.display,
+    fontSize: 24,
+    color: theme.colors.text,
     textTransform: 'uppercase' as const,
-    letterSpacing: 1,
-    marginBottom: theme.spacing.lg,
+    letterSpacing: -0.5,
+    lineHeight: 28,
   },
-  // Portrait: horizontal row layout per button
-  roleButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.xl,
-    marginBottom: theme.spacing.lg,
-    ...theme.shadows.md,
-    shadowOpacity: theme.isDark ? 0.3 : 0.1,
+  stripDescription: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
+    color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
+    marginTop: 4,
   },
-  roleIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: theme.colors.backgroundSecondary,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginRight: theme.spacing.lg,
+  stripArrow: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 14,
+    color: theme.colors.accent,
   },
-  roleTextContainer: {
-    flex: 1,
+  bottomBar: {
+    paddingVertical: theme.spacing.md,
+    alignItems: 'flex-end' as const,
   },
-  roleTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  roleDescription: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    lineHeight: 20,
-  },
-  // Landscape: vertical card layout per button
-  roleCard: {
-    flex: 1,
-    flexDirection: 'column' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.xl,
-    ...theme.shadows.md,
-    shadowOpacity: theme.isDark ? 0.3 : 0.1,
-  },
-  cardIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: theme.colors.backgroundSecondary,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginBottom: theme.spacing.md,
-  },
-  cardTextContainer: {
-    alignItems: 'center' as const,
-  },
-  cardTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  cardDescription: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    textAlign: 'center' as const,
-  },
-  clipsIconContainer: {
-    backgroundColor: theme.colors.accentDim,
-  },
-  footer: {
-    alignItems: 'center' as const,
-    paddingBottom: theme.spacing.xl,
-  },
-  settingsButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    padding: theme.spacing.md,
+  settingsLink: {
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.xs,
   },
   settingsText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
-    marginLeft: theme.spacing.sm,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
+    color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
   },
 }));
