@@ -1,5 +1,4 @@
 import { View, Text, FlatList, Pressable, RefreshControl, Alert, Modal, TextInput, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -209,7 +208,7 @@ export default function ClipsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.container}>
         <View style={styles.listContent}>
           <SkeletonClipItem />
           <View style={styles.separator} />
@@ -217,13 +216,13 @@ export default function ClipsScreen() {
           <View style={styles.separator} />
           <SkeletonClipItem />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (clips.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.container}>
         <EmptyState
           icon="videocam-off-outline"
           title="No Clips Yet"
@@ -234,12 +233,12 @@ export default function ClipsScreen() {
             icon: 'videocam',
           }}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <View style={styles.container}>
       <FlatList
         key={isLandscape ? 'landscape-2col' : 'portrait-1col'}
         data={clips}
@@ -257,15 +256,6 @@ export default function ClipsScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Pressable
-              style={styles.backButton}
-              onPress={() => router.back()}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-            >
-              <Text style={styles.backText}>← back</Text>
-            </Pressable>
-            <Text style={styles.headerTitle}>CLIPS</Text>
             <Text style={styles.headerCount}>{clips.length} clip{clips.length !== 1 ? 's' : ''}</Text>
           </View>
         }
@@ -326,7 +316,7 @@ export default function ClipsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -335,27 +325,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  backButton: {
-    paddingVertical: theme.spacing.sm,
-    marginBottom: theme.spacing.xs,
-  },
-  backText: {
-    fontFamily: theme.fontFamily.body,
-    fontSize: 11,
-    color: theme.colors.textTertiary,
-    textTransform: 'lowercase' as const,
-  },
   header: {
     paddingHorizontal: 4,
-    marginBottom: theme.spacing.lg,
-  },
-  headerTitle: {
-    fontFamily: theme.fontFamily.display,
-    fontSize: 32,
-    color: theme.colors.text,
-    textTransform: 'uppercase' as const,
-    letterSpacing: -0.5,
-    lineHeight: 36,
+    marginBottom: theme.spacing.sm,
   },
   headerCount: {
     fontFamily: theme.fontFamily.body,

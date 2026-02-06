@@ -120,14 +120,14 @@ export default function RootLayout() {
                 name="settings"
                 options={{
                   title: 'Settings',
-                  headerShown: false,
+                  headerBackTitle: 'Home',
                 }}
               />
               <Stack.Screen
                 name="clips"
                 options={{
                   title: 'Clips',
-                  headerShown: false,
+                  headerBackTitle: 'Home',
                 }}
               />
               <Stack.Screen

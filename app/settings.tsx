@@ -1,7 +1,5 @@
-import { View, Text, Switch, Pressable, Alert, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, Switch, Pressable, Alert, Linking, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
 
 import { useTheme, useSettings } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics, useOrientation } from '@/src/hooks';
@@ -24,7 +22,6 @@ export default function SettingsScreen() {
   const haptics = useHaptics();
   const { show: showToast } = useToast();
   const { lockToPortrait, unlock } = useOrientation();
-  const router = useRouter();
   const [isClearing, setIsClearing] = useState(false);
 
   // Lock settings screen to portrait
@@ -90,17 +87,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <Pressable
-        style={styles.backButton}
-        onPress={() => router.back()}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-      >
-        <Text style={styles.backText}>← back</Text>
-      </Pressable>
-      <Text style={styles.screenTitle}>SETTINGS</Text>
-
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Preferences Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>preferences</Text>
@@ -200,7 +187,7 @@ export default function SettingsScreen() {
           p2p video streaming for golfers
         </Text>
       </View>
-    </SafeAreaView>
+    </ScrollView>
   );
 }
 
@@ -208,26 +195,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  contentContainer: {
     padding: theme.spacing.lg,
-  },
-  backButton: {
-    paddingVertical: theme.spacing.sm,
-    marginBottom: theme.spacing.xs,
-  },
-  backText: {
-    fontFamily: theme.fontFamily.body,
-    fontSize: 11,
-    color: theme.colors.textTertiary,
-    textTransform: 'lowercase' as const,
-  },
-  screenTitle: {
-    fontFamily: theme.fontFamily.display,
-    fontSize: 32,
-    color: theme.colors.text,
-    textTransform: 'uppercase' as const,
-    letterSpacing: -0.5,
-    lineHeight: 36,
-    marginBottom: theme.spacing.xl,
   },
   section: {
     marginBottom: theme.spacing['2xl'],
