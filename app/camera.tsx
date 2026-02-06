@@ -1,5 +1,5 @@
 import { View, Text, Pressable, Modal, Alert, Linking, Platform } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -420,10 +420,7 @@ export default function CameraScreen() {
   const currentError = visionCameraError || recordingError || streamError;
 
   return (
-    <SafeAreaView
-      style={styles.container}
-      edges={isLandscape ? ['bottom', 'left', 'right'] : ['bottom']}
-    >
+    <View style={styles.container}>
       {/* Connection Status - top bar in portrait only (landscape moves to side panel) */}
       {!isLandscape && (
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
@@ -746,7 +743,7 @@ export default function CameraScreen() {
         onCancel={cancelTransfer}
         onDismiss={handleSyncDismiss}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
