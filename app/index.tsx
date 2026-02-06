@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Platform } from 'react-native';
+import { View, Text, Pressable, Platform, StyleSheet } from 'react-native';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,11 +54,11 @@ export default function HomeScreen() {
         {strips.map((strip) => (
           <Link key={strip.href} href={strip.href} asChild>
             <Pressable
-              style={({ pressed }) => [
+              style={StyleSheet.flatten([
                 styles.strip,
                 strip.active && styles.stripActive,
-                (pressed || strip.active) && styles.stripPressed,
-              ]}
+                strip.active && styles.stripPressed,
+              ])}
               android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim } : undefined}
               accessibilityRole="button"
               accessibilityLabel={strip.label}
