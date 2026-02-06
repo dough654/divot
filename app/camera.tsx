@@ -2,6 +2,7 @@ import { View, Text, Pressable, Modal, Alert, Linking, Platform } from 'react-na
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
 
 import { useTheme, useToast } from '@/src/context';
@@ -35,6 +36,7 @@ type CameraState = 'connecting' | 'previewing' | 'armed' | 'recording' | 'review
 
 export default function CameraScreen() {
   const { theme } = useTheme();
+  const router = useRouter();
   const { show: showToast } = useToast();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
@@ -429,6 +431,9 @@ export default function CameraScreen() {
           {!isLandscape && (
             <View style={[styles.topBar, { top: insets.top }]}>
               <View style={styles.topBarContent}>
+                <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
+                  <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+                </Pressable>
                 <ConnectionStatus step={connectionStep} quality={quality} compact />
                 {isRecording && (
                   <RecordingIndicator
@@ -490,6 +495,9 @@ export default function CameraScreen() {
         {/* Connection Status in landscape - sits above controls in side panel */}
         {isLandscape && (
           <View style={styles.sidePanelStatus}>
+            <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
+              <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+            </Pressable>
             <ConnectionStatus step={connectionStep} quality={quality} compact />
             {isRecording && (
               <RecordingIndicator
@@ -791,6 +799,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
+  },
+  backButton: {
+    padding: 4,
   },
   streamingBadge: {
     flexDirection: 'row' as const,

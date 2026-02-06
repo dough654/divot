@@ -1,9 +1,11 @@
-import { View, Text, Alert, Linking } from 'react-native';
+import { View, Text, Pressable, Alert, Linking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 
 import { useThemedStyles, makeThemedStyles, useOrientation } from '@/src/hooks';
+import { useTheme } from '@/src/context';
 import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
@@ -22,6 +24,7 @@ import type { Clip } from '@/src/types/recording';
 import type { RecoveryAction } from '@/src/utils/error-messages';
 
 export default function ViewerScreen() {
+  const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { isLandscape, lockToPortrait, unlock } = useOrientation();
@@ -261,10 +264,16 @@ export default function ViewerScreen() {
       {/* Connection Status - top bar or overlay */}
       {isLandscape && isConnected ? (
         <View style={[styles.topBarOverlay, { top: insets.top }]}>
+          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+          </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
       ) : (
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+          </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
       )}
@@ -345,7 +354,10 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     backgroundColor: theme.colors.background,
   },
   topBar: {
-    paddingHorizontal: theme.spacing.lg,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -357,11 +369,17 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     left: 0,
     right: 0,
     zIndex: 10,
-    paddingHorizontal: theme.spacing.lg,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: theme.borderRadius.md,
+  },
+  backButton: {
+    padding: 4,
   },
   mainContent: {
     flex: 1,
