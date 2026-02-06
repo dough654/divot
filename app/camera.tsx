@@ -780,8 +780,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: theme.borderRadius.md,
   },
   sidePanelStatus: {
     flexDirection: 'row' as const,
