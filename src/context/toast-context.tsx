@@ -364,8 +364,8 @@ const createToastStyles = makeThemedStyles((theme: Theme) => ({
   },
   message: {
     flex: 1,
+    fontFamily: theme.fontFamily.bodyMedium,
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
     color: theme.colors.text,
   },
   dismissButton: {

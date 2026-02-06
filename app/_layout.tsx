@@ -55,8 +55,9 @@ const NavigationLayout = ({ children }: { children: ReactNode }) => {
           },
           headerTintColor: theme.colors.text,
           headerTitleStyle: {
-            fontWeight: '600',
+            fontFamily: 'Manrope_600SemiBold',
           },
+          headerShadowVisible: false,
         }}
       >
         {children}
@@ -106,29 +107,27 @@ export default function RootLayout() {
               <Stack.Screen
                 name="camera"
                 options={{
-                  title: 'Camera Mode',
-                  headerBackTitle: 'Back',
+                  headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="viewer"
                 options={{
-                  title: 'Viewer Mode',
-                  headerBackTitle: 'Back',
+                  headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="settings"
                 options={{
                   title: 'Settings',
-                  headerBackTitle: 'Back',
+                  headerShown: false,
                 }}
               />
               <Stack.Screen
                 name="clips"
                 options={{
-                  title: 'My Clips',
-                  headerBackTitle: 'Back',
+                  title: 'Clips',
+                  headerShown: false,
                 }}
               />
               <Stack.Screen

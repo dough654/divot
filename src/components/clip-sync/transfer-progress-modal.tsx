@@ -41,7 +41,7 @@ export const TransferProgressModal = ({
   };
 
   const getIconColor = () => {
-    if (isComplete) return '#4CAF50';
+    if (isComplete) return '#E5A020';
     if (isError) return '#f44336';
     return '#2196F3';
   };
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   content: {
     width: '100%',
-    backgroundColor: '#2a2a4e',
+    backgroundColor: '#0D0D0D',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   progressBar: {
     width: '100%',
     height: 8,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#1A1A1A',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 8,
@@ -196,12 +196,12 @@ const styles = StyleSheet.create({
   dismissButton: {
     paddingVertical: 10,
     paddingHorizontal: 24,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#E5A020',
     borderRadius: 8,
   },
   dismissButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#000',
   },
 });

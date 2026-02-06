@@ -1,6 +1,7 @@
 import { View, Text, Switch, Pressable, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 
 import { useTheme, useSettings } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics, useOrientation } from '@/src/hooks';
@@ -23,6 +24,7 @@ export default function SettingsScreen() {
   const haptics = useHaptics();
   const { show: showToast } = useToast();
   const { lockToPortrait, unlock } = useOrientation();
+  const router = useRouter();
   const [isClearing, setIsClearing] = useState(false);
 
   // Lock settings screen to portrait
@@ -88,7 +90,15 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <Pressable
+        style={styles.backButton}
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+      >
+        <Text style={styles.backText}>← back</Text>
+      </Pressable>
       <Text style={styles.screenTitle}>SETTINGS</Text>
 
       {/* Preferences Section */}
@@ -199,6 +209,16 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flex: 1,
     backgroundColor: theme.colors.background,
     padding: theme.spacing.lg,
+  },
+  backButton: {
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  backText: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
+    color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
   },
   screenTitle: {
     fontFamily: theme.fontFamily.display,

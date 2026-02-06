@@ -200,8 +200,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   toolButtonActive: {
-    borderColor: '#4CAF50',
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    borderColor: '#E5A020',
+    backgroundColor: 'rgba(229, 160, 32, 0.2)',
   },
   mainRow: {
     flexDirection: 'row',
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   colorSwatchActive: {
-    borderColor: '#4CAF50',
+    borderColor: '#E5A020',
     borderWidth: 3,
   },
   actionRow: {
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hintText: {
-    color: '#4CAF50',
+    color: '#E5A020',
     fontSize: 12,
     fontWeight: '600',
   },

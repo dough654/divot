@@ -84,7 +84,7 @@ export const QRCodeButton = ({
 
   const borderColor = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [theme.colors.border, theme.colors.primary],
+    outputRange: [theme.colors.border, theme.colors.accent],
   });
 
   const borderWidth = glowAnim.interpolate({
@@ -148,7 +148,7 @@ export const QRCodeButton = ({
           ) : (
             <>
               <Text style={styles.actionText}>Show QR</Text>
-              <Ionicons name="chevron-forward" size={16} color={theme.colors.primary} />
+              <Ionicons name="chevron-forward" size={16} color={theme.colors.accent} />
             </>
           )}
         </View>
@@ -184,17 +184,16 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flex: 1,
   },
   label: {
-    fontSize: 11,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
     color: theme.colors.textSecondary,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
+    textTransform: 'lowercase' as const,
   },
   code: {
+    fontFamily: theme.fontFamily.mono,
     fontSize: 18,
-    fontWeight: theme.fontWeight.bold,
     color: theme.colors.text,
     letterSpacing: 2,
-    fontFamily: 'SpaceMono',
   },
   action: {
     flexDirection: 'row' as const,
@@ -202,9 +201,10 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     gap: 4,
   },
   actionText: {
-    fontSize: 13,
-    color: theme.colors.primary,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fontFamily.bodyMedium,
+    fontSize: 9,
+    color: theme.colors.accent,
+    textTransform: 'lowercase' as const,
   },
   actionTextLoading: {
     fontSize: 12,

@@ -19,7 +19,7 @@ export const RemoteVideoView = ({
   if (isConnecting) {
     return (
       <View style={[styles.container, styles.placeholder, style]}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color="#E5A020" />
         <Text style={styles.placeholderText}>Connecting...</Text>
       </View>
     );

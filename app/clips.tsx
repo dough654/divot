@@ -209,7 +209,7 @@ export default function ClipsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.listContent}>
           <SkeletonClipItem />
           <View style={styles.separator} />
@@ -223,7 +223,7 @@ export default function ClipsScreen() {
 
   if (clips.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <EmptyState
           icon="videocam-off-outline"
           title="No Clips Yet"
@@ -239,7 +239,7 @@ export default function ClipsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <FlatList
         key={isLandscape ? 'landscape-2col' : 'portrait-1col'}
         data={clips}
@@ -257,6 +257,14 @@ export default function ClipsScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.header}>
+            <Pressable
+              style={styles.backButton}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Text style={styles.backText}>← back</Text>
+            </Pressable>
             <Text style={styles.headerTitle}>CLIPS</Text>
             <Text style={styles.headerCount}>{clips.length} clip{clips.length !== 1 ? 's' : ''}</Text>
           </View>
@@ -326,6 +334,16 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  backButton: {
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  backText: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
+    color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
   },
   header: {
     paddingHorizontal: 4,

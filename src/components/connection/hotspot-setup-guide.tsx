@@ -55,7 +55,7 @@ export const HotspotSetupGuide = ({
         <Ionicons
           name={isCamera ? 'phone-portrait' : 'wifi'}
           size={32}
-          color={theme.colors.primary}
+          color={theme.colors.accent}
         />
         <Text style={styles.title}>
           {isCamera ? 'Enable Hotspot' : 'Connect to Hotspot'}
@@ -125,9 +125,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     marginBottom: theme.spacing.xl,
   },
   title: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
+    fontFamily: theme.fontFamily.display,
+    fontSize: 20,
     color: theme.colors.text,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.3,
   },
   stepsContainer: {
     gap: theme.spacing.md,
@@ -141,20 +143,21 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.accent,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   stepNumberText: {
-    color: theme.palette.white,
+    fontFamily: theme.fontFamily.bodySemiBold,
+    color: theme.isDark ? theme.palette.black : theme.palette.white,
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.semibold,
   },
   stepText: {
     flex: 1,
-    fontSize: 15,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 13,
     color: theme.colors.text,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   credentialsBox: {
     marginTop: theme.spacing.xl,
@@ -168,14 +171,15 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     justifyContent: 'space-between' as const,
   },
   credentialLabel: {
-    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
+    fontSize: 9,
     color: theme.colors.textSecondary,
+    textTransform: 'lowercase' as const,
   },
   credentialValue: {
+    fontFamily: theme.fontFamily.mono,
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text,
-    fontFamily: 'SpaceMono',
   },
   infoBox: {
     marginTop: theme.spacing.xl,
