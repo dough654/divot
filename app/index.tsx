@@ -1,53 +1,11 @@
-import { View, Text, Pressable, GestureResponderEvent, Platform } from 'react-native';
+import { View, Text, Pressable, Platform } from 'react-native';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated from 'react-native-reanimated';
-import { forwardRef } from 'react';
 
 import { useTheme } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, usePressAnimation, useOrientation } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, useOrientation } from '@/src/hooks';
 import type { Theme } from '@/src/context';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-type StripButtonProps = {
-  children: React.ReactNode;
-  style: object;
-  pressedBgColor: string;
-  defaultBgColor: string;
-  rippleColor?: string;
-  accessibilityRole: 'button';
-  accessibilityLabel: string;
-  accessibilityHint: string;
-  onPress?: (e: GestureResponderEvent) => void;
-};
-
-/**
- * Animated strip button with scale and color feedback on press.
- * Forwards ref for use with Link asChild.
- */
-const StripButton = forwardRef<View, StripButtonProps>(
-  ({ children, style, pressedBgColor, defaultBgColor, rippleColor, ...props }, ref) => {
-    const { animatedStyle, handlePressIn, handlePressOut } = usePressAnimation({
-      defaultColor: defaultBgColor,
-      pressedColor: pressedBgColor,
-    });
-
-    return (
-      <AnimatedPressable
-        ref={ref}
-        style={[style, animatedStyle]}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        android_ripple={Platform.OS === 'android' ? { color: rippleColor || 'rgba(0, 0, 0, 0.1)' } : undefined}
-        {...props}
-      >
-        {children}
-      </AnimatedPressable>
-    );
-  }
-);
 
 export default function HomeScreen() {
   const { theme } = useTheme();
@@ -95,18 +53,20 @@ export default function HomeScreen() {
       <View style={isLandscape ? styles.stripsLandscape : styles.strips}>
         {strips.map((strip) => (
           <Link key={strip.href} href={strip.href} asChild>
-            <StripButton
-              style={[styles.strip, strip.active && styles.stripActive]}
-              defaultBgColor={strip.active ? theme.colors.accentDim : theme.palette.transparent}
-              pressedBgColor={theme.colors.accentDim}
-              rippleColor={theme.colors.accentDim}
+            <Pressable
+              style={({ pressed }) => [
+                styles.strip,
+                strip.active && styles.stripActive,
+                (pressed || strip.active) && styles.stripPressed,
+              ]}
+              android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim } : undefined}
               accessibilityRole="button"
               accessibilityLabel={strip.label}
               accessibilityHint={strip.hint}
             >
               <Ionicons
                 name={strip.icon}
-                size={28}
+                size={32}
                 color={strip.active ? theme.colors.accent : theme.colors.textTertiary}
                 style={styles.stripIcon}
               />
@@ -115,7 +75,7 @@ export default function HomeScreen() {
                 <Text style={styles.stripDescription}>{strip.description}</Text>
               </View>
               <Text style={styles.stripArrow}>→</Text>
-            </StripButton>
+            </Pressable>
           </Link>
         ))}
       </View>
@@ -152,31 +112,31 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   brandMark: {
     fontFamily: theme.fontFamily.bodyMedium,
-    fontSize: 9,
+    fontSize: 13,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
   },
   versionText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 8,
+    fontSize: 12,
     color: theme.colors.textTertiary,
   },
   strips: {
     flex: 1,
     justifyContent: 'center' as const,
-    gap: 6,
+    gap: 8,
   },
   stripsLandscape: {
     flex: 1,
     justifyContent: 'center' as const,
-    gap: 4,
+    gap: 6,
     paddingVertical: theme.spacing.sm,
   },
   strip: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 14,
-    paddingVertical: 14,
+    gap: 16,
+    paddingVertical: 20,
     paddingHorizontal: theme.spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
@@ -186,8 +146,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     borderBottomColor: theme.palette.transparent,
     borderRadius: theme.borderRadius.lg,
   },
+  stripPressed: {
+    backgroundColor: theme.colors.accentDim,
+  },
   stripIcon: {
-    width: 28,
+    width: 32,
     opacity: 0.7,
   },
   stripBody: {
@@ -195,22 +158,22 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   stripTitle: {
     fontFamily: theme.fontFamily.display,
-    fontSize: 24,
+    fontSize: 30,
     color: theme.colors.text,
     textTransform: 'uppercase' as const,
     letterSpacing: -0.5,
-    lineHeight: 28,
+    lineHeight: 34,
   },
   stripDescription: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 9,
+    fontSize: 13,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
     marginTop: 4,
   },
   stripArrow: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 14,
+    fontSize: 20,
     color: theme.colors.accent,
   },
   bottomBar: {
@@ -223,7 +186,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   settingsText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 9,
+    fontSize: 13,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
   },
