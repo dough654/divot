@@ -1,5 +1,15 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import {
+  DarkerGrotesque_800ExtraBold,
+  DarkerGrotesque_900Black,
+} from '@expo-google-fonts/darker-grotesque';
+import {
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+} from '@expo-google-fonts/manrope';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, ReactNode } from 'react';
@@ -58,6 +68,12 @@ const NavigationLayout = ({ children }: { children: ReactNode }) => {
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    DarkerGrotesque_800ExtraBold,
+    DarkerGrotesque_900Black,
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
   });
 
   useEffect(() => {

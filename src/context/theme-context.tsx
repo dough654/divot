@@ -42,7 +42,7 @@
  */
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { useColorScheme as useSystemColorScheme } from 'react-native';
-import { colors, palette, spacing, borderRadius, fontSize, fontWeight, lineHeight, shadows, opacity, animation } from '../constants/design-tokens';
+import { colors, palette, fontFamily, spacing, borderRadius, fontSize, fontWeight, lineHeight, shadows, opacity, animation } from '../constants/design-tokens';
 import type { ColorScheme, ThemeColors } from '../constants/design-tokens';
 
 // ============================================
@@ -52,6 +52,7 @@ import type { ColorScheme, ThemeColors } from '../constants/design-tokens';
 export type Theme = {
   colors: ThemeColors;
   palette: typeof palette;
+  fontFamily: typeof fontFamily;
   spacing: typeof spacing;
   borderRadius: typeof borderRadius;
   fontSize: typeof fontSize;
@@ -83,6 +84,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const buildTheme = (colorScheme: ColorScheme): Theme => ({
   colors: colors[colorScheme],
   palette,
+  fontFamily,
   spacing,
   borderRadius,
   fontSize,

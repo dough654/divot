@@ -129,7 +129,7 @@ export default function HomeScreen() {
               ? [styles.cardIconContainer, styles.clipsIconContainer]
               : [styles.roleIconContainer, styles.clipsIconContainer]
             }>
-              <Ionicons name="film" size={isLandscape ? 32 : 40} color={theme.palette.amber600} />
+              <Ionicons name="film" size={isLandscape ? 32 : 40} color={theme.colors.accent} />
             </View>
             <View style={isLandscape ? styles.cardTextContainer : styles.roleTextContainer}>
               <Text style={isLandscape ? styles.cardTitle : styles.roleTitle}>My Clips</Text>
@@ -272,7 +272,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     textAlign: 'center' as const,
   },
   clipsIconContainer: {
-    backgroundColor: theme.isDark ? '#2a1a1a' : theme.palette.amber50,
+    backgroundColor: theme.colors.accentDim,
   },
   footer: {
     alignItems: 'center' as const,

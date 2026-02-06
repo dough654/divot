@@ -1,50 +1,70 @@
 /**
- * SwingLink Design Tokens
- * Centralized design system constants for consistent UI.
+ * SwingLink Design Tokens — Stark Design System
+ * Pure black/white, gold accent, Darker Grotesque display, Manrope body.
  */
+
+// ============================================
+// FONT FAMILIES
+// ============================================
+
+/** Font family tokens — must match loaded font names in _layout.tsx */
+export const fontFamily = {
+  display: 'DarkerGrotesque_900Black',
+  displaySemiBold: 'DarkerGrotesque_800ExtraBold',
+  body: 'Manrope_400Regular',
+  bodyMedium: 'Manrope_500Medium',
+  bodySemiBold: 'Manrope_600SemiBold',
+  bodyBold: 'Manrope_700Bold',
+  mono: 'SpaceMono',
+} as const;
 
 // ============================================
 // COLOR PALETTE
 // ============================================
 
-/** Raw color palette - use semantic tokens in components */
+/** Raw color palette — use semantic tokens in components */
 export const palette = {
-  // Greens (Primary)
-  green50: '#e8f5e9',
-  green500: '#4CAF50',
-  green600: '#43A047',
-  green700: '#388E3C',
-
-  // Blues (Secondary)
-  blue500: '#2196F3',
-  blue600: '#1E88E5',
-
-  // Reds (Danger/Recording)
-  red400: '#ff453a', // iOS-style
-  red500: '#f44336',
-  red600: '#E53935',
-
-  // Ambers (Warning)
-  amber50: '#FFF8E1',
-  amber300: '#FFB74D',
-  amber600: '#F57C00',
-
-  // Neutrals - Light
-  white: '#ffffff',
-  gray50: '#f5f5f5',
-  gray100: '#f0f0f0',
-  gray200: '#e0e0e0',
-  gray400: '#aaaaaa',
-  gray500: '#888888',
-  gray600: '#666666',
+  // Pure neutrals
+  white: '#FFFFFF',
   black: '#000000',
 
-  // Neutrals - Dark Theme
-  dark900: '#0a0a1e',
-  dark800: '#12121f',
-  dark700: '#1a1a2e',
-  dark600: '#2a2a4e',
-  dark500: '#3a3a5e',
+  // Dark neutrals
+  dark950: '#080808',
+  dark900: '#0D0D0D',
+  dark800: '#1A1A1A',
+  dark700: '#333333',
+  dark600: '#666666',
+
+  // Light neutrals
+  light100: '#F5F5F5',
+  light200: '#FAFAFA',
+  light300: '#E0E0E0',
+  light400: '#BBBBBB',
+  light500: '#777777',
+
+  // Gold accent
+  gold: '#E5A020',
+  goldDark: '#B8800E',
+  goldDim: 'rgba(229,160,32,0.12)',
+  goldDimLight: 'rgba(184,128,14,0.10)',
+
+  // Reds (Danger/Recording)
+  red400: '#ff453a',
+  red500: '#FF2D2D',
+  redDim: 'rgba(255,45,45,0.08)',
+  redDimLight: 'rgba(204,26,26,0.06)',
+
+  // Greens (Success)
+  green500: '#00CC66',
+  greenDim: 'rgba(0,204,102,0.08)',
+  greenDimLight: 'rgba(0,153,80,0.06)',
+
+  // Blues (Info — kept for semantic use)
+  blue500: '#2196F3',
+
+  // Ambers (Warning)
+  amber300: '#FFB74D',
+  amber600: '#F57C00',
 
   // Special
   transparent: 'transparent',
@@ -58,71 +78,79 @@ export const colors = {
   light: {
     // Backgrounds
     background: palette.white,
-    backgroundSecondary: palette.gray50,
-    backgroundTertiary: palette.gray100,
-    surface: palette.white,
+    backgroundSecondary: palette.light100,
+    backgroundTertiary: palette.light300,
+    surface: palette.light200,
     surfaceElevated: palette.white,
 
     // Text
-    text: palette.dark700,
-    textSecondary: palette.gray600,
-    textTertiary: palette.gray500,
+    text: palette.black,
+    textSecondary: palette.light500,
+    textTertiary: palette.light400,
     textInverse: palette.white,
 
     // Borders
-    border: palette.gray200,
-    borderSubtle: palette.gray100,
+    border: palette.light300,
+    borderSubtle: palette.light100,
 
     // Brand
-    primary: palette.green500,
-    primaryHover: palette.green600,
+    primary: palette.goldDark,
+    primaryHover: palette.gold,
     secondary: palette.blue500,
 
+    // Accent
+    accent: palette.goldDark,
+    accentDim: palette.goldDimLight,
+
     // Semantic
-    success: palette.green500,
-    successBackground: palette.green50,
-    error: palette.red500,
-    errorBackground: '#ffebee',
+    success: '#009950',
+    successBackground: palette.greenDimLight,
+    error: '#CC1A1A',
+    errorBackground: palette.redDimLight,
     warning: palette.amber600,
-    warningBackground: palette.amber50,
+    warningBackground: 'rgba(245,124,0,0.06)',
     info: palette.blue500,
-    infoBackground: '#e3f2fd',
+    infoBackground: 'rgba(33,150,243,0.06)',
 
     // Recording
     recording: palette.red400,
   },
   dark: {
     // Backgrounds
-    background: palette.dark700,
-    backgroundSecondary: palette.dark800,
+    background: palette.black,
+    backgroundSecondary: palette.dark950,
     backgroundTertiary: palette.dark900,
-    surface: palette.dark600,
-    surfaceElevated: palette.dark500,
+    surface: palette.dark900,
+    surfaceElevated: palette.dark800,
 
     // Text
     text: palette.white,
-    textSecondary: palette.gray400,
-    textTertiary: palette.gray500,
-    textInverse: palette.dark700,
+    textSecondary: palette.dark600,
+    textTertiary: palette.dark700,
+    textInverse: palette.black,
 
     // Borders
-    border: palette.dark500,
-    borderSubtle: palette.dark600,
+    border: palette.dark800,
+    borderSubtle: palette.dark900,
 
     // Brand
-    primary: palette.green500,
-    primaryHover: palette.green600,
+    primary: palette.gold,
+    primaryHover: palette.goldDark,
     secondary: palette.blue500,
+
+    // Accent
+    accent: palette.gold,
+    accentDim: palette.goldDim,
 
     // Semantic
     success: palette.green500,
-    successBackground: '#1a3a1a',
+    successBackground: palette.greenDim,
     error: palette.red500,
-    errorBackground: '#3a1a1a',
+    errorBackground: palette.redDim,
     warning: palette.amber300,
-    warningBackground: '#3a2a1a',
+    warningBackground: 'rgba(255,183,77,0.08)',
     info: palette.blue500,
-    infoBackground: '#1a2a3a',
+    infoBackground: 'rgba(33,150,243,0.08)',
 
     // Recording
     recording: palette.red400,
@@ -151,11 +179,11 @@ export const spacing = {
 
 export const borderRadius = {
   xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  '2xl': 24,
+  sm: 6,
+  md: 8,
+  lg: 10,
+  xl: 12,
+  '2xl': 16,
   full: 9999,
 } as const;
 
@@ -187,30 +215,30 @@ export const lineHeight = {
 } as const;
 
 // ============================================
-// SHADOWS
+// SHADOWS (Stark: mostly flat)
 // ============================================
 
 export const shadows = {
   sm: {
     shadowColor: palette.black,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
   },
   md: {
     shadowColor: palette.black,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
   lg: {
     shadowColor: palette.black,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 4,
   },
 } as const;
 
@@ -244,7 +272,7 @@ export const animation = {
 
 export type ColorScheme = 'light' | 'dark';
 
-/** Theme color keys - same structure for light and dark */
+/** Theme color keys — same structure for light and dark */
 export type ThemeColors = {
   background: string;
   backgroundSecondary: string;
@@ -260,6 +288,8 @@ export type ThemeColors = {
   primary: string;
   primaryHover: string;
   secondary: string;
+  accent: string;
+  accentDim: string;
   success: string;
   successBackground: string;
   error: string;
