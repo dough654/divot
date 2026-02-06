@@ -1,5 +1,5 @@
 import { View, Text, Alert, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 
@@ -23,6 +23,7 @@ import type { RecoveryAction } from '@/src/utils/error-messages';
 
 export default function ViewerScreen() {
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const { isLandscape, lockToPortrait, unlock } = useOrientation();
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('scanning-qr');
@@ -259,11 +260,11 @@ export default function ViewerScreen() {
     >
       {/* Connection Status - top bar or overlay */}
       {isLandscape && isConnected ? (
-        <View style={styles.topBarOverlay}>
+        <View style={[styles.topBarOverlay, { top: insets.top }]}>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
       ) : (
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
       )}
@@ -298,7 +299,7 @@ export default function ViewerScreen() {
       </View>
 
       {/* Actions */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { bottom: 10 + insets.bottom }]}>
         {isScanning && !useManualEntry && (
           <Button
             title="Enter Code Manually"

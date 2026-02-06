@@ -44,7 +44,7 @@ export default function HomeScreen() {
   ];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.topBar}>
         <Text style={styles.brandMark}>swinglink</Text>
         <Text style={styles.versionText}>v1.0</Text>

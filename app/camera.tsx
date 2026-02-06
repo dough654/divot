@@ -1,5 +1,5 @@
 import { View, Text, Pressable, Modal, Alert, Linking, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
@@ -37,6 +37,7 @@ export default function CameraScreen() {
   const { theme } = useTheme();
   const { show: showToast } = useToast();
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const { isLandscape } = useOrientation();
 
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
@@ -426,7 +427,7 @@ export default function CameraScreen() {
         <View style={isLandscape ? styles.videoContainerLandscape : styles.videoContainerPortrait}>
           {/* Connection Status - top bar in portrait only (landscape moves to side panel) */}
           {!isLandscape && (
-            <View style={styles.topBar}>
+            <View style={[styles.topBar, { top: insets.top }]}>
               <View style={styles.topBarContent}>
                 <ConnectionStatus step={connectionStep} quality={quality} compact />
                 {isRecording && (
@@ -485,7 +486,7 @@ export default function CameraScreen() {
         </View>
 
         {/* Controls - bottom bar in portrait, right side panel in landscape */}
-        <View style={isLandscape ? styles.sidePanel : styles.bottomBar}>
+        <View style={isLandscape ? styles.sidePanel : [styles.bottomBar, { bottom: insets.bottom }]}>
         {/* Connection Status in landscape - sits above controls in side panel */}
         {isLandscape && (
           <View style={styles.sidePanelStatus}>
