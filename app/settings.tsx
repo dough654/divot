@@ -204,7 +204,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   sectionTitle: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.accent,
     textTransform: 'lowercase' as const,
     marginBottom: theme.spacing.md,
@@ -220,14 +220,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   settingLabel: {
     fontFamily: theme.fontFamily.display,
-    fontSize: 16,
+    fontSize: 18,
     color: theme.colors.text,
     textTransform: 'uppercase' as const,
     letterSpacing: -0.3,
   },
   settingDescription: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 14,
+    fontSize: 16,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
     marginTop: 2,
@@ -257,7 +257,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   themeOptionText: {
     fontFamily: theme.fontFamily.bodyMedium,
-    fontSize: 14,
+    fontSize: 16,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
   },
@@ -272,7 +272,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   actionArrow: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 14,
+    fontSize: 16,
     color: theme.colors.textTertiary,
   },
   dangerText: {
@@ -285,19 +285,19 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   appName: {
     fontFamily: theme.fontFamily.bodyMedium,
-    fontSize: 14,
+    fontSize: 15,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
   },
   version: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textTertiary,
     marginTop: 2,
   },
   description: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
     marginTop: 4,

@@ -112,13 +112,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   brandMark: {
     fontFamily: theme.fontFamily.bodyMedium,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
   },
   versionText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 12,
+    fontSize: 14,
     color: theme.colors.textTertiary,
   },
   strips: {
@@ -166,14 +166,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   stripDescription: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
     marginTop: 4,
   },
   stripArrow: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 20,
+    fontSize: 22,
     color: theme.colors.accent,
   },
   bottomBar: {
@@ -186,7 +186,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   settingsText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
   },

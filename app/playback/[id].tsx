@@ -137,13 +137,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   loadingText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 14,
+    fontSize: 16,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
   },
   errorTitle: {
     fontFamily: theme.fontFamily.display,
-    fontSize: 18,
+    fontSize: 20,
     color: theme.colors.text,
     textTransform: 'uppercase' as const,
     letterSpacing: -0.3,
@@ -166,14 +166,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   headerTitle: {
     fontFamily: theme.fontFamily.display,
-    fontSize: 17,
+    fontSize: 20,
     color: theme.colors.text,
     textTransform: 'uppercase' as const,
     letterSpacing: -0.3,
   },
   headerDate: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
     marginTop: 2,

@@ -143,13 +143,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
     color: '#fff',
     marginBottom: 8,
   },
   clipName: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#888',
     marginBottom: 16,
   },
@@ -167,12 +167,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#888',
     marginBottom: 16,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#f44336',
     textAlign: 'center',
     marginBottom: 16,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#888',
   },
   dismissButton: {
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   dismissButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: '#000',
   },

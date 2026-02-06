@@ -185,13 +185,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   label: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
   },
   code: {
     fontFamily: theme.fontFamily.mono,
-    fontSize: 18,
+    fontSize: 20,
     color: theme.colors.text,
     letterSpacing: 2,
   },
@@ -202,12 +202,12 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   actionText: {
     fontFamily: theme.fontFamily.bodyMedium,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.accent,
     textTransform: 'lowercase' as const,
   },
   actionTextLoading: {
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textTertiary,
   },
   loadingPlaceholder: {
@@ -215,7 +215,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     justifyContent: 'center' as const,
   },
   loadingText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.textTertiary,
     letterSpacing: 2,

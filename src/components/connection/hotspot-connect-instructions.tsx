@@ -168,7 +168,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   tipText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.warning,
     lineHeight: 18,
   },
@@ -196,7 +196,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   stepText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 17,
     color: theme.colors.text,
     lineHeight: 22,
   },

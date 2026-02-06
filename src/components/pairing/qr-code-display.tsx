@@ -81,31 +81,31 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   codeLabel: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
     marginBottom: 4,
   },
   code: {
     fontFamily: theme.fontFamily.mono,
-    fontSize: 28,
+    fontSize: 30,
     color: theme.colors.text,
     letterSpacing: 4,
   },
   codeCompact: {
-    fontSize: 22,
+    fontSize: 24,
     letterSpacing: 3,
   },
   instruction: {
     fontFamily: theme.fontFamily.body,
     marginTop: theme.spacing.lg,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textSecondary,
     textAlign: 'center' as const,
     textTransform: 'lowercase' as const,
   },
   instructionCompact: {
     marginTop: theme.spacing.xs,
-    fontSize: 12,
+    fontSize: 14,
   },
 }));

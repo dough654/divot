@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: '#888',
     marginTop: 12,
-    fontSize: 14,
+    fontSize: 16,
   },
   flipButton: {
     position: 'absolute',

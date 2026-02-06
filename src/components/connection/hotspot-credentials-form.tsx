@@ -206,7 +206,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textSecondary,
     lineHeight: 18,
   },

@@ -126,7 +126,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   title: {
     fontFamily: theme.fontFamily.display,
-    fontSize: 20,
+    fontSize: 22,
     color: theme.colors.text,
     textTransform: 'uppercase' as const,
     letterSpacing: -0.3,
@@ -155,7 +155,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   stepText: {
     flex: 1,
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.text,
     lineHeight: 20,
   },
@@ -172,7 +172,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   credentialLabel: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textSecondary,
     textTransform: 'lowercase' as const,
   },
@@ -192,7 +192,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 15,
     color: theme.colors.textSecondary,
     lineHeight: 18,
   },

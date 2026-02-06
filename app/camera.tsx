@@ -899,7 +899,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     marginBottom: theme.spacing.xs,
   },
   armButtonSubtext: {
-    fontSize: 13,
+    fontSize: 15,
     fontFamily: theme.fontFamily.body,
     color: theme.colors.textSecondary,
   },
