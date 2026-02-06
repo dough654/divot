@@ -35,27 +35,6 @@ export type EmptyStateProps = {
  * Reusable empty state component for screens with no content.
  * Displays a centered icon, title, optional description, and optional action button.
  * Fades in on mount for a polished feel.
- *
- * @example
- * // Basic usage
- * <EmptyState
- *   icon="videocam-off-outline"
- *   title="No Clips Yet"
- *   description="Record your first swing to see it here."
- * />
- *
- * @example
- * // With action button
- * <EmptyState
- *   icon="search-outline"
- *   title="No Results"
- *   description="Try a different search term."
- *   action={{
- *     label: "Clear Search",
- *     onPress: handleClear,
- *     icon: "close-circle",
- *   }}
- * />
  */
 export const EmptyState = ({
   icon,
@@ -86,7 +65,7 @@ export const EmptyState = ({
       <Ionicons
         name={icon}
         size={iconSize}
-        color={theme.colors.border}
+        color={theme.colors.textTertiary}
         style={styles.icon}
       />
       <Text style={styles.title}>{title}</Text>
@@ -104,7 +83,7 @@ export const EmptyState = ({
             <Ionicons
               name={action.icon}
               size={20}
-              color={theme.palette.white}
+              color={theme.isDark ? theme.palette.black : theme.palette.white}
             />
           )}
           <Text style={styles.actionButtonText}>{action.label}</Text>
@@ -125,14 +104,17 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     marginBottom: theme.spacing.lg,
   },
   title: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
+    fontSize: theme.fontSize.xl,
+    fontFamily: theme.fontFamily.display,
     color: theme.colors.text,
     textAlign: 'center' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.5,
     marginBottom: theme.spacing.sm,
   },
   description: {
     fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
     color: theme.colors.textSecondary,
     textAlign: 'center' as const,
     lineHeight: 20,
@@ -148,8 +130,8 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     borderRadius: theme.borderRadius.sm,
   },
   actionButtonText: {
-    color: theme.palette.white,
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
+    color: theme.isDark ? theme.palette.black : theme.palette.white,
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.bodySemiBold,
   },
 }));

@@ -1,4 +1,4 @@
-import { View, StyleSheet, DimensionValue } from 'react-native';
+import { View, DimensionValue } from 'react-native';
 import { useEffect } from 'react';
 import Animated, {
   useAnimatedStyle,
@@ -9,6 +9,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useTheme } from '../../context';
+import { useThemedStyles, makeThemedStyles } from '../../hooks';
+import type { Theme } from '../../context';
 
 export type SkeletonVariant = 'text' | 'circular' | 'rectangular';
 
@@ -68,7 +70,7 @@ export const Skeleton = ({
   };
 
   const dimensions = getDefaultDimensions();
-  const baseColor = theme.isDark ? '#2a2a4e' : '#e0e0e0';
+  const baseColor = theme.isDark ? '#1A1A1A' : '#E0E0E0';
 
   const animatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
@@ -110,38 +112,31 @@ export const Skeleton = ({
  * Skeleton preset matching the ClipItem layout.
  */
 export const SkeletonClipItem = () => {
-  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
-    <View style={[styles.clipItem, { backgroundColor: theme.colors.surface }]}>
-      <Skeleton variant="rectangular" width={56} height={56} borderRadius={8} />
+    <View style={styles.clipItem}>
+      <Skeleton variant="text" width={22} height={22} />
       <View style={styles.clipItemContent}>
-        <Skeleton variant="text" width="70%" height={16} />
-        <View style={styles.clipItemMeta}>
-          <Skeleton variant="text" width={40} height={12} />
-          <Skeleton variant="text" width={50} height={12} />
-          <Skeleton variant="text" width={35} height={12} />
-        </View>
+        <Skeleton variant="text" width="70%" height={15} />
+        <Skeleton variant="text" width="50%" height={10} />
       </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  skeleton: {},
+const createStyles = makeThemedStyles((theme: Theme) => ({
   clipItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
   clipItemContent: {
     flex: 1,
-    gap: 8,
+    gap: 6,
   },
-  clipItemMeta: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-});
+}));

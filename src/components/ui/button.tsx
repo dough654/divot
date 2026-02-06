@@ -82,9 +82,9 @@ export const Button = ({
       case 'secondary':
         return theme.isDark ? theme.colors.surfaceElevated : theme.colors.backgroundTertiary;
       case 'outline':
-        return theme.isDark ? 'rgba(76, 175, 80, 0.15)' : 'rgba(76, 175, 80, 0.1)';
+        return theme.colors.accentDim;
       case 'danger':
-        return '#d32f2f'; // Darker red
+        return '#d32f2f';
     }
   };
 
@@ -93,7 +93,7 @@ export const Button = ({
     switch (variant) {
       case 'primary':
       case 'danger':
-        return theme.palette.white;
+        return theme.isDark ? theme.palette.black : theme.palette.white;
       case 'secondary':
         return theme.colors.text;
       case 'outline':
@@ -116,7 +116,7 @@ export const Button = ({
       case 'secondary':
         return theme.isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)';
       case 'outline':
-        return 'rgba(76, 175, 80, 0.2)';
+        return theme.colors.accentDim;
     }
   };
 
@@ -171,10 +171,10 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     borderRadius: theme.borderRadius.md,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    minHeight: 64,
+    minHeight: 56,
   },
   buttonOutline: {
-    borderWidth: 2,
+    borderWidth: 1.5,
   },
   content: {
     flexDirection: 'row' as const,
@@ -185,7 +185,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     marginRight: theme.spacing.sm,
   },
   text: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.bodySemiBold,
   },
 }));

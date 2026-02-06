@@ -16,36 +16,6 @@ export type TextInputProps = RNTextInputProps & {
 /**
  * Themed text input component with optional label and error state.
  * Automatically adapts to light/dark theme.
- *
- * @example
- * // Basic input
- * <TextInput
- *   placeholder="Enter your name"
- *   value={name}
- *   onChangeText={setName}
- * />
- *
- * @example
- * // With label and error
- * <TextInput
- *   label="Email"
- *   placeholder="you@example.com"
- *   value={email}
- *   onChangeText={setEmail}
- *   error={emailError}
- *   keyboardType="email-address"
- * />
- *
- * @example
- * // Password input with hint
- * <TextInput
- *   label="Password"
- *   placeholder="Enter password"
- *   value={password}
- *   onChangeText={setPassword}
- *   secureTextEntry
- *   hint="Must be at least 8 characters"
- * />
  */
 export const TextInput = ({
   label,
@@ -87,9 +57,10 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     gap: theme.spacing.xs,
   },
   label: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text,
+    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.bodyMedium,
+    color: theme.colors.textSecondary,
+    textTransform: 'lowercase' as const,
     marginBottom: 2,
   },
   input: {
@@ -98,6 +69,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     fontSize: theme.fontSize.md,
+    fontFamily: theme.fontFamily.body,
     color: theme.colors.text,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -107,11 +79,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   error: {
     fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
     color: theme.colors.error,
     marginTop: 2,
   },
   hint: {
     fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
     color: theme.colors.textTertiary,
     marginTop: 2,
   },

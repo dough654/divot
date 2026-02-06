@@ -64,7 +64,7 @@ export const ErrorDetail = ({
           <Pressable
             style={styles.compactAction}
             onPress={() => onAction(error.recoveryActions[0].action)}
-            android_ripple={Platform.OS === 'android' ? { color: 'rgba(76, 175, 80, 0.2)', borderless: true } : undefined}
+            android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim, borderless: true } : undefined}
             accessibilityRole="button"
             accessibilityLabel={error.recoveryActions[0].label}
           >
@@ -107,7 +107,7 @@ export const ErrorDetail = ({
             ]}
             onPress={() => onAction(action.action)}
             android_ripple={Platform.OS === 'android' ? {
-              color: action.primary ? 'rgba(255, 255, 255, 0.3)' : 'rgba(76, 175, 80, 0.2)',
+              color: action.primary ? 'rgba(255, 255, 255, 0.3)' : theme.colors.accentDim,
             } : undefined}
             accessibilityRole="button"
             accessibilityLabel={action.label}
@@ -116,7 +116,9 @@ export const ErrorDetail = ({
             <Ionicons
               name={getActionIcon(action.action)}
               size={18}
-              color={action.primary ? theme.palette.white : theme.colors.primary}
+              color={action.primary
+                ? (theme.isDark ? theme.palette.black : theme.palette.white)
+                : theme.colors.accent}
               style={styles.actionIcon}
             />
             <Text
@@ -154,13 +156,16 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   title: {
     fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
+    fontFamily: theme.fontFamily.display,
     color: theme.colors.text,
     textAlign: 'center' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.5,
     marginBottom: theme.spacing.sm,
   },
   message: {
     fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
     color: theme.colors.textSecondary,
     textAlign: 'center' as const,
     lineHeight: 20,
@@ -184,18 +189,18 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     minWidth: 100,
   },
   actionButtonPrimary: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.accent,
   },
   actionIcon: {
     marginRight: theme.spacing.xs,
   },
   actionText: {
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.primary,
+    fontFamily: theme.fontFamily.bodyMedium,
+    color: theme.colors.accent,
   },
   actionTextPrimary: {
-    color: theme.palette.white,
+    color: theme.isDark ? theme.palette.black : theme.palette.white,
   },
   // Compact styles
   compactContainer: {
@@ -215,7 +220,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   compactTitle: {
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
+    fontFamily: theme.fontFamily.bodyMedium,
     color: theme.colors.error,
   },
   compactAction: {
@@ -224,7 +229,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   compactActionText: {
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.primary,
+    fontFamily: theme.fontFamily.bodySemiBold,
+    color: theme.colors.accent,
   },
 }));

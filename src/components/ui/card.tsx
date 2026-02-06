@@ -41,25 +41,7 @@ const PADDING_MAP = {
 
 /**
  * Reusable card component with multiple variants and padding options.
- * Automatically adapts to light/dark theme.
- *
- * @example
- * // Basic card
- * <Card>
- *   <Text>Content</Text>
- * </Card>
- *
- * @example
- * // Elevated touchable card
- * <Card variant="elevated" onPress={handlePress}>
- *   <Text>Tap me</Text>
- * </Card>
- *
- * @example
- * // Outlined card with large padding
- * <Card variant="outlined" padding="lg">
- *   <Text>Spacious content</Text>
- * </Card>
+ * Stark design: flat, minimal borders, no heavy shadows.
  */
 export const Card = ({
   children,
@@ -129,10 +111,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   base: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
   },
   elevated: {
-    ...theme.shadows.md,
-    shadowOpacity: theme.isDark ? 0.3 : 0.15,
+    ...theme.shadows.sm,
   },
   outlined: {
     backgroundColor: theme.palette.transparent,
