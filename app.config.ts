@@ -24,6 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSBonjourServices: ['_swinglink._tcp'],
       NSPhotoLibraryUsageDescription: 'SwingLink needs photo library access to save recorded swing videos.',
       NSPhotoLibraryAddUsageDescription: 'SwingLink needs photo library access to save recorded swing videos.',
+      NSBluetoothAlwaysUsageDescription: 'SwingLink uses Bluetooth to discover nearby devices for pairing.',
     },
   },
   android: {
@@ -42,6 +43,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'INTERNET',
       'READ_EXTERNAL_STORAGE',
       'WRITE_EXTERNAL_STORAGE',
+      'BLUETOOTH_ADVERTISE',
+      'BLUETOOTH_SCAN',
+      'BLUETOOTH_CONNECT',
+      'ACCESS_FINE_LOCATION',
     ],
   },
   web: {
