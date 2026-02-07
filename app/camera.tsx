@@ -772,7 +772,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   topBar: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: theme.spacing.sm,
+    justifyContent: 'space-between' as const,
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
