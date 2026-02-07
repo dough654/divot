@@ -259,15 +259,17 @@ export default function ViewerScreen() {
       {/* Connection Status - top bar or overlay */}
       {isLandscape && isConnected ? (
         <View style={[styles.topBarOverlay, { top: insets.top }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={28} color="#fff" />
+          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
+            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Text style={styles.backLabel}>Home</Text>
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
       ) : (
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={28} color="#fff" />
+          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
+            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Text style={styles.backLabel}>Home</Text>
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         </View>
@@ -370,7 +372,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingBottom: theme.spacing.sm,
   },
   backButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     padding: 4,
+  },
+  backLabel: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 17,
+    color: '#fff',
   },
   mainContent: {
     flex: 1,

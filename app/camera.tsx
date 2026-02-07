@@ -491,8 +491,9 @@ export default function CameraScreen() {
         {/* Connection Status in landscape - sits above controls in side panel */}
         {isLandscape && (
           <View style={styles.sidePanelStatus}>
-            <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-              <Ionicons name="chevron-back" size={28} color="#fff" />
+            <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
+              <Ionicons name="chevron-back" size={22} color="#fff" />
+              <Text style={styles.backLabel}>Home</Text>
             </Pressable>
             <ConnectionStatus step={connectionStep} quality={quality} compact />
             {isRecording && (
@@ -788,7 +789,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     gap: theme.spacing.md,
   },
   backButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     padding: 4,
+  },
+  backLabel: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 17,
+    color: '#fff',
   },
   streamingBadge: {
     flexDirection: 'row' as const,
