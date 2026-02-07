@@ -127,9 +127,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.lg,
   },
   topBar: {
-    flexDirection: "row" as const,
-    justifyContent: "space-between" as const,
-    alignItems: "baseline" as const,
     paddingHorizontal: 4,
     paddingTop: theme.spacing.xs,
   },
