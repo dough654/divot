@@ -424,8 +424,9 @@ export default function CameraScreen() {
       {/* Connection Status - top bar in portrait only (landscape moves to side panel) */}
       {!isLandscape && (
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={28} color="#fff" />
+          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
+            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Text style={styles.backLabel}>Home</Text>
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
           {isRecording && (
