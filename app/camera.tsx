@@ -264,7 +264,7 @@ export default function CameraScreen() {
         withTiming(1, { duration: 0 }),
         withDelay(400, withTiming(1, { duration: 0 })),
       ),
-      4,
+      8,
     );
 
     // Fade from 0.7→0 as ring expands, snap back for each cycle, then fade out
@@ -276,7 +276,7 @@ export default function CameraScreen() {
           withTiming(0.7, { duration: 0 }),
           withDelay(400, withTiming(0.7, { duration: 0 })),
         ),
-        4,
+        8,
       ),
       withTiming(0, { duration: 300 }),
     );
