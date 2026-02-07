@@ -46,7 +46,7 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.topBar}>
-        <Text style={styles.brandMark}>swinglink</Text>
+        <Text style={styles.brandMark}>swing<Text style={styles.brandAccent}>link</Text></Text>
         <Text style={styles.versionText}>v1.0</Text>
       </View>
 
@@ -118,6 +118,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     color: theme.colors.text,
     textTransform: 'lowercase' as const,
     letterSpacing: -0.5,
+  },
+  brandAccent: {
+    color: theme.colors.accent,
   },
   versionText: {
     fontFamily: theme.fontFamily.body,
