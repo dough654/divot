@@ -58,6 +58,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={isLandscape ? styles.stripsLandscape : styles.strips}>
+        <Text style={styles.sectionPrompt}>choose your role</Text>
         {strips.map((strip) => (
           <Link key={strip.href} href={strip.href} asChild>
             <Pressable
@@ -143,6 +144,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontFamily: theme.fontFamily.body,
     fontSize: 14,
     color: theme.colors.textTertiary,
+  },
+  sectionPrompt: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 15,
+    color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.xs,
   },
   strips: {
     flex: 1,
