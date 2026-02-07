@@ -516,36 +516,33 @@ export default function CameraScreen() {
         {/* Floating QR Button — bottom-left */}
         {(cameraState === 'connecting' || (cameraState === 'previewing' && !isConnected)) && (
           <View style={[styles.floatingQRContainer, { bottom: insets.bottom + 24 }]}>
-            {/* Tooltip label — above button */}
+            {/* Pulse ring — behind button */}
+            {showHint && !isButtonLoading && (
+              <Animated.View style={[styles.hintRing, hintRingAnimatedStyle]} />
+            )}
+
+            {/* QR button */}
+            <Pressable
+              style={styles.floatingQRButton}
+              onPress={handleQRButtonPress}
+              disabled={isButtonLoading}
+              accessibilityRole="button"
+              accessibilityLabel={isButtonLoading ? 'Generating room code' : 'Show QR code'}
+            >
+              {isButtonLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="qr-code" size={26} color="#fff" />
+              )}
+            </Pressable>
+
+            {/* Tooltip — absolutely positioned above, no layout impact */}
             {showHint && !isButtonLoading && (
               <View style={styles.hintTooltip}>
                 <Text style={styles.hintTooltipText}>Tap to pair</Text>
                 <View style={styles.hintTooltipArrow} />
               </View>
             )}
-
-            {/* Button wrapper for ring + button layering */}
-            <View style={styles.hintButtonWrapper}>
-              {/* Pulse ring — behind button */}
-              {showHint && !isButtonLoading && (
-                <Animated.View style={[styles.hintRing, hintRingAnimatedStyle]} />
-              )}
-
-              {/* QR button */}
-              <Pressable
-                style={styles.floatingQRButton}
-                onPress={handleQRButtonPress}
-                disabled={isButtonLoading}
-                accessibilityRole="button"
-                accessibilityLabel={isButtonLoading ? 'Generating room code' : 'Show QR code'}
-              >
-                {isButtonLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="qr-code" size={26} color="#fff" />
-                )}
-              </Pressable>
-            </View>
           </View>
         )}
 
@@ -747,14 +744,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   floatingQRContainer: {
     position: 'absolute' as const,
     left: 20,
-    alignItems: 'center' as const,
-    zIndex: 10,
-  },
-  hintButtonWrapper: {
     width: 52,
     height: 52,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    zIndex: 10,
   },
   floatingQRButton: {
     width: 52,
@@ -773,7 +765,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     borderColor: theme.colors.accent,
   },
   hintTooltip: {
-    marginBottom: 6,
+    position: 'absolute' as const,
+    bottom: 58,
+    alignSelf: 'center' as const,
     backgroundColor: 'rgba(0,0,0,0.7)',
     paddingVertical: 6,
     paddingHorizontal: 12,
