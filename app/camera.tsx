@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Modal, Alert, Linking } from 'react-native';
+import { View, Text, Pressable, Modal, Alert, Linking, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +8,7 @@ import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vi
 import { useTheme, useToast } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
 import type { Theme } from '@/src/context';
-import { QRCodeDisplay, QRCodeButton } from '@/src/components/pairing';
+import { QRCodeDisplay } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import {
   RecordingButton,
@@ -32,7 +32,7 @@ import type { Clip } from '@/src/types/recording';
 
 const MIN_LOADING_TIME_MS = 800;
 
-type CameraState = 'connecting' | 'previewing' | 'armed' | 'recording' | 'reviewing';
+type CameraState = 'connecting' | 'previewing' | 'recording' | 'reviewing';
 
 export default function CameraScreen() {
   const { theme } = useTheme();
@@ -42,7 +42,6 @@ export default function CameraScreen() {
   const insets = useSafeAreaInsets();
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
   const [showQRModal, setShowQRModal] = useState(false);
-  const [isPulsing, setIsPulsing] = useState(true);
   const [isButtonLoading, setIsButtonLoading] = useState(true);
   const loadingStartTime = useState(() => Date.now())[0];
 
@@ -305,22 +304,7 @@ export default function CameraScreen() {
 
   const handleQRButtonPress = () => {
     setShowQRModal(true);
-    if (isPulsing) {
-      setIsPulsing(false);
-    }
   };
-
-  // Arm recording (no camera switch needed)
-  const armRecording = useCallback(() => {
-    setRecordingError(null);
-    setLastRecordedClip(null);
-    setCameraState('armed');
-  }, []);
-
-  // Disarm recording
-  const disarmRecording = useCallback(() => {
-    setCameraState('previewing');
-  }, []);
 
   // Start recording
   const handleStartRecording = useCallback(() => {
@@ -330,6 +314,7 @@ export default function CameraScreen() {
     }
 
     setRecordingError(null);
+    setLastRecordedClip(null);
     setCameraState('recording');
 
     recorderRef.current.startRecording({
@@ -348,14 +333,14 @@ export default function CameraScreen() {
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : 'Failed to save recording';
           setRecordingError(errorMsg);
-          setCameraState('armed');
+          setCameraState('previewing');
           showToast(`Save Failed: ${errorMsg}`, { variant: 'error' });
         }
       },
       onRecordingError: (error: unknown) => {
         const errorMsg = error instanceof Error ? error.message : 'Recording failed';
         setRecordingError(errorMsg);
-        setCameraState('armed');
+        setCameraState('previewing');
         showToast(`Recording Error: ${errorMsg}`, { variant: 'error' });
       },
     });
@@ -411,7 +396,8 @@ export default function CameraScreen() {
   // Record again from reviewing state
   const handleRecordAgain = useCallback(() => {
     setLastRecordedClip(null);
-    setCameraState('armed');
+    setRecordingError(null);
+    setCameraState('previewing');
   }, []);
 
   const showVisionCamera = visionDevice && hasCameraPermission;
@@ -483,165 +469,72 @@ export default function CameraScreen() {
           </View>
         </View>
 
-        {/* Controls */}
-        <View style={[styles.bottomBar, { bottom: insets.bottom }]}>
-        <View>
-        {cameraState === 'connecting' && (
-          <>
-            {/* QR Code Button */}
-            <QRCodeButton
-              roomCode={roomCode ? formatRoomCode(roomCode) : null}
-              onPress={handleQRButtonPress}
-              isPulsing={isPulsing}
-              isLoading={isButtonLoading}
+        {/* Floating QR Button — bottom-left */}
+        {(cameraState === 'connecting' || (cameraState === 'previewing' && !isConnected)) && (
+          <Pressable
+            style={[styles.floatingQRButton, { bottom: insets.bottom + 24 }]}
+            onPress={handleQRButtonPress}
+            disabled={isButtonLoading}
+            accessibilityRole="button"
+            accessibilityLabel={isButtonLoading ? 'Generating room code' : 'Show QR code'}
+          >
+            {isButtonLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="qr-code" size={22} color="#fff" />
+            )}
+          </Pressable>
+        )}
+
+        {/* Floating Record Button — bottom-center */}
+        {(cameraState === 'previewing' || cameraState === 'recording') && (
+          <View style={[styles.floatingRecordButton, { bottom: insets.bottom + 16 }]}>
+            <RecordingButton
+              isRecording={isRecording}
+              onPress={handleRecordPress}
+              disabled={!visionDevice || !hasCameraPermission}
+              size={64}
             />
-          </>
+          </View>
         )}
 
-        {cameraState === 'previewing' && (
-          <>
-            {/* QR Code Button - when not connected */}
-            {!isConnected && (
-              <QRCodeButton
-                roomCode={roomCode ? formatRoomCode(roomCode) : null}
-                onPress={handleQRButtonPress}
-                isPulsing={isPulsing}
-                isLoading={isButtonLoading}
-              />
-            )}
-
-            {/* Connected - streaming badge */}
-            {isConnected && (
-              <View style={styles.connectedSection}>
-                <View style={styles.connectedBadge}>
-                  <Ionicons name="videocam" size={18} color={theme.colors.success} />
-                  <Text style={styles.connectedText}>Streaming to viewer</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Arm recording button */}
-            <Pressable
-              style={styles.armButton}
-              onPress={armRecording}
-              accessibilityRole="button"
-              accessibilityLabel="Arm Recording"
-              accessibilityHint="Enter recording mode. Preview continues while recording"
-            >
-              <View style={styles.armButtonIcon}>
-                <Ionicons name="radio-button-on" size={20} color={theme.colors.recording} />
-              </View>
-              <Text style={styles.armButtonText}>
-                Arm Recording
-              </Text>
-              <Text style={styles.armButtonSubtext}>
-                Preview continues while recording
-              </Text>
-            </Pressable>
-          </>
-        )}
-
-        {cameraState === 'armed' && (
-          <>
-            {/* Record button */}
-            <View style={styles.recordingControls}>
-              <RecordingButton
-                isRecording={false}
-                onPress={handleRecordPress}
-                disabled={!visionDevice || !hasCameraPermission}
-              />
-            </View>
-
-            {/* Disarm button */}
-            <Pressable
-              style={styles.disarmButton}
-              onPress={disarmRecording}
-              accessibilityRole="button"
-              accessibilityLabel="Disarm"
-              accessibilityHint="Exit recording mode and return to preview"
-            >
-              <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
-              <Text style={styles.disarmButtonText}>
-                Disarm
-              </Text>
-            </Pressable>
-          </>
-        )}
-
-        {cameraState === 'recording' && (
-          <>
-            {/* Stop button */}
-            <View style={styles.recordingControls}>
-              <RecordingButton
-                isRecording={true}
-                onPress={handleRecordPress}
-                disabled={false}
-              />
-            </View>
-          </>
-        )}
-
+        {/* Floating Review Controls — bottom-center row of pills */}
         {cameraState === 'reviewing' && (
-          <>
-            {/* Sync to viewer button */}
+          <View style={[styles.floatingReviewControls, { bottom: insets.bottom + 24 }]}>
             {lastRecordedClip && (
               <Pressable
-                style={[
-                  styles.syncButton,
-                  isSyncReady ? styles.syncButtonReady : styles.syncButtonDisabled,
-                ]}
+                style={[styles.reviewPill, isSyncReady ? styles.reviewPillPrimary : styles.reviewPillDisabled]}
                 onPress={handleSyncClip}
                 disabled={!isSyncReady}
                 accessibilityRole="button"
                 accessibilityLabel={isSyncReady ? 'Sync to Viewer' : 'Connect viewer to sync'}
-                accessibilityHint={isSyncReady ? 'Transfer the recorded clip to the viewer device' : 'A viewer must be connected to sync clips'}
-                accessibilityState={{ disabled: !isSyncReady }}
               >
-                <Ionicons
-                  name="cloud-upload"
-                  size={20}
-                  color={isSyncReady ? '#fff' : '#888'}
-                />
-                <Text style={[
-                  styles.syncButtonText,
-                  !isSyncReady && styles.syncButtonTextDisabled,
-                ]}>
-                  {isSyncReady ? 'Sync to Viewer' : 'Connect viewer to sync'}
+                <Ionicons name="cloud-upload" size={16} color={isSyncReady ? '#fff' : '#888'} />
+                <Text style={[styles.reviewPillText, !isSyncReady && styles.reviewPillTextDisabled]}>
+                  Sync to Viewer
                 </Text>
               </Pressable>
             )}
 
-            {/* Record again */}
             <Pressable
-              style={styles.secondaryButton}
+              style={[styles.reviewPill, styles.reviewPillSecondary]}
               onPress={handleRecordAgain}
               accessibilityRole="button"
               accessibilityLabel="Record Again"
-              accessibilityHint="Start a new recording"
             >
-              <Ionicons name="videocam" size={20} color={theme.colors.text} />
-              <Text style={styles.secondaryButtonText}>
-                Record Again
-              </Text>
+              <Text style={styles.reviewPillText}>Record Again</Text>
             </Pressable>
 
-            {/* Disarm */}
             <Pressable
-              style={styles.disarmButton}
-              onPress={disarmRecording}
+              style={[styles.reviewPill, styles.reviewPillDismiss]}
+              onPress={() => { setLastRecordedClip(null); setCameraState('previewing'); }}
               accessibilityRole="button"
-              accessibilityLabel="Disarm"
-              accessibilityHint="Exit recording mode and return to preview"
+              accessibilityLabel="Discard recording"
             >
-              <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
-              <Text style={styles.disarmButtonText}>
-                Disarm
-              </Text>
+              <Text style={styles.reviewPillText}>Discard</Text>
             </Pressable>
-          </>
+          </View>
         )}
-        </View>
-        </View>
       </View>
 
       {/* QR Code Modal */}
@@ -775,114 +668,60 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     top: theme.spacing.lg,
     left: theme.spacing.lg,
   },
-  bottomBar: {
+  floatingQRButton: {
     position: 'absolute' as const,
-    bottom: 0,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    zIndex: 10,
+  },
+  floatingRecordButton: {
+    position: 'absolute' as const,
+    alignSelf: 'center' as const,
+    zIndex: 10,
+  },
+  floatingReviewControls: {
+    position: 'absolute' as const,
     left: 0,
     right: 0,
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    gap: 8,
     zIndex: 10,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    gap: theme.spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: theme.borderRadius.md,
   },
-  connectedSection: {
-    marginBottom: theme.spacing.sm,
-  },
-  connectedBadge: {
+  reviewPill: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.successBackground,
-    borderRadius: theme.borderRadius.sm,
+    gap: 6,
     paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
   },
-  connectedText: {
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fontFamily.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.success,
-  },
-  armButton: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  armButtonIcon: {
-    marginBottom: theme.spacing.sm,
-  },
-  armButtonText: {
-    fontSize: theme.fontSize.md,
-    fontFamily: theme.fontFamily.display,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
-  },
-  armButtonSubtext: {
-    fontSize: 15,
-    fontFamily: theme.fontFamily.body,
-    color: theme.colors.textSecondary,
-  },
-  recordingControls: {
-    alignItems: 'center' as const,
-    paddingVertical: theme.spacing.lg,
-  },
-  syncButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    gap: theme.spacing.sm,
-    borderRadius: theme.borderRadius.sm,
-    paddingVertical: theme.spacing.md,
-  },
-  syncButtonReady: {
+  reviewPillPrimary: {
     backgroundColor: theme.colors.secondary,
   },
-  syncButtonDisabled: {
-    backgroundColor: theme.colors.surface,
+  reviewPillSecondary: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
-  syncButtonText: {
+  reviewPillDisabled: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  reviewPillDismiss: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  reviewPillText: {
     fontSize: theme.fontSize.sm,
     fontFamily: theme.fontFamily.body,
     fontWeight: theme.fontWeight.semibold,
-    color: theme.palette.white,
+    color: '#fff',
   },
-  syncButtonTextDisabled: {
-    color: theme.colors.textTertiary,
-  },
-  secondaryButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.backgroundTertiary,
-    borderRadius: theme.borderRadius.sm,
-    paddingVertical: theme.spacing.md,
-  },
-  secondaryButtonText: {
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fontFamily.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text,
-  },
-  disarmButton: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    gap: theme.spacing.sm,
-    backgroundColor: theme.colors.backgroundTertiary,
-    borderRadius: theme.borderRadius.sm,
-    paddingVertical: theme.spacing.md,
-  },
-  disarmButtonText: {
-    fontSize: theme.fontSize.sm,
-    fontFamily: theme.fontFamily.body,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text,
+  reviewPillTextDisabled: {
+    color: '#888',
   },
   modalOverlay: {
     flex: 1,
