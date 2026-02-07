@@ -83,13 +83,15 @@ export default function HomeScreen() {
       <View style={styles.bottomBar}>
         <Link href="/settings" asChild>
           <Pressable
-            style={styles.settingsLink}
-            android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim, borderless: true } : undefined}
+            style={StyleSheet.flatten(styles.settingsLink)}
+            android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim } : undefined}
             accessibilityRole="button"
             accessibilityLabel="Settings"
             accessibilityHint="Open app settings"
           >
-            <Text style={styles.settingsText}>settings →</Text>
+            <Ionicons name="settings-outline" size={20} color={theme.colors.textSecondary} />
+            <Text style={styles.settingsText}>Settings</Text>
+            <Text style={styles.settingsArrow}>→</Text>
           </Pressable>
         </Link>
       </View>
@@ -177,17 +179,25 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     color: theme.colors.accent,
   },
   bottomBar: {
-    paddingVertical: theme.spacing.md,
-    alignItems: 'flex-end' as const,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
   },
   settingsLink: {
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.xs,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: theme.spacing.lg,
   },
   settingsText: {
+    flex: 1,
     fontFamily: theme.fontFamily.body,
-    fontSize: 15,
+    fontSize: 17,
+    color: theme.colors.textSecondary,
+  },
+  settingsArrow: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 18,
     color: theme.colors.textTertiary,
-    textTransform: 'lowercase' as const,
   },
 }));
