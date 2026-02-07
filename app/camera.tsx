@@ -535,14 +535,14 @@ export default function CameraScreen() {
                 <Ionicons name="qr-code" size={26} color="#fff" />
               )}
             </Pressable>
+          </View>
+        )}
 
-            {/* Tooltip — absolutely positioned above, no layout impact */}
-            {showHint && !isButtonLoading && (
-              <View style={styles.hintTooltip}>
-                <Text style={styles.hintTooltipText}>Tap to pair</Text>
-                <View style={styles.hintTooltipArrow} />
-              </View>
-            )}
+        {/* Tooltip — positioned independently to avoid container width constraint */}
+        {(cameraState === 'connecting' || (cameraState === 'previewing' && !isConnected)) && showHint && !isButtonLoading && (
+          <View style={[styles.hintTooltip, { bottom: insets.bottom + 86 }]}>
+            <Text style={styles.hintTooltipText}>Tap to pair</Text>
+            <View style={styles.hintTooltipArrow} />
           </View>
         )}
 
@@ -765,25 +765,21 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   hintTooltip: {
     position: 'absolute' as const,
-    bottom: 58,
-    left: 0,
+    left: 56,
     backgroundColor: 'rgba(0,0,0,0.7)',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 14,
+    zIndex: 10,
   },
   hintTooltipArrow: {
     position: 'absolute' as const,
-    bottom: -5,
-    left: 20,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 5,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: 'rgba(0,0,0,0.7)',
+    bottom: -4,
+    left: 6,
+    width: 10,
+    height: 10,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    transform: [{ rotate: '45deg' }],
   },
   hintTooltipText: {
     color: '#fff',
