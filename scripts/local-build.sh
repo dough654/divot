@@ -64,7 +64,7 @@ resolve_android_device() {
   local model_pattern
   case "${name}" in
     s22)        model_pattern="SM_S908" ;;  # Galaxy S22 Ultra
-    s10-tablet) model_pattern="SM_T" ;;     # Galaxy Tab S10 FE (update when known)
+    s10-tablet) model_pattern="SM_X52" ;;    # Galaxy Tab S10 FE (SM-X520 WiFi / SM-X526 5G)
     *)          echo "Unknown Android device name: ${name}" >&2; return 1 ;;
   esac
 

@@ -50,12 +50,15 @@ const requestBLEPermissions = async (): Promise<BLEPermissionStatus> => {
     return 'denied';
   }
 
-  // Android 12+ (API 31) requires runtime BLE permissions
+  // Android 12+ (API 31) requires runtime BLE permissions.
+  // ACCESS_FINE_LOCATION is also needed on Samsung devices even on API 31+
+  // for BLE scan results to be delivered.
   if (Platform.Version >= 31) {
     const results = await PermissionsAndroid.requestMultiple([
       PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
       PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
       PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADVERTISE,
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
     ]);
 
     const allGranted = Object.values(results).every(
