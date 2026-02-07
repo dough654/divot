@@ -765,7 +765,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   hintTooltip: {
     position: 'absolute' as const,
-    left: 56,
+    left: 36,
     flexDirection: 'row' as const,
     backgroundColor: 'rgba(0,0,0,0.7)',
     paddingVertical: 6,
