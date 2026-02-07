@@ -1,6 +1,6 @@
 import { View, Text, Pressable, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 
@@ -255,10 +255,7 @@ export default function ViewerScreen() {
   }, [proceedWithConnection]);
 
   return (
-    <SafeAreaView
-      style={styles.container}
-      edges={isLandscape ? ['bottom', 'left', 'right'] : ['bottom']}
-    >
+    <View style={styles.container}>
       {/* Connection Status - top bar or overlay */}
       {isLandscape && isConnected ? (
         <View style={[styles.topBarOverlay, { top: insets.top }]}>
@@ -342,7 +339,7 @@ export default function ViewerScreen() {
         onCancel={cancelTransfer}
         onDismiss={() => setShowTransferModal(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
