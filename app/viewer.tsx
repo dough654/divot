@@ -11,7 +11,7 @@ import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import { TransferProgressModal } from '@/src/components/clip-sync';
-import { Button, ErrorDetail } from '@/src/components/ui';
+import { ErrorDetail } from '@/src/components/ui';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
@@ -282,35 +282,41 @@ export default function ViewerScreen() {
         )}
       </View>
 
-      {/* Actions */}
-      <View style={[styles.bottomBar, { bottom: 10 + insets.bottom }]}>
-        {isScanning && !useManualEntry && (
-          <Button
-            title="Enter Code Manually"
-            onPress={() => setUseManualEntry(true)}
-            variant="secondary"
-            icon="keypad-outline"
-          />
-        )}
+      {/* Floating manual entry pill */}
+      {isScanning && !useManualEntry && (
+        <Pressable
+          style={[styles.manualEntryPill, { bottom: insets.bottom + 24 }]}
+          onPress={() => setUseManualEntry(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Enter code manually"
+        >
+          <Ionicons name="keypad-outline" size={16} color="#fff" />
+          <Text style={styles.manualEntryPillText}>Enter Code</Text>
+        </Pressable>
+      )}
 
-        {(connectionStep === 'failed' || connectionStep === 'reconnect-failed') && currentError && (
-          <ErrorDetail
-            error={currentError}
-            onAction={handleErrorAction}
-          />
-        )}
+      {/* Error / Connection info bar */}
+      {((connectionStep === 'failed' || connectionStep === 'reconnect-failed') && currentError || isConnected) && (
+        <View style={[styles.bottomBar, { bottom: 10 + insets.bottom }]}>
+          {(connectionStep === 'failed' || connectionStep === 'reconnect-failed') && currentError && (
+            <ErrorDetail
+              error={currentError}
+              onAction={handleErrorAction}
+            />
+          )}
 
-        {isConnected && (
-          <View style={styles.qualityInfo}>
-            <Text style={styles.qualityLabel}>
-              Preview
-            </Text>
-            <Text style={styles.qualityValue}>
-              {remoteStream ? 'Live' : 'Waiting...'}
-            </Text>
-          </View>
-        )}
-      </View>
+          {isConnected && (
+            <View style={styles.qualityInfo}>
+              <Text style={styles.qualityLabel}>
+                Preview
+              </Text>
+              <Text style={styles.qualityValue}>
+                {remoteStream ? 'Live' : 'Waiting...'}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Transfer Progress Modal */}
       <TransferProgressModal
@@ -360,6 +366,24 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontFamily: theme.fontFamily.body,
     fontSize: 14,
     color: theme.colors.textSecondary,
+  },
+  manualEntryPill: {
+    position: 'absolute' as const,
+    alignSelf: 'center' as const,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    zIndex: 10,
+  },
+  manualEntryPillText: {
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#fff',
   },
   bottomBar: {
     position: 'absolute' as const,
