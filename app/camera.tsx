@@ -744,9 +744,8 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   floatingQRContainer: {
     position: 'absolute' as const,
     left: 20,
-    width: 52,
-    height: 52,
     zIndex: 10,
+    overflow: 'visible' as const,
   },
   floatingQRButton: {
     width: 52,
@@ -767,16 +766,16 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   hintTooltip: {
     position: 'absolute' as const,
     bottom: 58,
-    alignSelf: 'center' as const,
+    left: 0,
     backgroundColor: 'rgba(0,0,0,0.7)',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 14,
-    alignItems: 'center' as const,
   },
   hintTooltipArrow: {
     position: 'absolute' as const,
     bottom: -5,
+    left: 20,
     width: 0,
     height: 0,
     borderLeftWidth: 6,
