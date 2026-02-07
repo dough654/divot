@@ -1,20 +1,15 @@
-import { StyleSheet, View, Pressable } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useRef, forwardRef, useImperativeHandle } from 'react';
 import { Camera, CameraDevice, VideoFile, type ReadonlyFrameProcessor } from 'react-native-vision-camera';
 import { File } from 'expo-file-system';
-import { Ionicons } from '@expo/vector-icons';
 
 export type VisionCameraRecorderProps = {
   /** The camera device to use. */
   device: CameraDevice;
   /** Whether the camera is active. */
   isActive: boolean;
-  /** Whether to use the front camera (for mirroring). */
-  isFrontCamera: boolean;
   /** Whether audio recording is enabled. Defaults to true. */
   audio?: boolean;
-  /** Callback when camera flip is requested. */
-  onFlipCamera?: () => void;
   /** Optional frame processor for native WebRTC streaming. */
   frameProcessor?: ReadonlyFrameProcessor;
 };
@@ -40,7 +35,7 @@ export type VisionCameraRecorderRef = {
  * preview appears correctly oriented in landscape.
  */
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
-  ({ device, isActive, audio = true, onFlipCamera, frameProcessor }, ref) => {
+  ({ device, isActive, audio = true, frameProcessor }, ref) => {
     const cameraRef = useRef<Camera>(null);
 
     useImperativeHandle(ref, () => ({
@@ -95,17 +90,6 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           audio={audio}
           frameProcessor={frameProcessor}
         />
-        {onFlipCamera && (
-          <Pressable
-            style={styles.flipButton}
-            onPress={onFlipCamera}
-            accessibilityRole="button"
-            accessibilityLabel="Flip camera"
-            accessibilityHint="Switch between front and back camera"
-          >
-            <Ionicons name="camera-reverse" size={28} color="#fff" />
-          </Pressable>
-        )}
       </View>
     );
   }
@@ -122,16 +106,5 @@ const styles = StyleSheet.create({
   },
   camera: {
     flex: 1,
-  },
-  flipButton: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

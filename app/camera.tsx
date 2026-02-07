@@ -65,7 +65,6 @@ export default function CameraScreen() {
     isRequestingPermissions,
     error: visionCameraError,
     toggleCamera,
-    isFrontCamera,
   } = useVisionCamera({ autoRequestPermissions: true });
 
   // Track if we've shown the microphone warning
@@ -439,9 +438,7 @@ export default function CameraScreen() {
                 ref={recorderRef}
                 device={visionDevice}
                 isActive={true}
-                isFrontCamera={isFrontCamera}
                 audio={hasMicrophonePermission}
-                onFlipCamera={toggleCamera}
                 frameProcessor={frameProcessor}
               />
             ) : (
@@ -483,6 +480,19 @@ export default function CameraScreen() {
             ) : (
               <Ionicons name="qr-code" size={22} color="#fff" />
             )}
+          </Pressable>
+        )}
+
+        {/* Floating Flip Camera Button — bottom-right */}
+        {(cameraState === 'connecting' || cameraState === 'previewing') && (
+          <Pressable
+            style={[styles.floatingFlipButton, { bottom: insets.bottom + 24 }]}
+            onPress={toggleCamera}
+            accessibilityRole="button"
+            accessibilityLabel="Flip camera"
+            accessibilityHint="Switch between front and back camera"
+          >
+            <Ionicons name="camera-reverse" size={22} color="#fff" />
           </Pressable>
         )}
 
@@ -671,6 +681,17 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   floatingQRButton: {
     position: 'absolute' as const,
     left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    zIndex: 10,
+  },
+  floatingFlipButton: {
+    position: 'absolute' as const,
+    right: 20,
     width: 44,
     height: 44,
     borderRadius: 22,
