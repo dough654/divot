@@ -255,7 +255,9 @@ export default function ViewerScreen() {
           <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
           <Text style={styles.backLabel}>{useManualEntry ? 'Scanner' : 'Home'}</Text>
         </Pressable>
-        <ConnectionStatus step={connectionStep} quality={quality} compact />
+        {!useManualEntry && (
+          <ConnectionStatus step={connectionStep} quality={quality} compact />
+        )}
       </View>
 
       {/* Video or Scanner or Manual Entry */}
