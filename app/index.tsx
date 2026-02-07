@@ -114,7 +114,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   brandMark: {
     fontFamily: theme.fontFamily.display,
-    fontSize: 32,
+    fontSize: 48,
     color: theme.colors.text,
     textTransform: 'lowercase' as const,
     letterSpacing: -0.5,
