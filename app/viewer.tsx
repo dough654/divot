@@ -8,7 +8,7 @@ import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useTheme } from '@/src/context';
 import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
-import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
+import { QRCodeScanner, ManualCodeEntry, NearbyDevices } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { ErrorDetail } from '@/src/components/ui';
@@ -17,6 +17,7 @@ import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
+import { useBLEScanning } from '@/src/hooks/use-ble-discovery';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import { connectionErrors, getSignalingError } from '@/src/utils/error-messages';
 import type { ConnectionStep } from '@/src/types';
@@ -35,6 +36,12 @@ export default function ViewerScreen() {
 
   const roomCodeRef = useRef<string | null>(null);
   const [wasConnected, setWasConnected] = useState(false);
+
+  // BLE scanning for nearby cameras (silently disabled if permissions denied)
+  const {
+    isScanning: isBLEScanning,
+    devices: nearbyDevices,
+  } = useBLEScanning({ enabled: isScanning && !useManualEntry });
 
   // Hooks
   const {
@@ -207,6 +214,16 @@ export default function ViewerScreen() {
     }
   }, [proceedWithConnection, handleRescan]);
 
+  // Handle nearby device selection (connect via signaling server using room code from BLE)
+  const handleDeviceSelect = useCallback(async (device: { roomCode: string }) => {
+    if (isProcessingScan.current) return;
+
+    isProcessingScan.current = true;
+    setIsScanning(false);
+
+    await proceedWithConnection(device.roomCode);
+  }, [proceedWithConnection]);
+
   // Handle manual code entry
   const handleManualCodeSubmit = useCallback(async (code: string) => {
     if (isProcessingScan.current) return;
@@ -250,10 +267,19 @@ export default function ViewerScreen() {
               isSubmitting={connectionStep === 'exchanging-signaling'}
             />
           ) : (
-            <QRCodeScanner
-              onScan={handleScan}
-              isScanning={isScanning}
-            />
+            <View style={styles.scannerLayout}>
+              <NearbyDevices
+                devices={nearbyDevices}
+                isScanning={isBLEScanning}
+                onDeviceSelect={handleDeviceSelect}
+              />
+              <View style={styles.qrScannerContainer}>
+                <QRCodeScanner
+                  onScan={handleScan}
+                  isScanning={isScanning}
+                />
+              </View>
+            </View>
           )
         ) : (
           <View style={styles.connectingContainer}>
@@ -337,6 +363,12 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   mainContent: {
     flex: 1,
     overflow: 'hidden' as const,
+  },
+  scannerLayout: {
+    flex: 1,
+  },
+  qrScannerContainer: {
+    flex: 1,
   },
   connectingContainer: {
     flex: 1,
