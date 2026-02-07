@@ -267,7 +267,7 @@ export default function CameraScreen() {
       4,
     );
 
-    // Fade from 0.7→0 as ring expands, snap back to 0.7 for each cycle
+    // Fade from 0.7→0 as ring expands, snap back for each cycle, then fade out
     hintRingOpacity.value = withSequence(
       withTiming(0.7, { duration: 0 }),
       withRepeat(
@@ -278,6 +278,7 @@ export default function CameraScreen() {
         ),
         4,
       ),
+      withTiming(0, { duration: 300 }),
     );
   }, [showHint, isButtonLoading]);
 
