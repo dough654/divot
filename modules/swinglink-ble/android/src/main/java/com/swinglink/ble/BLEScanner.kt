@@ -68,6 +68,7 @@ class BLEScanner(private val context: Context) {
   /** Starts scanning for SwingLink BLE advertisers. */
   @Suppress("MissingPermission")
   fun startScanning() {
+    Log.i(TAG, "startScanning called")
     val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     val adapter = bluetoothManager?.adapter
     if (adapter == null || !adapter.isEnabled) {
@@ -91,6 +92,7 @@ class BLEScanner(private val context: Context) {
       .setReportDelay(0)
       .build()
 
+    Log.i(TAG, "Starting BLE scan with service filter ${BLEConstants.SERVICE_UUID}")
     scanner.startScan(listOf(filter), settings, scanCallback)
     handler.postDelayed(stalenessRunnable, STALENESS_INTERVAL_MS)
   }
@@ -145,9 +147,11 @@ class BLEScanner(private val context: Context) {
     // Fast path: read service data from advertisement (Android advertiser)
     val serviceData = result.scanRecord?.getServiceData(BLEConstants.SERVICE_PARCEL_UUID)
     if (serviceData != null) {
+      Log.d(TAG, "Fast path: service data found for $deviceAddress (${serviceData.size} bytes)")
       val parsed = BLEConstants.unpackPayload(serviceData)
       if (parsed != null) {
         val (platform, roomCode, _) = parsed
+        Log.i(TAG, "Device found (fast): address=$deviceAddress, platform=$platform, roomCode=$roomCode, rssi=$rssi")
         val deviceInfo = mutableMapOf<String, Any?>(
           "id" to deviceAddress,
           "name" to deviceName,
@@ -164,9 +168,11 @@ class BLEScanner(private val context: Context) {
 
     // Slow path: GATT connect + characteristic read (iOS advertiser)
     if (pendingGattConnections.containsKey(deviceAddress)) return
+    Log.i(TAG, "Slow path: connecting to $deviceAddress for GATT read (name=$deviceName, rssi=$rssi)")
 
     val gattCallback = object : BluetoothGattCallback() {
       override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+        Log.d(TAG, "GATT onConnectionStateChange: address=$deviceAddress, status=$status, newState=$newState")
         if (newState == BluetoothProfile.STATE_CONNECTED) {
           gatt?.discoverServices()
         } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
@@ -176,15 +182,20 @@ class BLEScanner(private val context: Context) {
       }
 
       override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
+        val serviceUUIDs = gatt?.services?.map { it.uuid.toString() } ?: emptyList()
+        Log.d(TAG, "GATT onServicesDiscovered: address=$deviceAddress, status=$status, services=$serviceUUIDs")
         if (status != BluetoothGatt.GATT_SUCCESS) {
+          Log.w(TAG, "Service discovery failed (status=$status)")
           gatt?.disconnect()
           return
         }
         val service = gatt?.getService(BLEConstants.SERVICE_UUID)
         val characteristic = service?.getCharacteristic(BLEConstants.PAYLOAD_CHARACTERISTIC_UUID)
         if (characteristic != null) {
+          Log.d(TAG, "Found our characteristic, reading value...")
           gatt.readCharacteristic(characteristic)
         } else {
+          Log.w(TAG, "Service or characteristic not found (service=${service != null})")
           gatt?.disconnect()
         }
       }
@@ -196,14 +207,22 @@ class BLEScanner(private val context: Context) {
       ) {
         gatt?.disconnect()
 
-        if (status != BluetoothGatt.GATT_SUCCESS) return
+        if (status != BluetoothGatt.GATT_SUCCESS) {
+          Log.w(TAG, "Characteristic read failed (status=$status)")
+          return
+        }
 
         @Suppress("DEPRECATION")
         val value = characteristic?.value ?: return
-        val parsed = BLEConstants.unpackPayload(value) ?: return
+        val parsed = BLEConstants.unpackPayload(value)
+        if (parsed == null) {
+          Log.w(TAG, "Failed to unpack payload (${value.size} bytes)")
+          return
+        }
 
         val (platform, roomCode, _) = parsed
         val currentRssi = rssi
+        Log.i(TAG, "Device found (slow): address=$deviceAddress, platform=$platform, roomCode=$roomCode, rssi=$currentRssi")
         val deviceInfo = mutableMapOf<String, Any?>(
           "id" to deviceAddress,
           "name" to deviceName,

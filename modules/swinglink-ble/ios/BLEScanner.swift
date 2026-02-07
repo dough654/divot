@@ -1,5 +1,8 @@
 import CoreBluetooth
 import Foundation
+import os.log
+
+private let logger = Logger(subsystem: "com.swinglink.ble", category: "BLEScanner")
 
 /// Scans for nearby SwingLink BLE advertisers and reads their payloads via GATT.
 ///
@@ -40,8 +43,10 @@ class BLEScanner: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
   /// Starts scanning for SwingLink BLE advertisers.
   func startScanning() {
+    logger.info("startScanning called")
     if centralManager == nil {
       centralManager = CBCentralManager(delegate: self, queue: nil)
+      logger.info("Created CBCentralManager, waiting for poweredOn")
     } else if centralManager?.state == .poweredOn {
       beginScanning()
     }
@@ -67,6 +72,7 @@ class BLEScanner: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
   // MARK: - CBCentralManagerDelegate
 
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
+    logger.info("centralManagerDidUpdateState: \(central.state.rawValue)")
     if central.state == .poweredOn {
       beginScanning()
     }
@@ -99,6 +105,7 @@ class BLEScanner: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 
     // New peripheral — connect for GATT characteristic read
+    logger.info("New peripheral \(peripheralId), connecting for GATT read...")
     pendingPeripherals[peripheralId] = peripheral
     peripheral.delegate = self
     central.connect(peripheral, options: nil)
@@ -119,9 +126,16 @@ class BLEScanner: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
   // MARK: - CBPeripheralDelegate
 
   func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-    guard error == nil,
-          let service = peripheral.services?.first(where: { $0.uuid == BLEConstants.serviceUUID })
+    if let error = error {
+      logger.error("didDiscoverServices error: \(error.localizedDescription)")
+      cleanupPeripheral(peripheral)
+      return
+    }
+    let serviceUUIDs = peripheral.services?.map { $0.uuid.uuidString } ?? []
+    logger.info("didDiscoverServices: \(serviceUUIDs)")
+    guard let service = peripheral.services?.first(where: { $0.uuid == BLEConstants.serviceUUID })
     else {
+      logger.warning("Our service UUID not found in GATT table, disconnecting")
       cleanupPeripheral(peripheral)
       return
     }
@@ -151,10 +165,17 @@ class BLEScanner: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
   ) {
     defer { cleanupPeripheral(peripheral) }
 
-    guard error == nil,
-          let data = characteristic.value,
+    if let error = error {
+      logger.error("didUpdateValueFor error: \(error.localizedDescription)")
+      return
+    }
+    guard let data = characteristic.value,
           let payload = BLEConstants.unpackPayload(data)
-    else { return }
+    else {
+      logger.warning("Failed to unpack payload (data=\(characteristic.value?.count ?? 0) bytes)")
+      return
+    }
+    logger.info("Read payload: platform=\(payload.platform), roomCode=\(payload.roomCode)")
 
     let peripheralId = peripheral.identifier
     let rssi = rssiCache[peripheralId]?.intValue ?? -100
@@ -177,6 +198,7 @@ class BLEScanner: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
   // MARK: - Private
 
   private func beginScanning() {
+    logger.info("beginScanning: scanning for service \(BLEConstants.serviceUUID.uuidString)")
     centralManager?.scanForPeripherals(
       withServices: [BLEConstants.serviceUUID],
       options: [CBCentralManagerScanOptionAllowDuplicatesKey: true]

@@ -47,6 +47,7 @@ class BLEAdvertiser(private val context: Context) {
       characteristic: BluetoothGattCharacteristic?
     ) {
       val data = payloadData
+      Log.i(TAG, "GATT read request from ${device?.address} for ${characteristic?.uuid}")
       if (characteristic?.uuid == BLEConstants.PAYLOAD_CHARACTERISTIC_UUID && data != null) {
         if (offset >= data.size) {
           gattServer?.sendResponse(device, requestId, android.bluetooth.BluetoothGatt.GATT_INVALID_OFFSET, offset, null)
@@ -63,6 +64,7 @@ class BLEAdvertiser(private val context: Context) {
   /** Starts advertising with the given room code. */
   @Suppress("MissingPermission")
   fun startAdvertising(roomCode: String) {
+    Log.i(TAG, "startAdvertising called with roomCode=$roomCode")
     val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     val adapter = bluetoothManager?.adapter
     if (adapter == null || !adapter.isEnabled) {
