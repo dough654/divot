@@ -39,26 +39,21 @@ export default function ViewerScreen() {
   // Hooks
   const {
     connectionState: signalingConnectionState,
+    channel,
     connect: connectSignaling,
     reconnectSignaling,
     joinRoom,
     rejoinRoom,
-    sendAnswer,
-    sendIceCandidate,
-    onOffer,
-    onIceCandidate,
   } = useSignaling({ autoConnect: false });
 
   const {
     peerConnection,
     remoteStream,
-    handleOffer,
-    handleIceCandidate,
     isConnected,
     dataChannel,
     status: webrtcStatus,
   } = useWebRTCConnection({
-    onIceCandidate: sendIceCandidate,
+    signalingChannel: channel,
   });
 
   const { quality } = useConnectionQuality({
@@ -96,7 +91,7 @@ export default function ViewerScreen() {
     }
   }, [isConnected, wasConnected]);
 
-  // Auto-reconnect (viewer: restartIce/renegotiate/sendOffer are no-ops since camera initiates)
+  // Auto-reconnect (viewer: restartIce/renegotiate are no-ops since camera initiates)
   const noopSdpAction = useCallback(async () => null, []);
   const { reconnectionState } = useAutoReconnect({
     role: 'viewer',
@@ -108,7 +103,6 @@ export default function ViewerScreen() {
     isTransferring: isSyncing,
     restartIce: noopSdpAction,
     renegotiate: noopSdpAction,
-    sendOffer: () => {},
     reconnectSignaling,
     rejoinRoom,
   });
@@ -156,25 +150,6 @@ export default function ViewerScreen() {
 
     await proceedWithConnection(payload.sessionId);
   }, [proceedWithConnection]);
-
-  // Handle offer from camera
-  useEffect(() => {
-    const unsubscribe = onOffer(async (sdp) => {
-      const answer = await handleOffer({ type: 'offer', sdp });
-      if (answer) {
-        sendAnswer(answer.sdp);
-      }
-    });
-    return unsubscribe;
-  }, [onOffer, handleOffer, sendAnswer]);
-
-  // Handle ICE candidates from camera
-  useEffect(() => {
-    const unsubscribe = onIceCandidate(async (candidate) => {
-      await handleIceCandidate(candidate);
-    });
-    return unsubscribe;
-  }, [onIceCandidate, handleIceCandidate]);
 
   // Update connection step based on WebRTC and reconnection state
   useEffect(() => {

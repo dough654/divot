@@ -19,7 +19,6 @@ export type UseAutoReconnectOptions = {
   isTransferring: boolean;
   restartIce: () => Promise<SDPInfo | null>;
   renegotiate: () => Promise<SDPInfo | null>;
-  sendOffer: (sdp: string) => void;
   reconnectSignaling: () => Promise<void>;
   rejoinRoom: (roomCode: string, role: AppRole) => Promise<boolean>;
   backoffConfig?: BackoffConfig;
@@ -123,7 +122,6 @@ export const useAutoReconnect = (options: UseAutoReconnectOptions): UseAutoRecon
     isTransferring,
     restartIce,
     renegotiate,
-    sendOffer,
     reconnectSignaling,
     rejoinRoom,
     backoffConfig = DEFAULT_BACKOFF_CONFIG,
@@ -206,8 +204,7 @@ export const useAutoReconnect = (options: UseAutoReconnectOptions): UseAutoRecon
     updateState('ice-restart');
     const iceOffer = await restartIce();
     if (iceOffer && !cancelledRef.current) {
-      sendOffer(iceOffer.sdp);
-      return; // Wait for ICE state to recover — useEffect will detect success
+      return; // Offer auto-sent via channel; wait for ICE state to recover
     }
 
     // Step 2: Full renegotiation (suppressed during recording)
@@ -227,8 +224,7 @@ export const useAutoReconnect = (options: UseAutoReconnectOptions): UseAutoRecon
     updateState('renegotiation');
     const reOffer = await renegotiate();
     if (reOffer && !cancelledRef.current) {
-      sendOffer(reOffer.sdp);
-      return;
+      return; // Offer auto-sent via channel
     }
 
     // Schedule retry with backoff
@@ -239,7 +235,7 @@ export const useAutoReconnect = (options: UseAutoReconnectOptions): UseAutoRecon
       return;
     }
     backoffTimerRef.current = setTimeout(() => runScenarioA(), delay);
-  }, [role, backoffConfig, restartIce, renegotiate, sendOffer, isRecording, giveUp]);
+  }, [role, backoffConfig, restartIce, renegotiate, isRecording, giveUp]);
 
   /**
    * Scenario B: Signaling dropped.

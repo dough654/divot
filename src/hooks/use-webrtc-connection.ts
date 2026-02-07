@@ -18,10 +18,12 @@ import type {
   IceConnectionState,
   ConnectionState,
   SignalingState,
+  SignalingChannel,
 } from '@/src/types';
 
 export type UseWebRTCConnectionOptions = {
   localStream?: MediaStream | null;
+  signalingChannel?: SignalingChannel | null;
   onRemoteStream?: (stream: MediaStream) => void;
   onIceCandidate?: (candidate: IceCandidateInfo) => void;
   onDataChannel?: (channel: DataChannel) => void;
@@ -58,7 +60,7 @@ const DATA_CHANNEL_LABEL = 'clip-sync';
 export const useWebRTCConnection = (
   options: UseWebRTCConnectionOptions = {}
 ): UseWebRTCConnectionResult => {
-  const { localStream, onRemoteStream, onIceCandidate, onDataChannel } = options;
+  const { localStream, signalingChannel, onRemoteStream, onIceCandidate, onDataChannel } = options;
 
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [status, setStatus] = useState<WebRTCConnectionStatus>(initialStatus);
@@ -67,6 +69,11 @@ export const useWebRTCConnection = (
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<DataChannel | null>(null);
   const pendingCandidatesRef = useRef<IceCandidateInfo[]>([]);
+  const signalingChannelRef = useRef<SignalingChannel | null>(null);
+
+  useEffect(() => {
+    signalingChannelRef.current = signalingChannel ?? null;
+  }, [signalingChannel]);
 
   // Set up data channel event handlers
   const setupDataChannel = useCallback((channel: DataChannel) => {
@@ -99,7 +106,11 @@ export const useWebRTCConnection = (
       {},
       {
         onIceCandidate: (candidate) => {
-          onIceCandidate?.(candidate);
+          if (signalingChannelRef.current) {
+            signalingChannelRef.current.sendIceCandidate(candidate);
+          } else {
+            onIceCandidate?.(candidate);
+          }
         },
         onIceConnectionStateChange: (state) => {
           setStatus((prev) => ({
@@ -141,7 +152,7 @@ export const useWebRTCConnection = (
     }
 
     return pc;
-  }, [localStream, onIceCandidate, onRemoteStream, setupDataChannel]);
+  }, [localStream, onRemoteStream, setupDataChannel]);
 
   // Add local stream when it becomes available
   useEffect(() => {
@@ -155,6 +166,8 @@ export const useWebRTCConnection = (
       // Camera/initiator creates offer and data channel
       const pc = initializePeerConnection(true);
       const offer = await createOffer(pc);
+
+      signalingChannelRef.current?.sendOffer(offer.sdp);
 
       setStatus((prev) => ({
         ...prev,
@@ -248,6 +261,33 @@ export const useWebRTCConnection = (
     }
   }, []);
 
+  // Wire incoming signaling messages when a channel is provided
+  useEffect(() => {
+    const channel = signalingChannel;
+    if (!channel) return;
+
+    const unsubOffer = channel.onOffer(async (sdp) => {
+      const answer = await handleOffer({ type: 'offer', sdp });
+      if (answer) {
+        channel.sendAnswer(answer.sdp);
+      }
+    });
+
+    const unsubAnswer = channel.onAnswer(async (sdp) => {
+      await handleAnswer({ type: 'answer', sdp });
+    });
+
+    const unsubIce = channel.onIceCandidate(async (candidate) => {
+      await handleIceCandidate(candidate);
+    });
+
+    return () => {
+      unsubOffer();
+      unsubAnswer();
+      unsubIce();
+    };
+  }, [signalingChannel, handleOffer, handleAnswer, handleIceCandidate]);
+
   /**
    * Performs an ICE restart on the existing peer connection.
    * Lightweight recovery that preserves the RTCPeerConnection and data channels.
@@ -260,6 +300,8 @@ export const useWebRTCConnection = (
       }
 
       const offer = await createOffer(peerConnectionRef.current, { iceRestart: true });
+
+      signalingChannelRef.current?.sendOffer(offer.sdp);
 
       setStatus((prev) => ({
         ...prev,
@@ -291,6 +333,8 @@ export const useWebRTCConnection = (
       // Create fresh connection (as initiator with data channel)
       const pc = initializePeerConnection(true);
       const offer = await createOffer(pc);
+
+      signalingChannelRef.current?.sendOffer(offer.sdp);
 
       setStatus((prev) => ({
         ...prev,

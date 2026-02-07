@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createSignalingClient, SignalingClient } from '@/src/services/signaling';
-import type { SignalingConnectionState, SignalingError, IceCandidateInfo } from '@/src/types';
+import type { SignalingConnectionState, SignalingError, IceCandidateInfo, SignalingChannel } from '@/src/types';
 
 export type UseSignalingOptions = {
   serverUrl?: string;
@@ -11,6 +11,7 @@ export type UseSignalingResult = {
   connectionState: SignalingConnectionState;
   roomCode: string | null;
   error: SignalingError | null;
+  channel: SignalingChannel;
   connect: () => Promise<void>;
   disconnect: () => void;
   reconnectSignaling: () => Promise<void>;
@@ -209,6 +210,16 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
     }
   }, []);
 
+  const channel: SignalingChannel = useMemo(() => ({
+    sendOffer,
+    sendAnswer,
+    sendIceCandidate,
+    onOffer,
+    onAnswer,
+    onIceCandidate,
+    disconnect,
+  }), [sendOffer, sendAnswer, sendIceCandidate, onOffer, onAnswer, onIceCandidate, disconnect]);
+
   // Auto-connect if requested
   useEffect(() => {
     if (autoConnect) {
@@ -220,6 +231,7 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
     connectionState,
     roomCode,
     error,
+    channel,
     connect,
     disconnect,
     reconnectSignaling,

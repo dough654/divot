@@ -111,14 +111,11 @@ export default function CameraScreen() {
   const {
     connectionState: signalingConnectionState,
     roomCode,
+    channel,
     connect: connectSignaling,
     reconnectSignaling,
     createRoom,
     rejoinRoom,
-    sendOffer,
-    sendIceCandidate,
-    onAnswer,
-    onIceCandidate,
     onPeerJoined,
   } = useSignaling({ autoConnect: false });
 
@@ -134,8 +131,6 @@ export default function CameraScreen() {
   const {
     peerConnection,
     createOffer,
-    handleAnswer,
-    handleIceCandidate,
     restartIce,
     renegotiate,
     isConnected,
@@ -143,7 +138,7 @@ export default function CameraScreen() {
     status: webrtcStatus,
   } = useWebRTCConnection({
     localStream: visionCameraStream,
-    onIceCandidate: sendIceCandidate,
+    signalingChannel: channel,
   });
 
   const { quality } = useConnectionQuality({
@@ -197,7 +192,6 @@ export default function CameraScreen() {
     isTransferring: isSyncing,
     restartIce,
     renegotiate,
-    sendOffer: (sdp) => sendOffer(sdp),
     reconnectSignaling,
     rejoinRoom,
   });
@@ -308,34 +302,15 @@ export default function CameraScreen() {
     };
   }, []);
 
-  // Handle peer joined - create and send offer
+  // Handle peer joined - create and send offer (auto-sent via channel)
   useEffect(() => {
     const unsubscribe = onPeerJoined(async () => {
       setShowQRModal(false);
       setConnectionStep('establishing-webrtc');
-      const offer = await createOffer();
-      if (offer) {
-        sendOffer(offer.sdp);
-      }
+      await createOffer();
     });
     return unsubscribe;
-  }, [onPeerJoined, createOffer, sendOffer]);
-
-  // Handle answer from viewer
-  useEffect(() => {
-    const unsubscribe = onAnswer(async (sdp) => {
-      await handleAnswer({ type: 'answer', sdp });
-    });
-    return unsubscribe;
-  }, [onAnswer, handleAnswer]);
-
-  // Handle ICE candidates from viewer
-  useEffect(() => {
-    const unsubscribe = onIceCandidate(async (candidate) => {
-      await handleIceCandidate(candidate);
-    });
-    return unsubscribe;
-  }, [onIceCandidate, handleIceCandidate]);
+  }, [onPeerJoined, createOffer]);
 
   // Update connection step based on WebRTC and reconnection state
   useEffect(() => {

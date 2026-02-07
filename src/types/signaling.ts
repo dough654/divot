@@ -1,3 +1,16 @@
+import type { IceCandidateInfo } from './webrtc';
+
+/** Transport-agnostic signaling channel for WebRTC negotiation. */
+export type SignalingChannel = {
+  sendOffer: (sdp: string) => void;
+  sendAnswer: (sdp: string) => void;
+  sendIceCandidate: (candidate: IceCandidateInfo) => void;
+  onOffer: (handler: (sdp: string) => void) => () => void;
+  onAnswer: (handler: (sdp: string) => void) => () => void;
+  onIceCandidate: (handler: (candidate: IceCandidateInfo) => void) => () => void;
+  disconnect: () => void;
+};
+
 export type SignalingEventType =
   | 'create-room'
   | 'join-room'
