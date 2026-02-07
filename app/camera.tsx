@@ -478,7 +478,7 @@ export default function CameraScreen() {
             {isButtonLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Ionicons name="qr-code" size={22} color="#fff" />
+              <Ionicons name="qr-code" size={26} color="#fff" />
             )}
           </Pressable>
         )}
@@ -492,7 +492,7 @@ export default function CameraScreen() {
             accessibilityLabel="Flip camera"
             accessibilityHint="Switch between front and back camera"
           >
-            <Ionicons name="camera-reverse" size={22} color="#fff" />
+            <Ionicons name="camera-reverse" size={26} color="#fff" />
           </Pressable>
         )}
 
@@ -681,9 +681,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   floatingQRButton: {
     position: 'absolute' as const,
     left: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -692,9 +692,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   floatingFlipButton: {
     position: 'absolute' as const,
     right: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
