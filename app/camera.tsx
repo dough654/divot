@@ -4,6 +4,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
 
 import { useTheme, useToast } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
@@ -43,7 +52,12 @@ export default function CameraScreen() {
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
   const [showQRModal, setShowQRModal] = useState(false);
   const [isButtonLoading, setIsButtonLoading] = useState(true);
+  const [showHint, setShowHint] = useState(true);
   const loadingStartTime = useState(() => Date.now())[0];
+
+  // Pulse ring animation for QR button hint
+  const hintRingScale = useSharedValue(1);
+  const hintRingOpacity = useSharedValue(0);
 
   // Camera state machine
   const [cameraState, setCameraState] = useState<CameraState>('connecting');
@@ -240,6 +254,38 @@ export default function CameraScreen() {
     }
   }, [roomCode, loadingStartTime]);
 
+  // Start pulse ring animation once room code is ready
+  useEffect(() => {
+    if (!showHint || isButtonLoading) return;
+
+    hintRingScale.value = withRepeat(
+      withSequence(
+        withTiming(1.7, { duration: 800, easing: Easing.out(Easing.cubic) }),
+        withTiming(1, { duration: 0 }),
+        withDelay(400, withTiming(1, { duration: 0 })),
+      ),
+      4,
+    );
+
+    // Fade from 0.7→0 as ring expands, snap back to 0.7 for each cycle
+    hintRingOpacity.value = withSequence(
+      withTiming(0.7, { duration: 0 }),
+      withRepeat(
+        withSequence(
+          withTiming(0, { duration: 800, easing: Easing.out(Easing.cubic) }),
+          withTiming(0.7, { duration: 0 }),
+          withDelay(400, withTiming(0.7, { duration: 0 })),
+        ),
+        4,
+      ),
+    );
+  }, [showHint, isButtonLoading]);
+
+  const hintRingAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: hintRingScale.value }],
+    opacity: hintRingOpacity.value,
+  }));
+
   // Start camera, native WebRTC stream, and connection on mount
   useEffect(() => {
     const initialize = async () => {
@@ -303,6 +349,7 @@ export default function CameraScreen() {
 
   const handleQRButtonPress = () => {
     setShowQRModal(true);
+    setShowHint(false);
   };
 
   // Start recording
@@ -468,19 +515,34 @@ export default function CameraScreen() {
 
         {/* Floating QR Button — bottom-left */}
         {(cameraState === 'connecting' || (cameraState === 'previewing' && !isConnected)) && (
-          <Pressable
-            style={[styles.floatingQRButton, { bottom: insets.bottom + 24 }]}
-            onPress={handleQRButtonPress}
-            disabled={isButtonLoading}
-            accessibilityRole="button"
-            accessibilityLabel={isButtonLoading ? 'Generating room code' : 'Show QR code'}
-          >
-            {isButtonLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="qr-code" size={26} color="#fff" />
+          <View style={[styles.floatingQRContainer, { bottom: insets.bottom + 24 }]}>
+            {/* Pulse ring — behind button */}
+            {showHint && !isButtonLoading && (
+              <Animated.View style={[styles.hintRing, hintRingAnimatedStyle]} />
             )}
-          </Pressable>
+
+            {/* QR button */}
+            <Pressable
+              style={styles.floatingQRButton}
+              onPress={handleQRButtonPress}
+              disabled={isButtonLoading}
+              accessibilityRole="button"
+              accessibilityLabel={isButtonLoading ? 'Generating room code' : 'Show QR code'}
+            >
+              {isButtonLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="qr-code" size={26} color="#fff" />
+              )}
+            </Pressable>
+
+            {/* Tooltip label — right of button */}
+            {showHint && !isButtonLoading && (
+              <View style={styles.hintTooltip}>
+                <Text style={styles.hintTooltipText}>Tap to pair</Text>
+              </View>
+            )}
+          </View>
         )}
 
         {/* Floating Flip Camera Button — bottom-right */}
@@ -678,16 +740,41 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     top: theme.spacing.lg,
     left: theme.spacing.lg,
   },
-  floatingQRButton: {
+  floatingQRContainer: {
     position: 'absolute' as const,
     left: 20,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    zIndex: 10,
+  },
+  floatingQRButton: {
     width: 52,
     height: 52,
     borderRadius: 26,
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    zIndex: 10,
+  },
+  hintRing: {
+    position: 'absolute' as const,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: theme.colors.accent,
+  },
+  hintTooltip: {
+    marginLeft: 10,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  hintTooltipText: {
+    color: '#fff',
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.body,
+    fontWeight: theme.fontWeight.medium,
   },
   floatingFlipButton: {
     position: 'absolute' as const,
