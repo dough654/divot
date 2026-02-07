@@ -246,9 +246,14 @@ export default function ViewerScreen() {
     <View style={styles.container}>
       {/* Connection Status */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
+        <Pressable
+          onPress={() => useManualEntry ? setUseManualEntry(false) : router.back()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel={useManualEntry ? 'Go back to scanner' : 'Go back to Home'}
+        >
           <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
-          <Text style={styles.backLabel}>Home</Text>
+          <Text style={styles.backLabel}>{useManualEntry ? 'Scanner' : 'Home'}</Text>
         </Pressable>
         <ConnectionStatus step={connectionStep} quality={quality} compact />
       </View>
