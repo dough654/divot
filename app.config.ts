@@ -4,7 +4,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'SwingLink',
   slug: 'swing-app',
   version: '1.0.0',
-  orientation: 'default',
+  orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'swinglink',
   userInterfaceStyle: 'automatic',
@@ -67,7 +67,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         microphonePermissionText: 'SwingLink needs microphone access to record audio with your swing videos.',
       },
     ],
-    'expo-screen-orientation',
     [
       'expo-media-library',
       {

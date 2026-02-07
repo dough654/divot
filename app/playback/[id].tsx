@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, useOrientation } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 import { VideoPlayer } from '@/src/components/playback';
 import { getClip } from '@/src/services/recording/clip-storage';
@@ -28,7 +28,6 @@ const formatDate = (timestamp: number): string => {
 export default function PlaybackScreen() {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { isLandscape } = useOrientation();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -104,7 +103,7 @@ export default function PlaybackScreen() {
     <>
       <Stack.Screen
         options={{
-          headerShown: !isLandscape,
+          headerShown: true,
           headerTitle: () => (
             <View style={styles.headerTitleContainer}>
               <Text style={styles.headerTitle}>{clipTitle}</Text>

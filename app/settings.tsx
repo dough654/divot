@@ -1,8 +1,8 @@
 import { View, Text, Switch, Pressable, Alert, Linking, ScrollView } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 import { useTheme, useSettings } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, useHaptics, useOrientation } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
 import { useToast } from '@/src/context';
 import { clearAllClips, listClips } from '@/src/services/recording/clip-storage';
 import type { Theme, ThemeMode } from '@/src/context';
@@ -21,16 +21,7 @@ export default function SettingsScreen() {
   const styles = useThemedStyles(createStyles);
   const haptics = useHaptics();
   const { show: showToast } = useToast();
-  const { lockToPortrait, unlock } = useOrientation();
   const [isClearing, setIsClearing] = useState(false);
-
-  // Lock settings screen to portrait
-  useEffect(() => {
-    lockToPortrait();
-    return () => {
-      unlock();
-    };
-  }, [lockToPortrait, unlock]);
 
   const handleHapticsToggle = (value: boolean) => {
     // Trigger haptic before potentially disabling

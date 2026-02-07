@@ -4,14 +4,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context";
-import { useThemedStyles, makeThemedStyles, useOrientation } from "@/src/hooks";
+import { useThemedStyles, makeThemedStyles } from "@/src/hooks";
 import type { Theme } from "@/src/context";
 
 export default function HomeScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
-  const { isLandscape } = useOrientation();
 
   const strips = [
     {
@@ -57,8 +56,8 @@ export default function HomeScreen() {
         <Text style={styles.versionText}>v1.0</Text>
       </View>
 
-      {!isLandscape && <View style={styles.topSpacer} />}
-      <View style={isLandscape ? styles.stripsLandscape : styles.strips}>
+      <View style={styles.topSpacer} />
+      <View style={styles.strips}>
         {strips.map((strip) => (
           <Link key={strip.href} href={strip.href} asChild>
             <Pressable
@@ -152,12 +151,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flex: 1,
     justifyContent: "flex-start" as const,
     gap: 8,
-  },
-  stripsLandscape: {
-    flex: 1,
-    justifyContent: "flex-start" as const,
-    gap: 6,
-    paddingVertical: theme.spacing.sm,
   },
   strip: {
     flexDirection: "row" as const,

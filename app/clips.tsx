@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
 
 import { useTheme } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, usePressAnimation, useOrientation } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, usePressAnimation } from '@/src/hooks';
 import { EmptyState, SkeletonClipItem } from '@/src/components/ui';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -105,7 +105,6 @@ export default function ClipsScreen() {
   const { theme } = useTheme();
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const { isLandscape } = useOrientation();
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -240,9 +239,8 @@ export default function ClipsScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        key={isLandscape ? 'landscape-2col' : 'portrait-1col'}
         data={clips}
-        numColumns={isLandscape ? 2 : 1}
+        numColumns={1}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <ClipItem
@@ -252,7 +250,6 @@ export default function ClipsScreen() {
             onMenuPress={() => handleClipLongPress(item)}
           />
         )}
-        columnWrapperStyle={isLandscape ? styles.columnWrapper : undefined}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.header}>
@@ -275,7 +272,7 @@ export default function ClipsScreen() {
         transparent
         animationType="fade"
         onRequestClose={handleRenameCancel}
-        supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
+        supportedOrientations={['portrait']}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -338,9 +335,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   listContent: {
     padding: theme.spacing.lg,
-  },
-  columnWrapper: {
-    gap: theme.spacing.sm,
   },
   separator: {
     height: 1,

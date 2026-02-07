@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Modal, Alert, Linking, Platform } from 'react-native';
+import { View, Text, Pressable, Modal, Alert, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
 
 import { useTheme, useToast } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel, useOrientation } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 import { QRCodeDisplay, QRCodeButton } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
@@ -40,8 +40,6 @@ export default function CameraScreen() {
   const { show: showToast } = useToast();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
-  const { isLandscape } = useOrientation();
-
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('idle');
   const [showQRModal, setShowQRModal] = useState(false);
   const [isPulsing, setIsPulsing] = useState(true);
@@ -421,35 +419,33 @@ export default function CameraScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Connection Status - top bar in portrait only (landscape moves to side panel) */}
-      {!isLandscape && (
-        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
-            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
-            <Text style={styles.backLabel}>Home</Text>
-          </Pressable>
-          <ConnectionStatus step={connectionStep} quality={quality} compact />
-          {isRecording && (
-            <RecordingIndicator
-              duration={recordingDuration}
-              visible={isRecording}
-              compact
-            />
-          )}
-          {isConnected && isStreamReady && !isRecording && (
-            <View style={styles.streamingBadge}>
-              <View style={styles.streamingDot} />
-              <Text style={styles.streamingFpsText}>
-                Live · {getPresetLabel(qualityPreset)}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
+      {/* Connection Status */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
+          <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+          <Text style={styles.backLabel}>Home</Text>
+        </Pressable>
+        <ConnectionStatus step={connectionStep} quality={quality} compact />
+        {isRecording && (
+          <RecordingIndicator
+            duration={recordingDuration}
+            visible={isRecording}
+            compact
+          />
+        )}
+        {isConnected && isStreamReady && !isRecording && (
+          <View style={styles.streamingBadge}>
+            <View style={styles.streamingDot} />
+            <Text style={styles.streamingFpsText}>
+              Live · {getPresetLabel(qualityPreset)}
+            </Text>
+          </View>
+        )}
+      </View>
 
-      <View style={isLandscape ? styles.landscapeWrapper : styles.portraitWrapper}>
-        {/* Video Preview - full width in portrait, left side in landscape */}
-        <View style={isLandscape ? styles.videoContainerLandscape : styles.videoContainerPortrait}>
+      <View style={styles.portraitWrapper}>
+        {/* Video Preview */}
+        <View style={styles.videoContainerPortrait}>
 
           <View style={styles.videoContainer}>
             {showVisionCamera ? (
@@ -487,35 +483,9 @@ export default function CameraScreen() {
           </View>
         </View>
 
-        {/* Controls - bottom bar in portrait, right side panel in landscape */}
-        <View style={isLandscape ? styles.sidePanel : [styles.bottomBar, { bottom: insets.bottom }]}>
-        {/* Connection Status in landscape - sits above controls in side panel */}
-        {isLandscape && (
-          <View style={styles.sidePanelStatus}>
-            <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
-              <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
-              <Text style={styles.backLabel}>Home</Text>
-            </Pressable>
-            <ConnectionStatus step={connectionStep} quality={quality} compact />
-            {isRecording && (
-              <RecordingIndicator
-                duration={recordingDuration}
-                visible={isRecording}
-                compact
-              />
-            )}
-            {isConnected && isStreamReady && !isRecording && (
-              <View style={styles.streamingBadge}>
-                <View style={styles.streamingDot} />
-                <Text style={styles.streamingFpsText}>
-                  Live · {getPresetLabel(qualityPreset)}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        <View style={isLandscape ? styles.sidePanelControls : undefined}>
+        {/* Controls */}
+        <View style={[styles.bottomBar, { bottom: insets.bottom }]}>
+        <View>
         {cameraState === 'connecting' && (
           <>
             {/* QR Code Button */}
@@ -680,7 +650,7 @@ export default function CameraScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setShowQRModal(false)}
-        supportedOrientations={['portrait', 'landscape-left', 'landscape-right']}
+        supportedOrientations={['portrait']}
       >
         <Pressable
           style={styles.modalOverlay}
@@ -689,50 +659,23 @@ export default function CameraScreen() {
           accessibilityLabel="Close QR code modal"
           accessibilityHint="Tap outside to close"
         >
-          <View style={isLandscape ? styles.modalContentLandscape : styles.modalContent}>
-            {isLandscape ? (
-              <>
-                {/* Landscape: compact QR with X dismiss */}
-                <Pressable
-                  style={styles.modalCloseX}
-                  onPress={() => setShowQRModal(false)}
-                  hitSlop={12}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close"
-                  accessibilityHint="Close the QR code modal"
-                >
-                  <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
-                </Pressable>
-                {qrPayload && (
-                  <QRCodeDisplay
-                    value={qrPayload}
-                    roomCode={formatRoomCode(roomCode!)}
-                    size={160}
-                    compact
-                  />
-                )}
-              </>
-            ) : (
-              <>
-                {/* Portrait: QR with X dismiss */}
-                <Pressable
-                  style={styles.modalCloseX}
-                  onPress={() => setShowQRModal(false)}
-                  hitSlop={12}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close"
-                  accessibilityHint="Close the QR code modal"
-                >
-                  <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
-                </Pressable>
-                {qrPayload && (
-                  <QRCodeDisplay
-                    value={qrPayload}
-                    roomCode={formatRoomCode(roomCode!)}
-                    size={200}
-                  />
-                )}
-              </>
+          <View style={styles.modalContent}>
+            <Pressable
+              style={styles.modalCloseX}
+              onPress={() => setShowQRModal(false)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              accessibilityHint="Close the QR code modal"
+            >
+              <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
+            </Pressable>
+            {qrPayload && (
+              <QRCodeDisplay
+                value={qrPayload}
+                roomCode={formatRoomCode(roomCode!)}
+                size={200}
+              />
             )}
           </View>
         </Pressable>
@@ -758,16 +701,8 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flex: 1,
     flexDirection: 'column' as const,
   },
-  landscapeWrapper: {
-    flex: 1,
-    flexDirection: 'row' as const,
-  },
   videoContainerPortrait: {
     flex: 1,
-  },
-  videoContainerLandscape: {
-    flex: 1,
-    paddingTop: Platform.select({ ios: theme.spacing.lg, default: theme.spacing.sm }),
   },
   topBar: {
     flexDirection: 'row' as const,
@@ -776,18 +711,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
-  },
-  sidePanelStatus: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-    flexWrap: 'wrap' as const,
-    gap: theme.spacing.xs,
-  },
-  sidePanelControls: {
-    flex: 1,
-    justifyContent: 'center' as const,
-    gap: theme.spacing.md,
   },
   backButton: {
     flexDirection: 'row' as const,
@@ -863,13 +786,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     gap: theme.spacing.md,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: theme.borderRadius.md,
-  },
-  sidePanel: {
-    width: 240,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    gap: theme.spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   connectedSection: {
     marginBottom: theme.spacing.sm,
@@ -983,15 +899,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     maxWidth: 340,
     maxHeight: '95%' as const,
     alignItems: 'center' as const,
-  },
-  modalContentLandscape: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.xl,
-    maxHeight: '95%' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    overflow: 'hidden' as const,
   },
   modalCloseX: {
     position: 'absolute' as const,

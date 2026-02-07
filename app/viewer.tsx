@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 
-import { useThemedStyles, makeThemedStyles, useOrientation } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useTheme } from '@/src/context';
 import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
@@ -27,8 +27,6 @@ export default function ViewerScreen() {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
-  const { isLandscape, lockToPortrait, unlock } = useOrientation();
-
   const [connectionStep, setConnectionStep] = useState<ConnectionStep>('scanning-qr');
   const [isScanning, setIsScanning] = useState(true);
   const [useManualEntry, setUseManualEntry] = useState(false);
@@ -114,18 +112,6 @@ export default function ViewerScreen() {
     reconnectSignaling,
     rejoinRoom,
   });
-
-  // Lock to portrait during QR scanning, unlock when connected
-  useEffect(() => {
-    if (isScanning) {
-      lockToPortrait();
-    } else {
-      unlock();
-    }
-    return () => {
-      unlock();
-    };
-  }, [isScanning, lockToPortrait, unlock]);
 
   // Show transfer modal when receiving
   useEffect(() => {
@@ -258,24 +244,14 @@ export default function ViewerScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Connection Status - top bar or overlay */}
-      {isLandscape && isConnected ? (
-        <View style={[styles.topBarOverlay, { top: insets.top }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
-            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
-            <Text style={styles.backLabel}>Home</Text>
-          </Pressable>
-          <ConnectionStatus step={connectionStep} quality={quality} compact />
-        </View>
-      ) : (
-        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
-            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
-            <Text style={styles.backLabel}>Home</Text>
-          </Pressable>
-          <ConnectionStatus step={connectionStep} quality={quality} compact />
-        </View>
-      )}
+      {/* Connection Status */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
+          <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+          <Text style={styles.backLabel}>Home</Text>
+        </Pressable>
+        <ConnectionStatus step={connectionStep} quality={quality} compact />
+      </View>
 
       {/* Video or Scanner or Manual Entry */}
       <View style={styles.mainContent}>
@@ -324,7 +300,7 @@ export default function ViewerScreen() {
           />
         )}
 
-        {isConnected && !isLandscape && (
+        {isConnected && (
           <View style={styles.qualityInfo}>
             <Text style={styles.qualityLabel}>
               Preview
@@ -353,19 +329,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     backgroundColor: theme.colors.background,
   },
   topBar: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.sm,
-  },
-  topBarOverlay: {
-    position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
