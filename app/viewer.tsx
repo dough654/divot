@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 
 import { useThemedStyles, makeThemedStyles, useOrientation } from '@/src/hooks';
+import { useTheme } from '@/src/context';
 import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry } from '@/src/components/pairing';
@@ -23,6 +24,7 @@ import type { Clip } from '@/src/types/recording';
 import type { RecoveryAction } from '@/src/utils/error-messages';
 
 export default function ViewerScreen() {
+  const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { isLandscape, lockToPortrait, unlock } = useOrientation();
@@ -260,7 +262,7 @@ export default function ViewerScreen() {
       {isLandscape && isConnected ? (
         <View style={[styles.topBarOverlay, { top: insets.top }]}>
           <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
             <Text style={styles.backLabel}>Home</Text>
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
@@ -268,7 +270,7 @@ export default function ViewerScreen() {
       ) : (
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
             <Text style={styles.backLabel}>Home</Text>
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
@@ -379,7 +381,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   backLabel: {
     fontFamily: theme.fontFamily.body,
     fontSize: 17,
-    color: '#fff',
+    color: theme.colors.text,
   },
   mainContent: {
     flex: 1,

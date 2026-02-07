@@ -425,7 +425,7 @@ export default function CameraScreen() {
       {!isLandscape && (
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
-            <Ionicons name="chevron-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
             <Text style={styles.backLabel}>Home</Text>
           </Pressable>
           <ConnectionStatus step={connectionStep} quality={quality} compact />
@@ -493,7 +493,7 @@ export default function CameraScreen() {
         {isLandscape && (
           <View style={styles.sidePanelStatus}>
             <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Go back to Home">
-              <Ionicons name="chevron-back" size={22} color="#fff" />
+              <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
               <Text style={styles.backLabel}>Home</Text>
             </Pressable>
             <ConnectionStatus step={connectionStep} quality={quality} compact />
@@ -797,7 +797,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   backLabel: {
     fontFamily: theme.fontFamily.body,
     fontSize: 17,
-    color: '#fff',
+    color: theme.colors.text,
   },
   streamingBadge: {
     flexDirection: 'row' as const,

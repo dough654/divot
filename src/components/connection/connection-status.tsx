@@ -342,7 +342,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   compactLabel: {
     fontSize: 14,
     fontFamily: theme.fontFamily.body,
-    color: '#fff',
+    color: theme.colors.text,
     textTransform: 'lowercase' as const,
   },
   labelConnected: {
