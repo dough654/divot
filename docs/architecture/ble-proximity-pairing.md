@@ -107,6 +107,26 @@ To prevent connecting to the wrong device in crowded environments:
 
 For QR code connections, no confirmation is needed — scanning the code is the confirmation.
 
+### Connectivity Checks & Dead-End Handling
+
+When the viewer taps a nearby device, the app knows three things: viewer platform, camera platform (from BLE), and internet availability. This is enough to determine if the connection can proceed or if the user needs guidance.
+
+**Decision matrix after tapping a nearby device:**
+
+| Platforms | Internet | Action |
+|-----------|----------|--------|
+| Same | Any | P2P WiFi — proceed directly, no internet needed |
+| Different | Available | Auto-join via signaling server — proceed seamlessly |
+| Different | Unavailable | **Dead end** — show guidance message |
+
+**Dead-end message (cross-platform, no internet):**
+
+> "Cross-platform connections require internet. Connect both devices to WiFi, or use two devices of the same type for offline pairing."
+
+This is the only truly blocked path. The message explains both how to fix it (get internet) and an alternative (same-platform devices). It should be a friendly inline card, not an aggressive error alert.
+
+**QR/manual code fallback also checks connectivity:** If the user goes the QR route instead of tapping a nearby device, the app should check for internet before attempting to connect to the signaling server. If offline, show: "Internet connection required for QR code pairing. Move to an area with WiFi or cell service."
+
 ## Architecture
 
 ### Layer Diagram
