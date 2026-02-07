@@ -1,4 +1,4 @@
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -79,82 +79,87 @@ export const ManualCodeEntry = ({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.iconContainer}>
-        <Ionicons
-          name="keypad-outline"
-          size={48}
-          color={theme.colors.textSecondary}
-        />
-      </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.inner}>
+        <View style={styles.iconContainer}>
+          <Ionicons
+            name="keypad-outline"
+            size={48}
+            color={theme.colors.textSecondary}
+          />
+        </View>
 
-      <Text style={styles.title}>Enter Room Code</Text>
-      <Text style={styles.subtitle}>
-        Enter the 6-character code shown on the camera device
-      </Text>
-
-      {/* Hidden input that captures keyboard */}
-      <TextInput
-        ref={inputRef}
-        style={styles.hiddenInput}
-        value={code}
-        onChangeText={handleChangeText}
-        maxLength={CODE_LENGTH}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        keyboardType="default"
-        editable={!isSubmitting}
-        accessibilityLabel="Room code input"
-        accessibilityHint="Enter the 6-character room code from the camera device"
-      />
-
-      {/* Visual code boxes */}
-      <Pressable
-        style={styles.codeBoxesContainer}
-        onPress={() => inputRef.current?.focus()}
-        accessibilityRole="button"
-        accessibilityLabel={`Room code: ${code || 'empty'}. ${CODE_LENGTH - code.length} characters remaining`}
-        accessibilityHint="Tap to focus code input"
-      >
-        {renderCodeBoxes()}
-      </Pressable>
-
-      {/* Submit button */}
-      <Pressable
-        style={[
-          styles.submitButton,
-          code.length !== CODE_LENGTH && styles.submitButtonDisabled,
-          isSubmitting && styles.submitButtonDisabled,
-        ]}
-        onPress={handleSubmit}
-        disabled={code.length !== CODE_LENGTH || isSubmitting}
-        accessibilityRole="button"
-        accessibilityLabel={isSubmitting ? 'Connecting' : 'Connect'}
-        accessibilityHint="Connect to the camera device with the entered code"
-        accessibilityState={{ disabled: code.length !== CODE_LENGTH || isSubmitting }}
-      >
-        <Text style={styles.submitButtonText}>
-          {isSubmitting ? 'Connecting...' : 'Connect'}
+        <Text style={styles.title}>Enter Room Code</Text>
+        <Text style={styles.subtitle}>
+          Enter the 6-character code shown on the camera device
         </Text>
-      </Pressable>
 
-      {/* Switch to scanner button */}
-      <Pressable
-        style={styles.switchButton}
-        onPress={onSwitchToScanner}
-        accessibilityRole="button"
-        accessibilityLabel="Scan QR code instead"
-        accessibilityHint="Switch to QR code scanner to connect"
-      >
-        <Ionicons
-          name="qr-code-outline"
-          size={20}
-          color={theme.colors.primary}
-          style={styles.switchIcon}
+        {/* Hidden input that captures keyboard */}
+        <TextInput
+          ref={inputRef}
+          style={styles.hiddenInput}
+          value={code}
+          onChangeText={handleChangeText}
+          maxLength={CODE_LENGTH}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          keyboardType="default"
+          editable={!isSubmitting}
+          accessibilityLabel="Room code input"
+          accessibilityHint="Enter the 6-character room code from the camera device"
         />
-        <Text style={styles.switchButtonText}>Scan QR Code Instead</Text>
-      </Pressable>
-    </View>
+
+        {/* Visual code boxes */}
+        <Pressable
+          style={styles.codeBoxesContainer}
+          onPress={() => inputRef.current?.focus()}
+          accessibilityRole="button"
+          accessibilityLabel={`Room code: ${code || 'empty'}. ${CODE_LENGTH - code.length} characters remaining`}
+          accessibilityHint="Tap to focus code input"
+        >
+          {renderCodeBoxes()}
+        </Pressable>
+
+        {/* Submit button */}
+        <Pressable
+          style={[
+            styles.submitButton,
+            code.length !== CODE_LENGTH && styles.submitButtonDisabled,
+            isSubmitting && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={code.length !== CODE_LENGTH || isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel={isSubmitting ? 'Connecting' : 'Connect'}
+          accessibilityHint="Connect to the camera device with the entered code"
+          accessibilityState={{ disabled: code.length !== CODE_LENGTH || isSubmitting }}
+        >
+          <Text style={styles.submitButtonText}>
+            {isSubmitting ? 'Connecting...' : 'Connect'}
+          </Text>
+        </Pressable>
+
+        {/* Switch to scanner button */}
+        <Pressable
+          style={styles.switchButton}
+          onPress={onSwitchToScanner}
+          accessibilityRole="button"
+          accessibilityLabel="Scan QR code instead"
+          accessibilityHint="Switch to QR code scanner to connect"
+        >
+          <Ionicons
+            name="qr-code-outline"
+            size={20}
+            color={theme.colors.primary}
+            style={styles.switchIcon}
+          />
+          <Text style={styles.switchButtonText}>Scan QR Code Instead</Text>
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -162,10 +167,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
     backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: theme.borderRadius.md,
+  },
+  inner: {
+    flex: 1,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     padding: theme.spacing['2xl'],
-    borderRadius: theme.borderRadius.md,
   },
   iconContainer: {
     marginBottom: theme.spacing.lg,
