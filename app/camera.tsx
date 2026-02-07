@@ -32,6 +32,7 @@ import { useVisionCamera } from '@/src/hooks/use-vision-camera';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { useVisionCameraStream } from '@/src/hooks/use-vision-camera-stream';
 import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
+import { useBLEAdvertising } from '@/src/hooks/use-ble-discovery';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { TransferProgressModal } from '@/src/components/clip-sync';
@@ -139,6 +140,12 @@ export default function CameraScreen() {
   } = useWebRTCConnection({
     localStream: visionCameraStream,
     signalingChannel: channel,
+  });
+
+  // BLE advertising — discoverable to nearby viewers once room code is ready
+  const { isAdvertising } = useBLEAdvertising({
+    roomCode: roomCode ?? '',
+    enabled: !!roomCode && !isConnected,
   });
 
   const { quality } = useConnectionQuality({
@@ -449,6 +456,12 @@ export default function CameraScreen() {
             </Text>
           </View>
         )}
+        {isAdvertising && !isConnected && (
+          <View style={styles.discoverableBadge}>
+            <Ionicons name="bluetooth" size={12} color={theme.colors.textTertiary} />
+            <Text style={styles.discoverableText}>Discoverable</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.portraitWrapper}>
@@ -684,6 +697,20 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontFamily: theme.fontFamily.body,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.success,
+  },
+  discoverableBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
+  },
+  discoverableText: {
+    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
+    color: theme.colors.textTertiary,
   },
   videoContainer: {
     flex: 1,
