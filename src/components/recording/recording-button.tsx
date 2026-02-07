@@ -34,6 +34,7 @@ export const RecordingButton = ({
   const { theme } = useTheme();
   const scale = useSharedValue(1);
   const innerRadius = useSharedValue(size / 2 - 6);
+  const innerDimension = useSharedValue(size - 12);
   const haptics = useHaptics();
 
   const handlePress = useCallback(() => {
@@ -54,22 +55,26 @@ export const RecordingButton = ({
         -1,
         true
       );
-      innerRadius.value = withTiming(3, { duration: 200 });
+      innerRadius.value = withTiming(4, { duration: 200 });
+      // Shrink inner to fit as a square inscribed in the circle
+      const squareSize = Math.floor((size - 4) / Math.SQRT2);
+      innerDimension.value = withTiming(squareSize, { duration: 200 });
     } else {
       scale.value = withTiming(1, { duration: 200 });
       innerRadius.value = withTiming(size / 2 - 6, { duration: 200 });
+      innerDimension.value = withTiming(size - 12, { duration: 200 });
     }
-  }, [isRecording, scale, innerRadius, size]);
+  }, [isRecording, scale, innerRadius, innerDimension, size]);
 
   const animatedOuterStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
   const animatedInnerStyle = useAnimatedStyle(() => ({
+    width: innerDimension.value,
+    height: innerDimension.value,
     borderRadius: innerRadius.value,
   }));
-
-  const innerSize = size - 12;
 
   return (
     <Pressable
@@ -108,8 +113,6 @@ export const RecordingButton = ({
         <Animated.View
           style={[
             {
-              width: innerSize,
-              height: innerSize,
               backgroundColor: theme.colors.recording,
             },
             animatedInnerStyle,
