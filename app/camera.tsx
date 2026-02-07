@@ -541,7 +541,7 @@ export default function CameraScreen() {
         {/* Tooltip — positioned independently to avoid container width constraint */}
         {(cameraState === 'connecting' || (cameraState === 'previewing' && !isConnected)) && showHint && !isButtonLoading && (
           <View style={[styles.hintTooltip, { bottom: insets.bottom + 86 }]}>
-            <Text style={styles.hintTooltipText}>Tap to pair</Text>
+            <Text style={styles.hintTooltipText} numberOfLines={1}>Tap to pair</Text>
             <View style={styles.hintTooltipArrow} />
           </View>
         )}
@@ -766,6 +766,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   hintTooltip: {
     position: 'absolute' as const,
     left: 56,
+    flexDirection: 'row' as const,
     backgroundColor: 'rgba(0,0,0,0.7)',
     paddingVertical: 6,
     paddingHorizontal: 12,
