@@ -146,12 +146,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   strips: {
     flex: 1,
-    justifyContent: "center" as const,
+    justifyContent: "flex-start" as const,
     gap: 8,
+    paddingTop: theme.spacing.lg,
   },
   stripsLandscape: {
     flex: 1,
-    justifyContent: "center" as const,
+    justifyContent: "flex-start" as const,
     gap: 6,
     paddingVertical: theme.spacing.sm,
   },
