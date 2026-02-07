@@ -776,7 +776,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   hintTooltipArrow: {
     position: 'absolute' as const,
     bottom: -8,
-    left: 4,
+    left: 14,
     width: 0,
     height: 0,
     borderLeftWidth: 3,
