@@ -57,6 +57,7 @@ export default function HomeScreen() {
         <Text style={styles.versionText}>v1.0</Text>
       </View>
 
+      {!isLandscape && <View style={styles.topSpacer} />}
       <View style={isLandscape ? styles.stripsLandscape : styles.strips}>
         {strips.map((strip) => (
           <Link key={strip.href} href={strip.href} asChild>
@@ -144,11 +145,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontSize: 14,
     color: theme.colors.textTertiary,
   },
+  topSpacer: {
+    flex: 0.2,
+  },
   strips: {
     flex: 1,
     justifyContent: "flex-start" as const,
     gap: 8,
-    paddingTop: theme.spacing['2xl'],
   },
   stripsLandscape: {
     flex: 1,
