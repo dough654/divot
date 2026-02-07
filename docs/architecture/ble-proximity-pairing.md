@@ -271,12 +271,12 @@ Same as Phase 3, but with Wi-Fi Direct for Android ↔ Android.
 - Handle edge cases (BLE permission denied mid-session, P2P WiFi failure fallback to server)
 - Add "Discoverable" indicator on camera screen
 - Signal strength display / sorting
-- Battery optimization (stop advertising/scanning when connected)
+- Stop scanning on viewer once connected (advertising continues on camera in case of reconnect)
 - Analytics: track which connection tier is used
 
-## Open Questions
+## Resolved Decisions
 
-1. **Confirmation UX:** Is the "accept/decline" handshake worth the friction, or should we skip it for a faster experience and add it only when multiple cameras are detected nearby?
-2. **Auto-connect vs tap-to-connect:** Should the viewer auto-connect if exactly one camera is nearby, or always require a tap? Auto-connect is faster but could surprise users.
-3. **BLE advertising duration:** Should the camera advertise indefinitely, or stop after a timeout to save battery?
-4. **Naming:** What do we call this feature in the UI? "Nearby pairing"? "Proximity connect"? Or just don't name it — nearby devices simply appear.
+1. **Confirmation UX:** Always show accept/decline on the camera device. Worth the small friction to prevent accidental pairing, especially at busy ranges.
+2. **Auto-connect vs tap-to-connect:** Always require a tap. Consistent experience, no surprises.
+3. **BLE advertising duration:** Advertise indefinitely while the camera screen is open. BLE advertising power draw is negligible (microwatts) — devices like AirTags run for years on a coin cell.
+4. **Naming:** No explicit branding needed. If referenced in UI copy, use "nearby pairing."
