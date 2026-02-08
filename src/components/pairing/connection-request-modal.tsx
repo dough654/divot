@@ -30,17 +30,19 @@ export const ConnectionRequestModal = ({
   timeoutSeconds = 30,
 }: ConnectionRequestModalProps) => {
   const [secondsLeft, setSecondsLeft] = useState(timeoutSeconds);
+  const [expired, setExpired] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (visible) {
       setSecondsLeft(timeoutSeconds);
+      setExpired(false);
 
       intervalRef.current = setInterval(() => {
         setSecondsLeft((prev) => {
           if (prev <= 1) {
             if (intervalRef.current) clearInterval(intervalRef.current);
-            onDecline();
+            setExpired(true);
             return 0;
           }
           return prev - 1;
@@ -56,7 +58,14 @@ export const ConnectionRequestModal = ({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [visible, timeoutSeconds, onDecline]);
+  }, [visible, timeoutSeconds]);
+
+  // Call onDecline outside of the state updater to avoid setState-during-render
+  useEffect(() => {
+    if (expired) {
+      onDecline();
+    }
+  }, [expired, onDecline]);
 
   const platformIcon: keyof typeof Ionicons.glyphMap =
     platform === 'ios' ? 'logo-apple' : 'logo-android';

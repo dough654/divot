@@ -293,10 +293,12 @@ export default function ViewerScreen() {
 
     await connectSignaling();
 
-    // Send connection request (camera must accept)
+    // Send connection request with the *viewer's* device info (not the camera's BLE name)
+    const androidModel = (Platform.constants as Record<string, unknown>)?.Model;
+    const localDeviceName = localPlatform === 'ios' ? 'iPhone' : `Android ${typeof androidModel === 'string' ? androidModel : 'device'}`;
     const requested = await requestRoom(
       device.roomCode,
-      device.name || 'Viewer',
+      localDeviceName,
       localPlatform,
     );
 
