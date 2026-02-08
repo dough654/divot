@@ -13,3 +13,8 @@ export type SignalingMessage = {
   /** JSON string of SDP or ICE candidate — opaque to the native layer. */
   payload: string;
 };
+
+/** Emitted when a viewer sends an MPC invitation to the camera. */
+export type P2PInvitation = {
+  peerName: string;
+};

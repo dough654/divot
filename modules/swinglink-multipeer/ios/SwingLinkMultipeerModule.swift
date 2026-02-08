@@ -13,7 +13,7 @@ public class SwingLinkMultipeerModule: Module {
   public func definition() -> ModuleDefinition {
     Name("SwingLinkMultipeer")
 
-    Events("onPeerConnected", "onPeerDisconnected", "onSignalingMessage")
+    Events("onPeerConnected", "onPeerDisconnected", "onSignalingMessage", "onInvitationReceived")
 
     OnCreate {
       logger.info("OnCreate: wiring MultipeerManager callbacks")
@@ -32,6 +32,11 @@ public class SwingLinkMultipeerModule: Module {
         logger.info("Forwarding onSignalingMessage to JS: type=\(message["type"] as? String ?? "?")")
         self?.sendEvent("onSignalingMessage", message)
       }
+
+      self.manager.onInvitationReceived = { [weak self] peerName in
+        logger.info("Forwarding onInvitationReceived to JS: peerName=\(peerName)")
+        self?.sendEvent("onInvitationReceived", ["peerName": peerName])
+      }
     }
 
     Function("startAdvertising") { (roomCode: String) in
@@ -47,6 +52,11 @@ public class SwingLinkMultipeerModule: Module {
     Function("sendMessage") { (type: String, payload: String) in
       logger.info("sendMessage called from JS: type=\(type)")
       self.manager.send(type: type, payload: payload)
+    }
+
+    Function("respondToInvitation") { (accept: Bool) in
+      logger.info("respondToInvitation called from JS: accept=\(accept)")
+      self.manager.respondToInvitation(accept: accept)
     }
 
     Function("disconnect") {

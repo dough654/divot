@@ -354,23 +354,41 @@ export default function CameraScreen() {
     return unsubscribe;
   }, [onConnectionRequest]);
 
+  // Determine which connection request to show — P2P invitation or server BLE handshake
+  const p2pInvitation = autoConnect.pendingInvitation;
+  const showConnectionRequest = !!p2pInvitation || !!pendingRequest;
+  const connectionRequestDeviceName = p2pInvitation?.peerName ?? pendingRequest?.deviceName ?? '';
+  const connectionRequestPlatform = p2pInvitation ? 'ios' : (pendingRequest?.platform ?? '');
+
   const handleAcceptConnection = useCallback(() => {
+    if (p2pInvitation) {
+      autoConnect.acceptInvitation();
+      return;
+    }
     if (!pendingRequest || !roomCode) return;
     respondToRequest(roomCode, pendingRequest.requesterId, true);
     setPendingRequest(null);
-  }, [pendingRequest, roomCode, respondToRequest]);
+  }, [p2pInvitation, autoConnect, pendingRequest, roomCode, respondToRequest]);
 
   const handleDeclineConnection = useCallback(() => {
+    if (p2pInvitation) {
+      autoConnect.rejectInvitation();
+      return;
+    }
     if (!pendingRequest || !roomCode) return;
     respondToRequest(roomCode, pendingRequest.requesterId, false, 'declined');
     setPendingRequest(null);
-  }, [pendingRequest, roomCode, respondToRequest]);
+  }, [p2pInvitation, autoConnect, pendingRequest, roomCode, respondToRequest]);
 
   const handleTimeoutConnection = useCallback(() => {
+    if (p2pInvitation) {
+      autoConnect.rejectInvitation();
+      return;
+    }
     if (!pendingRequest || !roomCode) return;
     respondToRequest(roomCode, pendingRequest.requesterId, false, 'timeout');
     setPendingRequest(null);
-  }, [pendingRequest, roomCode, respondToRequest]);
+  }, [p2pInvitation, autoConnect, pendingRequest, roomCode, respondToRequest]);
 
   // Update connection step based on WebRTC and reconnection state
   useEffect(() => {
@@ -715,11 +733,11 @@ export default function CameraScreen() {
         onDismiss={handleSyncDismiss}
       />
 
-      {/* Connection Request Modal (BLE tap handshake) */}
+      {/* Connection Request Modal (P2P invitation or BLE tap handshake) */}
       <ConnectionRequestModal
-        visible={!!pendingRequest}
-        deviceName={pendingRequest?.deviceName ?? ''}
-        platform={pendingRequest?.platform ?? ''}
+        visible={showConnectionRequest}
+        deviceName={connectionRequestDeviceName}
+        platform={connectionRequestPlatform}
         onAccept={handleAcceptConnection}
         onDecline={handleDeclineConnection}
         onTimeout={handleTimeoutConnection}

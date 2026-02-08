@@ -28,6 +28,12 @@ final class MultipeerManager: NSObject {
   var onConnected: (() -> Void)?
   var onDisconnected: (() -> Void)?
   var onDataReceived: (([String: Any]) -> Void)?
+  /// Emitted on the camera when a viewer sends an MPC invitation.
+  /// Carries the peer's display name (UIDevice.current.name on the viewer).
+  var onInvitationReceived: ((_ peerName: String) -> Void)?
+
+  /// Stored invitation handler — held until JS calls `respondToInvitation`.
+  private var pendingInvitationHandler: ((Bool, MCSession?) -> Void)?
 
   // MARK: - Advertising (Camera side)
 
@@ -116,6 +122,28 @@ final class MultipeerManager: NSObject {
     }
   }
 
+  // MARK: - Invitation response
+
+  /// Accept or reject a pending MPC invitation from JS.
+  func respondToInvitation(accept: Bool) {
+    serialQueue.async { [weak self] in
+      guard let self else { return }
+      guard let handler = self.pendingInvitationHandler else {
+        logger.warning("respondToInvitation called but no pending invitation")
+        return
+      }
+
+      if accept {
+        logger.info("JS accepted invitation")
+        handler(true, self.session)
+      } else {
+        logger.info("JS rejected invitation")
+        handler(false, nil)
+      }
+      self.pendingInvitationHandler = nil
+    }
+  }
+
   // MARK: - Teardown
 
   /// Disconnect and clean up all MPC resources.
@@ -128,6 +156,12 @@ final class MultipeerManager: NSObject {
 
   /// Must be called on serialQueue.
   private func tearDown() {
+    // Reject any pending invitation before tearing down
+    if let handler = pendingInvitationHandler {
+      handler(false, nil)
+      pendingInvitationHandler = nil
+    }
+
     advertiser?.stopAdvertisingPeer()
     advertiser?.delegate = nil
     advertiser = nil
@@ -197,18 +231,30 @@ extension MultipeerManager: MCNearbyServiceAdvertiserDelegate {
     invitationHandler: @escaping (Bool, MCSession?) -> Void
   ) {
     serialQueue.async { [weak self] in
-      guard let self, let session = self.session else {
+      guard let self, let _ = self.session else {
         invitationHandler(false, nil)
         return
       }
 
-      // Only accept if we don't already have a connected peer
-      if session.connectedPeers.isEmpty {
-        logger.info("Accepting invitation from \(peerID.displayName)")
-        invitationHandler(true, session)
-      } else {
+      // Reject if we already have a connected peer
+      guard self.session?.connectedPeers.isEmpty == true else {
         logger.info("Rejecting invitation from \(peerID.displayName) — already connected")
         invitationHandler(false, nil)
+        return
+      }
+
+      // Reject if there's already a pending invitation
+      if self.pendingInvitationHandler != nil {
+        logger.info("Rejecting invitation from \(peerID.displayName) — already have pending invitation")
+        invitationHandler(false, nil)
+        return
+      }
+
+      // Defer acceptance — store the handler and notify JS
+      logger.info("Deferring invitation from \(peerID.displayName) — waiting for JS response")
+      self.pendingInvitationHandler = invitationHandler
+      DispatchQueue.main.async {
+        self.onInvitationReceived?(peerID.displayName)
       }
     }
   }

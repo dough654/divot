@@ -4,6 +4,7 @@ type SwingLinkMultipeerNativeModule = {
   startAdvertising: (roomCode: string) => void;
   startBrowsing: (roomCode: string) => void;
   sendMessage: (type: string, payload: string) => void;
+  respondToInvitation: (accept: boolean) => void;
   disconnect: () => void;
   addListener: (eventName: string, listener: (...args: any[]) => void) => { remove: () => void };
 };

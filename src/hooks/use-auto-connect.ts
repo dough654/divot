@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { useP2PSignaling } from './use-p2p-signaling';
+import type { P2PInvitation } from '@/modules/swinglink-multipeer/src';
 import type { SignalingChannel } from '@/src/types';
 
 type UseAutoConnectOptions = {
@@ -29,6 +30,12 @@ type UseAutoConnectResult = {
   activeTransport: 'p2p' | 'server' | null;
   /** True when the viewer should initiate the server signaling handshake flow. */
   needsServerSignaling: boolean;
+  /** Pending MPC invitation on the camera side. Null when no invitation pending. */
+  pendingInvitation: P2PInvitation | null;
+  /** Accept the pending P2P invitation. */
+  acceptInvitation: () => void;
+  /** Reject the pending P2P invitation. */
+  rejectInvitation: () => void;
 };
 
 /**
@@ -114,7 +121,15 @@ export const useAutoConnect = (options: UseAutoConnectOptions): UseAutoConnectRe
 
   const needsServerSignaling = state === 'needs-server';
 
-  return { channel, state, activeTransport, needsServerSignaling };
+  return {
+    channel,
+    state,
+    activeTransport,
+    needsServerSignaling,
+    pendingInvitation: p2p.pendingInvitation,
+    acceptInvitation: p2p.acceptInvitation,
+    rejectInvitation: p2p.rejectInvitation,
+  };
 };
 
 export type { UseAutoConnectOptions, AutoConnectState, UseAutoConnectResult };

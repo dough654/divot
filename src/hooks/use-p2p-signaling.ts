@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { SwingLinkMultipeerModule } from '@/modules/swinglink-multipeer/src';
-import type { MultipeerState, SignalingMessage } from '@/modules/swinglink-multipeer/src';
+import type { MultipeerState, SignalingMessage, P2PInvitation } from '@/modules/swinglink-multipeer/src';
 import type { SignalingChannel, IceCandidateInfo } from '@/src/types';
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -14,6 +14,12 @@ type UseP2PSignalingOptions = {
 type UseP2PSignalingResult = {
   channel: SignalingChannel;
   state: MultipeerState | 'unavailable';
+  /** Pending invitation from a viewer (camera-only). Null when no invitation pending. */
+  pendingInvitation: P2PInvitation | null;
+  /** Accept the pending MPC invitation. */
+  acceptInvitation: () => void;
+  /** Reject the pending MPC invitation. */
+  rejectInvitation: () => void;
   start: () => void;
   stop: () => void;
 };
@@ -38,6 +44,7 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
   const [state, setState] = useState<MultipeerState | 'unavailable'>(
     nativeModule ? 'idle' : 'unavailable'
   );
+  const [pendingInvitation, setPendingInvitation] = useState<P2PInvitation | null>(null);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const subscriptionsRef = useRef<Array<{ remove: () => void }>>([]);
@@ -66,10 +73,21 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
     subscriptionsRef.current = [];
   }, []);
 
+  const acceptInvitation = useCallback(() => {
+    nativeModule?.respondToInvitation(true);
+    setPendingInvitation(null);
+  }, [nativeModule]);
+
+  const rejectInvitation = useCallback(() => {
+    nativeModule?.respondToInvitation(false);
+    setPendingInvitation(null);
+  }, [nativeModule]);
+
   const stop = useCallback(() => {
     clearTimeout_();
     removeAllListeners();
     nativeModule?.disconnect();
+    setPendingInvitation(null);
     setState((prev) => (prev === 'unavailable' ? 'unavailable' : 'disconnected'));
   }, [nativeModule, clearTimeout_, removeAllListeners]);
 
@@ -87,6 +105,7 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
       'onPeerConnected',
       () => {
         clearTimeout_();
+        setPendingInvitation(null);
         setState('connected');
       }
     );
@@ -117,7 +136,14 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
       }
     );
 
-    subscriptionsRef.current = [peerConnectedSub, peerDisconnectedSub, signalingMessageSub];
+    const invitationReceivedSub = nativeModule.addListener(
+      'onInvitationReceived',
+      (event: P2PInvitation) => {
+        setPendingInvitation(event);
+      }
+    );
+
+    subscriptionsRef.current = [peerConnectedSub, peerDisconnectedSub, signalingMessageSub, invitationReceivedSub];
 
     // Start advertising or browsing based on role
     if (role === 'camera') {
@@ -207,5 +233,5 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
     };
   }, [nativeModule, clearTimeout_, removeAllListeners]);
 
-  return { channel, state, start, stop };
+  return { channel, state, pendingInvitation, acceptInvitation, rejectInvitation, start, stop };
 };
