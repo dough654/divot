@@ -1,10 +1,11 @@
-import { requireNativeModule } from 'expo-modules-core';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 
-type NativeModule = {
+type SwingLinkMultipeerNativeModule = {
   startAdvertising: (roomCode: string) => void;
   startBrowsing: (roomCode: string) => void;
   sendMessage: (type: string, payload: string) => void;
   disconnect: () => void;
+  addListener: (eventName: string, listener: (...args: any[]) => void) => { remove: () => void };
 };
 
 /**
@@ -16,6 +17,8 @@ type NativeModule = {
  * The returned object is also an EventEmitter (Expo SDK 52+) that emits
  * `onPeerConnected`, `onPeerDisconnected`, and `onSignalingMessage` events.
  * Use `addListener()` directly on this object.
+ *
+ * Returns `null` on platforms where MultipeerConnectivity is unavailable (e.g. Android).
  */
 export const SwingLinkMultipeerModule =
-  requireNativeModule<NativeModule>('SwingLinkMultipeer');
+  requireOptionalNativeModule<SwingLinkMultipeerNativeModule>('SwingLinkMultipeer');
