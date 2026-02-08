@@ -223,6 +223,12 @@ export const useWebRTCConnection = (
         throw new Error('No peer connection');
       }
 
+      // Only accept an answer when we're expecting one (have-local-offer)
+      if (peerConnectionRef.current.signalingState === 'stable') {
+        console.warn('Ignoring answer SDP — peer connection already stable');
+        return;
+      }
+
       await setRemoteDescription(peerConnectionRef.current, sdp);
 
       // Process any pending ICE candidates

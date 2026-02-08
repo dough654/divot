@@ -71,6 +71,7 @@ export default function CameraScreen() {
 
   const recorderRef = useRef<VisionCameraRecorderRef>(null);
   const recordingStartTimeRef = useRef<number | null>(null);
+  const p2pOfferCreatedRef = useRef(false);
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingDurationRef = useRef(0);
 
@@ -331,14 +332,15 @@ export default function CameraScreen() {
     return unsubscribe;
   }, [onPeerJoined, createOffer]);
 
-  // P2P peer connected — create WebRTC offer over the P2P channel
+  // P2P peer connected — create WebRTC offer over the P2P channel (once only)
   useEffect(() => {
-    if (autoConnect.state === 'connected-p2p' && !isConnected) {
+    if (autoConnect.state === 'connected-p2p' && !p2pOfferCreatedRef.current) {
+      p2pOfferCreatedRef.current = true;
       setShowQRModal(false);
       setConnectionStep('establishing-webrtc');
       createOffer();
     }
-  }, [autoConnect.state, createOffer, isConnected]);
+  }, [autoConnect.state, createOffer]);
 
   // Handle incoming connection requests (BLE tap handshake)
   useEffect(() => {
