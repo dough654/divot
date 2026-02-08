@@ -16,9 +16,9 @@ import android.util.Log
 /**
  * Manages BLE advertising with a GATT service for SwingLink device discovery.
  *
- * Android advertisers pack the payload into both advertisement service data (fast path
- * for Android scanners) and a GATT readable characteristic (for iOS scanners that need
- * a GATT connection to read the payload).
+ * The advertisement contains only the service UUID (for scan filtering). The actual
+ * payload (room code, platform, flags) is served via a GATT readable characteristic.
+ * This keeps the advertisement well under the 31-byte legacy BLE limit.
  */
 class BLEAdvertiser(private val context: Context) {
   companion object {
@@ -131,10 +131,11 @@ class BLEAdvertiser(private val context: Context) {
       .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
       .build()
 
+    // Only include service UUID for discovery filtering. Payload is served via GATT.
+    // A 128-bit UUID + service data exceeds the 31-byte legacy advertisement limit.
     val advertiseData = AdvertiseData.Builder()
       .setIncludeDeviceName(false)
       .addServiceUuid(BLEConstants.SERVICE_PARCEL_UUID)
-      .addServiceData(BLEConstants.SERVICE_PARCEL_UUID, payloadData)
       .build()
 
     val scanResponse = AdvertiseData.Builder()

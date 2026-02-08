@@ -19,9 +19,10 @@ import android.util.Log
 /**
  * Scans for nearby SwingLink BLE advertisers and reads their payloads.
  *
- * Android advertisers embed the payload in advertisement service data (fast path —
- * no GATT connection needed). iOS advertisers require a GATT connect + characteristic
- * read (slow path, ~200-500ms).
+ * All advertisers (iOS and Android) serve the payload via a GATT readable
+ * characteristic. On first discovery, the scanner connects via GATT to read
+ * the payload (~200-500ms). Subsequent sightings of the same device skip
+ * the GATT read and re-emit with updated RSSI from the cached payload.
  *
  * A staleness handler fires every 3 seconds. Devices not seen for 10 seconds
  * emit onDeviceLost and are purged from the cache.
