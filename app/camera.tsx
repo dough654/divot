@@ -509,6 +509,24 @@ export default function CameraScreen() {
             <Text style={styles.discoverableText}>Discoverable</Text>
           </View>
         )}
+        {isConnected && autoConnect.activeTransport && (
+          <View style={[
+            styles.transportBadge,
+            autoConnect.activeTransport === 'p2p' ? styles.transportBadgeP2P : styles.transportBadgeServer,
+          ]}>
+            <Ionicons
+              name={autoConnect.activeTransport === 'p2p' ? 'radio' : 'cloud-outline'}
+              size={11}
+              color={autoConnect.activeTransport === 'p2p' ? '#7C6BFF' : theme.colors.textTertiary}
+            />
+            <Text style={[
+              styles.transportBadgeText,
+              autoConnect.activeTransport === 'p2p' && styles.transportBadgeTextP2P,
+            ]}>
+              {autoConnect.activeTransport === 'p2p' ? 'P2P' : 'Server'}
+            </Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.portraitWrapper}>
@@ -957,5 +975,28 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   pillQuality: {
     backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  transportBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
+  },
+  transportBadgeP2P: {
+    backgroundColor: 'rgba(124,107,255,0.15)',
+  },
+  transportBadgeServer: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  transportBadgeText: {
+    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
+    color: theme.colors.textTertiary,
+  },
+  transportBadgeTextP2P: {
+    color: '#7C6BFF',
+    fontFamily: theme.fontFamily.bodySemiBold,
   },
 }));

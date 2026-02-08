@@ -11,6 +11,7 @@ export type ConnectionStep =
   | 'local-discovery-failed'
   | 'setting-up-hotspot'
   | 'connecting-to-hotspot'
+  | 'attempting-p2p'
   | 'exchanging-signaling'
   | 'awaiting-acceptance'
   | 'establishing-webrtc'

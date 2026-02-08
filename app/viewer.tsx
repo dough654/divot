@@ -255,22 +255,14 @@ export default function ViewerScreen() {
     };
   }, []);
 
-  // P2P connected — skip server handshake entirely, go straight to WebRTC
+  // Mirror orchestrator state into the connection step UI
   useEffect(() => {
-    if (autoConnect.state === 'connected-p2p') {
+    if (autoConnect.state === 'attempting-p2p') {
+      setConnectionStep('attempting-p2p');
+    } else if (autoConnect.state === 'connected-p2p') {
       setConnectionStep('establishing-webrtc');
     }
   }, [autoConnect.state]);
-
-  // When P2P fails/unavailable, the orchestrator signals needs-server.
-  // Kick off the BLE handshake → server signaling flow for the selected device.
-  useEffect(() => {
-    if (!autoConnect.needsServerSignaling || !selectedDevice) return;
-    // Don't re-trigger if we already started a handshake for this device
-    if (isProcessingScan.current) return;
-
-    handleDeviceSelect(selectedDevice);
-  }, [autoConnect.needsServerSignaling, selectedDevice]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get the current error info based on error code
   const currentError = useMemo(() => {
@@ -300,12 +292,11 @@ export default function ViewerScreen() {
     setServerReady(false);
   }, []);
 
-  // Handle nearby device selection (BLE tap → handshake flow)
-  const handleDeviceSelect = useCallback(async (device: DiscoveredDevice) => {
+  // Handle nearby device selection — lightweight: sets device + lets orchestrator drive
+  const handleDeviceSelect = useCallback((device: DiscoveredDevice) => {
     if (isProcessingScan.current) return;
 
     lastBLEDeviceRef.current = device;
-    setSelectedDevice(device);
 
     // GOL-68: check connectivity for cross-platform connections
     const localPlatform = Platform.OS as 'ios' | 'android';
@@ -316,9 +307,15 @@ export default function ViewerScreen() {
 
     isProcessingScan.current = true;
     setIsScanning(false);
-    setConnectionStep('exchanging-signaling');
     setConnectionErrorCode(null);
     roomCodeRef.current = device.roomCode;
+    setSelectedDevice(device);
+    // connectionStep will be set by the P2P effect or the needsServerSignaling effect
+  }, [isInternetReachable]);
+
+  // Server handshake: connect signaling → requestRoom → await camera acceptance
+  const initiateServerHandshake = useCallback(async (device: DiscoveredDevice) => {
+    setConnectionStep('exchanging-signaling');
 
     // Suppress any stale responses arriving during async setup
     awaitingHandshakeRef.current = false;
@@ -330,6 +327,7 @@ export default function ViewerScreen() {
     await connectSignaling();
 
     // Send connection request with the *viewer's* device info (not the camera's BLE name)
+    const localPlatform = Platform.OS as 'ios' | 'android';
     const androidModel = (Platform.constants as Record<string, unknown>)?.Model;
     const localDeviceName = localPlatform === 'ios' ? 'iPhone' : `Android ${typeof androidModel === 'string' ? androidModel : 'device'}`;
     const requested = await requestRoom(
@@ -356,17 +354,24 @@ export default function ViewerScreen() {
       setConnectionStep('failed');
       isProcessingScan.current = false;
     }, 30000);
-  }, [connectSignaling, requestRoom, isInternetReachable]);
+  }, [connectSignaling, requestRoom]);
+
+  // When P2P fails/unavailable, the orchestrator signals needs-server.
+  // Kick off the BLE handshake → server signaling flow for the selected device.
+  useEffect(() => {
+    if (!autoConnect.needsServerSignaling || !selectedDevice) return;
+
+    initiateServerHandshake(selectedDevice);
+  }, [autoConnect.needsServerSignaling, selectedDevice, initiateServerHandshake]);
 
   // Handle recovery actions from ErrorDetail
   const handleErrorAction = useCallback((action: RecoveryAction['action']) => {
     switch (action) {
       case 'retry':
         if (lastBLEDeviceRef.current) {
-          // Re-do the BLE handshake with the same device
+          // P2P already failed/skipped — retry the server handshake directly
           setConnectionErrorCode(null);
-          isProcessingScan.current = false;
-          handleDeviceSelect(lastBLEDeviceRef.current);
+          initiateServerHandshake(lastBLEDeviceRef.current);
         } else if (roomCodeRef.current) {
           setConnectionErrorCode(null);
           proceedWithConnection(roomCodeRef.current);
@@ -386,7 +391,7 @@ export default function ViewerScreen() {
       default:
         handleRescan();
     }
-  }, [proceedWithConnection, handleRescan, handleDeviceSelect]);
+  }, [proceedWithConnection, handleRescan, initiateServerHandshake]);
 
   // Handle manual code entry
   const handleManualCodeSubmit = useCallback(async (code: string) => {
@@ -420,6 +425,24 @@ export default function ViewerScreen() {
         </Pressable>
         {!useManualEntry && (
           <ConnectionStatus step={connectionStep} quality={quality} compact />
+        )}
+        {isConnected && autoConnect.activeTransport && (
+          <View style={[
+            styles.transportBadge,
+            autoConnect.activeTransport === 'p2p' ? styles.transportBadgeP2P : styles.transportBadgeServer,
+          ]}>
+            <Ionicons
+              name={autoConnect.activeTransport === 'p2p' ? 'radio' : 'cloud-outline'}
+              size={11}
+              color={autoConnect.activeTransport === 'p2p' ? '#7C6BFF' : theme.colors.textTertiary}
+            />
+            <Text style={[
+              styles.transportBadgeText,
+              autoConnect.activeTransport === 'p2p' && styles.transportBadgeTextP2P,
+            ]}>
+              {autoConnect.activeTransport === 'p2p' ? 'P2P' : 'Server'}
+            </Text>
+          </View>
         )}
       </View>
 
@@ -644,5 +667,28 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontSize: 10,
     color: 'rgba(255,255,255,0.7)',
     textTransform: 'lowercase' as const,
+  },
+  transportBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
+  },
+  transportBadgeP2P: {
+    backgroundColor: 'rgba(124,107,255,0.15)',
+  },
+  transportBadgeServer: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  transportBadgeText: {
+    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
+    color: theme.colors.textTertiary,
+  },
+  transportBadgeTextP2P: {
+    color: '#7C6BFF',
+    fontFamily: theme.fontFamily.bodySemiBold,
   },
 }));
