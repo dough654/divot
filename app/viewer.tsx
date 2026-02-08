@@ -41,6 +41,7 @@ export default function ViewerScreen() {
   const [wasConnected, setWasConnected] = useState(false);
   const [blockedDevice, setBlockedDevice] = useState<DiscoveredDevice | null>(null);
   const handshakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handshakeActiveRef = useRef(false);
 
   // Connectivity status (GOL-68)
   const { isInternetReachable } = useConnectivity();
@@ -191,6 +192,12 @@ export default function ViewerScreen() {
   // Handle connection request response (BLE handshake result)
   useEffect(() => {
     const unsubscribe = onConnectionRequestResponse((response) => {
+      // Ignore stale responses from a previous request (e.g. camera auto-declined
+      // after the viewer already timed out and reset)
+      if (!handshakeActiveRef.current) return;
+
+      handshakeActiveRef.current = false;
+
       // Clear handshake timeout
       if (handshakeTimeoutRef.current) {
         clearTimeout(handshakeTimeoutRef.current);
@@ -242,6 +249,11 @@ export default function ViewerScreen() {
 
   const handleRescan = useCallback(() => {
     isProcessingScan.current = false;
+    handshakeActiveRef.current = false;
+    if (handshakeTimeoutRef.current) {
+      clearTimeout(handshakeTimeoutRef.current);
+      handshakeTimeoutRef.current = null;
+    }
     setIsScanning(true);
     setConnectionStep('scanning-qr');
     setUseManualEntry(false);
@@ -310,9 +322,11 @@ export default function ViewerScreen() {
     }
 
     setConnectionStep('awaiting-acceptance');
+    handshakeActiveRef.current = true;
 
     // 30s timeout for camera to respond
     handshakeTimeoutRef.current = setTimeout(() => {
+      handshakeActiveRef.current = false;
       setConnectionErrorCode('REQUEST_TIMEOUT');
       setConnectionStep('failed');
       isProcessingScan.current = false;
