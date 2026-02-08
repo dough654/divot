@@ -214,14 +214,15 @@ io.on('connection', (socket: Socket) => {
   /**
    * Respond to a connection request (camera accepts/declines).
    */
-  socket.on('room:request-response', (data: { roomCode: string; requesterId: string; accepted: boolean }) => {
+  socket.on('room:request-response', (data: { roomCode: string; requesterId: string; accepted: boolean; reason?: string }) => {
     pendingRequests.delete(data.roomCode);
 
     io.to(data.requesterId).emit('room:request-response', {
       accepted: data.accepted,
+      ...(data.reason && { reason: data.reason }),
     });
 
-    console.log(`Connection request ${data.accepted ? 'accepted' : 'declined'} in room ${data.roomCode}`);
+    console.log(`Connection request ${data.accepted ? 'accepted' : 'declined'}${data.reason ? ` (${data.reason})` : ''} in room ${data.roomCode}`);
   });
 
   /**

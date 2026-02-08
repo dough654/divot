@@ -31,6 +31,11 @@ export type ConnectionRequest = {
   requesterId: string;
 };
 
+export type ConnectionRequestResponse = {
+  accepted: boolean;
+  reason?: 'declined' | 'timeout';
+};
+
 export type CreateRoomResponse = {
   roomCode: string;
 };

@@ -5,6 +5,7 @@ import type {
   SignalingError,
   IceCandidateInfo,
   ConnectionRequest,
+  ConnectionRequestResponse,
 } from '@/src/types';
 
 const DEFAULT_CONFIG: SignalingClientConfig = {
@@ -23,7 +24,7 @@ export type SignalingClientCallbacks = {
   onPeerLeft?: () => void;
   onReconnected?: () => void;
   onConnectionRequest?: (request: ConnectionRequest) => void;
-  onConnectionRequestResponse?: (response: { accepted: boolean }) => void;
+  onConnectionRequestResponse?: (response: ConnectionRequestResponse) => void;
 };
 
 /**
@@ -129,7 +130,7 @@ export const createSignalingClient = (
         callbacks.onConnectionRequest?.(data);
       });
 
-      socket.on('room:request-response', (data: { accepted: boolean }) => {
+      socket.on('room:request-response', (data: ConnectionRequestResponse) => {
         callbacks.onConnectionRequestResponse?.(data);
       });
 
@@ -318,10 +319,11 @@ export const createSignalingClient = (
 
   /**
    * Responds to a connection request (camera accepts/declines).
+   * @param reason - Optional reason for decline: 'declined' (explicit) or 'timeout' (auto-expired).
    */
-  const respondToRequest = (roomCode: string, requesterId: string, accepted: boolean): void => {
+  const respondToRequest = (roomCode: string, requesterId: string, accepted: boolean, reason?: 'declined' | 'timeout'): void => {
     if (socket?.connected) {
-      socket.emit('room:request-response', { roomCode, requesterId, accepted });
+      socket.emit('room:request-response', { roomCode, requesterId, accepted, reason });
     }
   };
 

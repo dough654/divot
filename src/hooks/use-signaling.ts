@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createSignalingClient, SignalingClient } from '@/src/services/signaling';
-import type { SignalingConnectionState, SignalingError, IceCandidateInfo, SignalingChannel, ConnectionRequest } from '@/src/types';
+import type { SignalingConnectionState, SignalingError, IceCandidateInfo, SignalingChannel, ConnectionRequest, ConnectionRequestResponse } from '@/src/types';
 
 export type UseSignalingOptions = {
   serverUrl?: string;
@@ -19,7 +19,7 @@ export type UseSignalingResult = {
   joinRoom: (code: string) => Promise<boolean>;
   rejoinRoom: (roomCode: string, role: 'camera' | 'viewer') => Promise<boolean>;
   requestRoom: (roomCode: string, deviceName: string, platform: string) => Promise<boolean>;
-  respondToRequest: (roomCode: string, requesterId: string, accepted: boolean) => void;
+  respondToRequest: (roomCode: string, requesterId: string, accepted: boolean, reason?: 'declined' | 'timeout') => void;
   leaveRoom: () => void;
   sendOffer: (sdp: string) => void;
   sendAnswer: (sdp: string) => void;
@@ -31,7 +31,7 @@ export type UseSignalingResult = {
   onPeerLeft: (callback: () => void) => () => void;
   onReconnected: (callback: () => void) => () => void;
   onConnectionRequest: (callback: (request: ConnectionRequest) => void) => () => void;
-  onConnectionRequestResponse: (callback: (response: { accepted: boolean }) => void) => () => void;
+  onConnectionRequestResponse: (callback: (response: ConnectionRequestResponse) => void) => () => void;
 };
 
 /**
@@ -54,7 +54,7 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
     onPeerLeft: Set<() => void>;
     onReconnected: Set<() => void>;
     onConnectionRequest: Set<(request: ConnectionRequest) => void>;
-    onConnectionRequestResponse: Set<(response: { accepted: boolean }) => void>;
+    onConnectionRequestResponse: Set<(response: ConnectionRequestResponse) => void>;
   }>({
     onOffer: new Set(),
     onAnswer: new Set(),
@@ -234,8 +234,8 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
     }
   }, []);
 
-  const respondToRequest = useCallback((roomCode: string, requesterId: string, accepted: boolean): void => {
-    clientRef.current?.respondToRequest(roomCode, requesterId, accepted);
+  const respondToRequest = useCallback((roomCode: string, requesterId: string, accepted: boolean, reason?: 'declined' | 'timeout'): void => {
+    clientRef.current?.respondToRequest(roomCode, requesterId, accepted, reason);
   }, []);
 
   const onConnectionRequest = useCallback((callback: (request: ConnectionRequest) => void) => {
@@ -245,7 +245,7 @@ export const useSignaling = (options: UseSignalingOptions = {}): UseSignalingRes
     };
   }, []);
 
-  const onConnectionRequestResponse = useCallback((callback: (response: { accepted: boolean }) => void) => {
+  const onConnectionRequestResponse = useCallback((callback: (response: ConnectionRequestResponse) => void) => {
     callbacksRef.current.onConnectionRequestResponse.add(callback);
     return () => {
       callbacksRef.current.onConnectionRequestResponse.delete(callback);

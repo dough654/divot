@@ -11,8 +11,10 @@ export type ConnectionRequestModalProps = {
   platform: string;
   /** Called when the camera user accepts the connection. */
   onAccept: () => void;
-  /** Called when the camera user declines (or the timer expires). */
+  /** Called when the camera user explicitly taps Decline. */
   onDecline: () => void;
+  /** Called when the countdown timer expires. Falls back to onDecline if not provided. */
+  onTimeout?: () => void;
   /** Timeout in seconds before auto-declining. Defaults to 30. */
   timeoutSeconds?: number;
 };
@@ -27,6 +29,7 @@ export const ConnectionRequestModal = ({
   platform,
   onAccept,
   onDecline,
+  onTimeout,
   timeoutSeconds = 30,
 }: ConnectionRequestModalProps) => {
   const [secondsLeft, setSecondsLeft] = useState(timeoutSeconds);
@@ -60,12 +63,12 @@ export const ConnectionRequestModal = ({
     };
   }, [visible, timeoutSeconds]);
 
-  // Call onDecline outside of the state updater to avoid setState-during-render
+  // Call onTimeout (or onDecline as fallback) outside of the state updater to avoid setState-during-render
   useEffect(() => {
     if (expired) {
-      onDecline();
+      (onTimeout ?? onDecline)();
     }
-  }, [expired, onDecline]);
+  }, [expired, onTimeout, onDecline]);
 
   const platformIcon: keyof typeof Ionicons.glyphMap =
     platform === 'ios' ? 'logo-apple' : 'logo-android';

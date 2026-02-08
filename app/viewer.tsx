@@ -41,7 +41,7 @@ export default function ViewerScreen() {
   const [wasConnected, setWasConnected] = useState(false);
   const [blockedDevice, setBlockedDevice] = useState<DiscoveredDevice | null>(null);
   const handshakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handshakeActiveRef = useRef(false);
+  const handshakeGenerationRef = useRef(0);
   const lastBLEDeviceRef = useRef<DiscoveredDevice | null>(null);
 
   // Connectivity status (GOL-68)
@@ -193,11 +193,14 @@ export default function ViewerScreen() {
   // Handle connection request response (BLE handshake result)
   useEffect(() => {
     const unsubscribe = onConnectionRequestResponse((response) => {
-      // Ignore stale responses from a previous request (e.g. camera auto-declined
-      // after the viewer already timed out and reset)
-      if (!handshakeActiveRef.current) return;
+      // Capture the generation at the time we receive the response.
+      // If it doesn't match the current generation, this response is stale
+      // (e.g. camera auto-declined after the viewer already timed out and retried).
+      const generation = handshakeGenerationRef.current;
+      if (generation === 0) return; // no handshake ever started
 
-      handshakeActiveRef.current = false;
+      // Bump generation to mark this handshake as consumed
+      handshakeGenerationRef.current++;
 
       // Clear handshake timeout
       if (handshakeTimeoutRef.current) {
@@ -220,7 +223,9 @@ export default function ViewerScreen() {
           });
         }
       } else {
-        setConnectionErrorCode('CONNECTION_DECLINED');
+        // Distinguish explicit decline from auto-timeout on the camera side
+        const errorCode = response.reason === 'timeout' ? 'REQUEST_TIMEOUT' : 'CONNECTION_DECLINED';
+        setConnectionErrorCode(errorCode);
         setConnectionStep('failed');
         isProcessingScan.current = false;
       }
@@ -250,7 +255,7 @@ export default function ViewerScreen() {
 
   const handleRescan = useCallback(() => {
     isProcessingScan.current = false;
-    handshakeActiveRef.current = false;
+    handshakeGenerationRef.current++;
     lastBLEDeviceRef.current = null;
     if (handshakeTimeoutRef.current) {
       clearTimeout(handshakeTimeoutRef.current);
@@ -282,6 +287,10 @@ export default function ViewerScreen() {
     setConnectionErrorCode(null);
     roomCodeRef.current = device.roomCode;
 
+    // Bump generation so any stale response from a prior handshake is ignored
+    handshakeGenerationRef.current++;
+    const generation = handshakeGenerationRef.current;
+
     await connectSignaling();
 
     // Send connection request with the *viewer's* device info (not the camera's BLE name)
@@ -301,11 +310,12 @@ export default function ViewerScreen() {
     }
 
     setConnectionStep('awaiting-acceptance');
-    handshakeActiveRef.current = true;
 
-    // 30s timeout for camera to respond
+    // 30s timeout for camera to respond — only fire if still on this generation
     handshakeTimeoutRef.current = setTimeout(() => {
-      handshakeActiveRef.current = false;
+      if (handshakeGenerationRef.current !== generation) return;
+      // Bump generation so any late-arriving camera response is ignored
+      handshakeGenerationRef.current++;
       setConnectionErrorCode('REQUEST_TIMEOUT');
       setConnectionStep('failed');
       isProcessingScan.current = false;

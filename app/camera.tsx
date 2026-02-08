@@ -338,7 +338,13 @@ export default function CameraScreen() {
 
   const handleDeclineConnection = useCallback(() => {
     if (!pendingRequest || !roomCode) return;
-    respondToRequest(roomCode, pendingRequest.requesterId, false);
+    respondToRequest(roomCode, pendingRequest.requesterId, false, 'declined');
+    setPendingRequest(null);
+  }, [pendingRequest, roomCode, respondToRequest]);
+
+  const handleTimeoutConnection = useCallback(() => {
+    if (!pendingRequest || !roomCode) return;
+    respondToRequest(roomCode, pendingRequest.requesterId, false, 'timeout');
     setPendingRequest(null);
   }, [pendingRequest, roomCode, respondToRequest]);
 
@@ -674,6 +680,7 @@ export default function CameraScreen() {
         platform={pendingRequest?.platform ?? ''}
         onAccept={handleAcceptConnection}
         onDecline={handleDeclineConnection}
+        onTimeout={handleTimeoutConnection}
       />
     </View>
   );
