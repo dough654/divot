@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Platform, PermissionsAndroid, NativeEventEmitter } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import { SwingLinkBLEModule } from '../../modules/swinglink-ble';
 import type { DiscoveredDevice } from '../../modules/swinglink-ble';
 
@@ -33,7 +33,15 @@ export type UseBLEScanningResult = {
   devices: ReadonlyArray<DiscoveredDevice>;
 };
 
-const eventEmitter = new NativeEventEmitter(SwingLinkBLEModule as any);
+// Expo SDK 52+ — requireNativeModule() returns an object that IS an EventEmitter.
+// Using RN's NativeEventEmitter with an Expo module would silently drop all events.
+const bleModule = SwingLinkBLEModule as unknown as {
+  addListener: (eventName: string, listener: (...args: any[]) => void) => { remove: () => void };
+  startAdvertising: (roomCode: string) => void;
+  stopAdvertising: () => void;
+  startScanning: () => void;
+  stopScanning: () => void;
+};
 
 /**
  * Requests BLE permissions on Android (API 31+).
@@ -103,9 +111,13 @@ export const useBLEAdvertising = (
 
       if (status !== 'granted') return;
 
-      SwingLinkBLEModule.startAdvertising(roomCode);
-      isAdvertisingRef.current = true;
-      setIsAdvertising(true);
+      try {
+        bleModule.startAdvertising(roomCode);
+        isAdvertisingRef.current = true;
+        setIsAdvertising(true);
+      } catch (error) {
+        console.error('[BLE] startAdvertising failed:', error);
+      }
     };
 
     start();
@@ -113,7 +125,11 @@ export const useBLEAdvertising = (
     return () => {
       cancelled = true;
       if (isAdvertisingRef.current) {
-        SwingLinkBLEModule.stopAdvertising();
+        try {
+          bleModule.stopAdvertising();
+        } catch (error) {
+          console.error('[BLE] stopAdvertising failed:', error);
+        }
         isAdvertisingRef.current = false;
       }
       setIsAdvertising(false);
@@ -164,7 +180,7 @@ export const useBLEScanning = (
 
       if (status !== 'granted') return;
 
-      const foundSubscription = eventEmitter.addListener(
+      const foundSubscription = bleModule.addListener(
         'onDeviceFound',
         (device: DiscoveredDevice) => {
           devicesRef.current.set(device.id, device);
@@ -172,7 +188,7 @@ export const useBLEScanning = (
         }
       );
 
-      const lostSubscription = eventEmitter.addListener(
+      const lostSubscription = bleModule.addListener(
         'onDeviceLost',
         (event: { id: string }) => {
           devicesRef.current.delete(event.id);
@@ -180,14 +196,21 @@ export const useBLEScanning = (
         }
       );
 
-      SwingLinkBLEModule.startScanning();
+      try {
+        bleModule.startScanning();
+      } catch (error) {
+        console.error('[BLE] startScanning failed:', error);
+      }
       setIsScanning(true);
 
-      // Store cleanup refs for the return function
       cleanupRef.current = () => {
         foundSubscription.remove();
         lostSubscription.remove();
-        SwingLinkBLEModule.stopScanning();
+        try {
+          bleModule.stopScanning();
+        } catch (error) {
+          console.error('[BLE] stopScanning failed:', error);
+        }
         devicesRef.current.clear();
         setDevices([]);
         setIsScanning(false);
