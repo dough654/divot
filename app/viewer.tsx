@@ -19,6 +19,7 @@ import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { useBLEScanning } from '@/src/hooks/use-ble-discovery';
 import { useConnectivity } from '@/src/hooks/use-connectivity';
+import { useAutoConnect } from '@/src/hooks/use-auto-connect';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import { connectionErrors, getSignalingError } from '@/src/utils/error-messages';
 import { shouldBlockConnection } from '@/src/utils/connectivity';
@@ -40,6 +41,8 @@ export default function ViewerScreen() {
   const roomCodeRef = useRef<string | null>(null);
   const [wasConnected, setWasConnected] = useState(false);
   const [blockedDevice, setBlockedDevice] = useState<DiscoveredDevice | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<DiscoveredDevice | null>(null);
+  const [serverReady, setServerReady] = useState(false);
   const handshakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handshakeGenerationRef = useRef(0);
   const awaitingHandshakeRef = useRef(false);
@@ -66,6 +69,15 @@ export default function ViewerScreen() {
     onConnectionRequestResponse,
   } = useSignaling({ autoConnect: false });
 
+  const autoConnect = useAutoConnect({
+    role: 'viewer',
+    roomCode: roomCodeRef.current,
+    serverChannel: channel,
+    serverReady,
+    remotePlatform: selectedDevice?.platform,
+    enabled: !!selectedDevice,
+  });
+
   const {
     peerConnection,
     remoteStream,
@@ -73,7 +85,7 @@ export default function ViewerScreen() {
     dataChannel,
     status: webrtcStatus,
   } = useWebRTCConnection({
-    signalingChannel: channel,
+    signalingChannel: autoConnect.channel,
   });
 
   const { quality } = useConnectionQuality({
@@ -149,6 +161,7 @@ export default function ViewerScreen() {
       return;
     }
 
+    setServerReady(true);
     setConnectionStep('establishing-webrtc');
   }, [connectSignaling, joinRoom]);
 
@@ -212,6 +225,7 @@ export default function ViewerScreen() {
         if (roomCode) {
           joinRoom(roomCode).then((joined) => {
             if (joined) {
+              setServerReady(true);
               setConnectionStep('establishing-webrtc');
             } else {
               setConnectionErrorCode('ROOM_NOT_FOUND');
@@ -241,6 +255,23 @@ export default function ViewerScreen() {
     };
   }, []);
 
+  // P2P connected — skip server handshake entirely, go straight to WebRTC
+  useEffect(() => {
+    if (autoConnect.state === 'connected-p2p') {
+      setConnectionStep('establishing-webrtc');
+    }
+  }, [autoConnect.state]);
+
+  // When P2P fails/unavailable, the orchestrator signals needs-server.
+  // Kick off the BLE handshake → server signaling flow for the selected device.
+  useEffect(() => {
+    if (!autoConnect.needsServerSignaling || !selectedDevice) return;
+    // Don't re-trigger if we already started a handshake for this device
+    if (isProcessingScan.current) return;
+
+    handleDeviceSelect(selectedDevice);
+  }, [autoConnect.needsServerSignaling, selectedDevice]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Get the current error info based on error code
   const currentError = useMemo(() => {
     if (!connectionErrorCode) return null;
@@ -265,6 +296,8 @@ export default function ViewerScreen() {
     setUseManualEntry(false);
     setConnectionErrorCode(null);
     setBlockedDevice(null);
+    setSelectedDevice(null);
+    setServerReady(false);
   }, []);
 
   // Handle nearby device selection (BLE tap → handshake flow)
@@ -272,6 +305,7 @@ export default function ViewerScreen() {
     if (isProcessingScan.current) return;
 
     lastBLEDeviceRef.current = device;
+    setSelectedDevice(device);
 
     // GOL-68: check connectivity for cross-platform connections
     const localPlatform = Platform.OS as 'ios' | 'android';

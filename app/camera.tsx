@@ -33,6 +33,7 @@ import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { useVisionCameraStream } from '@/src/hooks/use-vision-camera-stream';
 import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { useBLEAdvertising } from '@/src/hooks/use-ble-discovery';
+import { useAutoConnect } from '@/src/hooks/use-auto-connect';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { TransferProgressModal } from '@/src/components/clip-sync';
@@ -132,6 +133,14 @@ export default function CameraScreen() {
     stopStream,
   } = useVisionCameraStream();
 
+  const autoConnect = useAutoConnect({
+    role: 'camera',
+    roomCode,
+    serverChannel: channel,
+    serverReady: !!roomCode,
+    enabled: !!roomCode,
+  });
+
   const {
     peerConnection,
     createOffer,
@@ -142,7 +151,7 @@ export default function CameraScreen() {
     status: webrtcStatus,
   } = useWebRTCConnection({
     localStream: visionCameraStream,
-    signalingChannel: channel,
+    signalingChannel: autoConnect.channel,
   });
 
   // BLE advertising — discoverable to nearby viewers once room code is ready
@@ -312,7 +321,7 @@ export default function CameraScreen() {
     };
   }, []);
 
-  // Handle peer joined - create and send offer (auto-sent via channel)
+  // Handle peer joined via server — create and send offer
   useEffect(() => {
     const unsubscribe = onPeerJoined(async () => {
       setShowQRModal(false);
@@ -321,6 +330,15 @@ export default function CameraScreen() {
     });
     return unsubscribe;
   }, [onPeerJoined, createOffer]);
+
+  // P2P peer connected — create WebRTC offer over the P2P channel
+  useEffect(() => {
+    if (autoConnect.state === 'connected-p2p' && !isConnected) {
+      setShowQRModal(false);
+      setConnectionStep('establishing-webrtc');
+      createOffer();
+    }
+  }, [autoConnect.state, createOffer, isConnected]);
 
   // Handle incoming connection requests (BLE tap handshake)
   useEffect(() => {
