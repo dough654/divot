@@ -12,6 +12,7 @@ export type ConnectionStep =
   | 'setting-up-hotspot'
   | 'connecting-to-hotspot'
   | 'exchanging-signaling'
+  | 'awaiting-acceptance'
   | 'establishing-webrtc'
   | 'connected'
   | 'reconnecting'

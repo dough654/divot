@@ -31,6 +31,9 @@ const ROOM_CODE_LENGTH = 6;
 // Track rooms and their participants
 const rooms = new Map<string, Set<string>>();
 
+// Track pending connection requests (roomCode → requester socket id)
+const pendingRequests = new Map<string, string>();
+
 /**
  * Generates a random room code.
  */
@@ -171,6 +174,56 @@ io.on('connection', (socket: Socket) => {
   });
 
   /**
+   * Request to join a room (BLE tap flow). Camera must accept before viewer can join.
+   */
+  socket.on('room:request', (
+    data: { roomCode: string; deviceName: string; platform: string },
+    callback: (response: { success?: boolean; error?: string }) => void,
+  ) => {
+    const room = rooms.get(data.roomCode);
+
+    if (!room) {
+      callback({ error: 'Room not found' });
+      return;
+    }
+
+    if (room.size >= 2) {
+      callback({ error: 'Room is full' });
+      return;
+    }
+
+    if (pendingRequests.has(data.roomCode)) {
+      callback({ error: 'Request already pending' });
+      return;
+    }
+
+    pendingRequests.set(data.roomCode, socket.id);
+
+    // Forward request to the camera (everyone else in the room)
+    socket.to(data.roomCode).emit('room:request', {
+      deviceName: data.deviceName,
+      platform: data.platform,
+      requesterId: socket.id,
+    });
+
+    console.log(`Connection request in room ${data.roomCode} from ${socket.id}`);
+    callback({ success: true });
+  });
+
+  /**
+   * Respond to a connection request (camera accepts/declines).
+   */
+  socket.on('room:request-response', (data: { roomCode: string; requesterId: string; accepted: boolean }) => {
+    pendingRequests.delete(data.roomCode);
+
+    io.to(data.requesterId).emit('room:request-response', {
+      accepted: data.accepted,
+    });
+
+    console.log(`Connection request ${data.accepted ? 'accepted' : 'declined'} in room ${data.roomCode}`);
+  });
+
+  /**
    * Relay SDP offer to the other participant.
    */
   socket.on('offer', (data: { room: string; sdp: string }) => {
@@ -197,15 +250,23 @@ io.on('connection', (socket: Socket) => {
    * Handle disconnection.
    */
   socket.on('disconnect', () => {
+    // Clean up pending requests from this socket
+    pendingRequests.forEach((requesterId, roomCode) => {
+      if (requesterId === socket.id) {
+        pendingRequests.delete(roomCode);
+      }
+    });
+
     // Remove from all rooms
     rooms.forEach((participants, roomCode) => {
       if (participants.has(socket.id)) {
         participants.delete(socket.id);
         socket.to(roomCode).emit('peer-left');
 
-        // Clean up empty rooms
+        // Clean up empty rooms and their pending requests
         if (participants.size === 0) {
           rooms.delete(roomCode);
+          pendingRequests.delete(roomCode);
           console.log(`Room deleted: ${roomCode}`);
         }
       }

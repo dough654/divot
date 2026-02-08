@@ -4,6 +4,7 @@ import type {
   SignalingClientConfig,
   SignalingError,
   IceCandidateInfo,
+  ConnectionRequest,
 } from '@/src/types';
 
 const DEFAULT_CONFIG: SignalingClientConfig = {
@@ -21,6 +22,8 @@ export type SignalingClientCallbacks = {
   onPeerJoined?: () => void;
   onPeerLeft?: () => void;
   onReconnected?: () => void;
+  onConnectionRequest?: (request: ConnectionRequest) => void;
+  onConnectionRequestResponse?: (response: { accepted: boolean }) => void;
 };
 
 /**
@@ -120,6 +123,14 @@ export const createSignalingClient = (
 
       socket.on('peer-left', () => {
         callbacks.onPeerLeft?.();
+      });
+
+      socket.on('room:request', (data: ConnectionRequest) => {
+        callbacks.onConnectionRequest?.(data);
+      });
+
+      socket.on('room:request-response', (data: { accepted: boolean }) => {
+        callbacks.onConnectionRequestResponse?.(data);
       });
 
       socket.on('error', (error: SignalingError) => {
@@ -281,6 +292,40 @@ export const createSignalingClient = (
   };
 
   /**
+   * Requests to join a room (BLE tap handshake). Camera must accept before joining.
+   */
+  const requestRoom = (roomCode: string, deviceName: string, platform: string): Promise<boolean> => {
+    return new Promise((resolve, reject) => {
+      if (!socket?.connected) {
+        reject(new Error('Not connected to signaling server'));
+        return;
+      }
+
+      socket.emit('room:request', { roomCode, deviceName, platform }, (response: { success?: boolean; error?: string }) => {
+        if (response.error) {
+          callbacks.onError?.({
+            code: 'REQUEST_ROOM_ERROR',
+            message: response.error,
+          });
+          resolve(false);
+          return;
+        }
+
+        resolve(!!response.success);
+      });
+    });
+  };
+
+  /**
+   * Responds to a connection request (camera accepts/declines).
+   */
+  const respondToRequest = (roomCode: string, requesterId: string, accepted: boolean): void => {
+    if (socket?.connected) {
+      socket.emit('room:request-response', { roomCode, requesterId, accepted });
+    }
+  };
+
+  /**
    * Returns the current connection state.
    */
   const getConnectionState = (): SignalingConnectionState => connectionState;
@@ -297,6 +342,8 @@ export const createSignalingClient = (
     createRoom,
     joinRoom,
     rejoinRoom,
+    requestRoom,
+    respondToRequest,
     leaveRoom,
     sendOffer,
     sendAnswer,

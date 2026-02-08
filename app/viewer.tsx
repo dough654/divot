@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Alert, Linking } from 'react-native';
+import { View, Text, Pressable, Alert, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -8,7 +8,7 @@ import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useTheme } from '@/src/context';
 import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
-import { QRCodeScanner, ManualCodeEntry, NearbyDevices } from '@/src/components/pairing';
+import { QRCodeScanner, ManualCodeEntry, NearbyDevices, NoInternetCard } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { ErrorDetail } from '@/src/components/ui';
@@ -18,10 +18,13 @@ import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
 import { useClipSync } from '@/src/hooks/use-clip-sync';
 import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { useBLEScanning } from '@/src/hooks/use-ble-discovery';
+import { useConnectivity } from '@/src/hooks/use-connectivity';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import { connectionErrors, getSignalingError } from '@/src/utils/error-messages';
+import { shouldBlockConnection } from '@/src/utils/connectivity';
 import type { ConnectionStep } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
+import type { DiscoveredDevice } from '@/modules/swinglink-ble';
 import type { RecoveryAction } from '@/src/utils/error-messages';
 
 export default function ViewerScreen() {
@@ -36,6 +39,11 @@ export default function ViewerScreen() {
 
   const roomCodeRef = useRef<string | null>(null);
   const [wasConnected, setWasConnected] = useState(false);
+  const [blockedDevice, setBlockedDevice] = useState<DiscoveredDevice | null>(null);
+  const handshakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Connectivity status (GOL-68)
+  const { isInternetReachable } = useConnectivity();
 
   // BLE scanning for nearby cameras (silently disabled if permissions denied)
   const {
@@ -51,6 +59,8 @@ export default function ViewerScreen() {
     reconnectSignaling,
     joinRoom,
     rejoinRoom,
+    requestRoom,
+    onConnectionRequestResponse,
   } = useSignaling({ autoConnect: false });
 
   const {
@@ -152,11 +162,18 @@ export default function ViewerScreen() {
     const payload = decodeQRPayload(data);
     if (!payload) return;
 
+    // GOL-68: block if no internet (QR/manual always need signaling server)
+    if (isInternetReachable === false) {
+      setConnectionErrorCode('NO_INTERNET');
+      setConnectionStep('failed');
+      return;
+    }
+
     isProcessingScan.current = true;
     setIsScanning(false);
 
     await proceedWithConnection(payload.sessionId);
-  }, [proceedWithConnection]);
+  }, [proceedWithConnection, isInternetReachable]);
 
   // Update connection step based on WebRTC and reconnection state
   useEffect(() => {
@@ -170,6 +187,48 @@ export default function ViewerScreen() {
       setConnectionStep('reconnect-failed');
     }
   }, [isConnected, reconnectionState]);
+
+  // Handle connection request response (BLE handshake result)
+  useEffect(() => {
+    const unsubscribe = onConnectionRequestResponse((response) => {
+      // Clear handshake timeout
+      if (handshakeTimeoutRef.current) {
+        clearTimeout(handshakeTimeoutRef.current);
+        handshakeTimeoutRef.current = null;
+      }
+
+      if (response.accepted) {
+        // Camera accepted — now join the room
+        const roomCode = roomCodeRef.current;
+        if (roomCode) {
+          joinRoom(roomCode).then((joined) => {
+            if (joined) {
+              setConnectionStep('establishing-webrtc');
+            } else {
+              setConnectionErrorCode('ROOM_NOT_FOUND');
+              setConnectionStep('failed');
+              isProcessingScan.current = false;
+            }
+          });
+        }
+      } else {
+        setConnectionErrorCode('CONNECTION_DECLINED');
+        setConnectionStep('failed');
+        isProcessingScan.current = false;
+      }
+    });
+
+    return unsubscribe;
+  }, [onConnectionRequestResponse, joinRoom]);
+
+  // Clean up handshake timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (handshakeTimeoutRef.current) {
+        clearTimeout(handshakeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Get the current error info based on error code
   const currentError = useMemo(() => {
@@ -187,6 +246,7 @@ export default function ViewerScreen() {
     setConnectionStep('scanning-qr');
     setUseManualEntry(false);
     setConnectionErrorCode(null);
+    setBlockedDevice(null);
   }, []);
 
   // Handle recovery actions from ErrorDetail
@@ -214,25 +274,65 @@ export default function ViewerScreen() {
     }
   }, [proceedWithConnection, handleRescan]);
 
-  // Handle nearby device selection (connect via signaling server using room code from BLE)
-  const handleDeviceSelect = useCallback(async (device: { roomCode: string }) => {
+  // Handle nearby device selection (BLE tap → handshake flow)
+  const handleDeviceSelect = useCallback(async (device: DiscoveredDevice) => {
     if (isProcessingScan.current) return;
+
+    // GOL-68: check connectivity for cross-platform connections
+    const localPlatform = Platform.OS as 'ios' | 'android';
+    if (shouldBlockConnection({ localPlatform, remotePlatform: device.platform, isInternetReachable })) {
+      setBlockedDevice(device);
+      return;
+    }
 
     isProcessingScan.current = true;
     setIsScanning(false);
+    setConnectionStep('exchanging-signaling');
+    setConnectionErrorCode(null);
+    roomCodeRef.current = device.roomCode;
 
-    await proceedWithConnection(device.roomCode);
-  }, [proceedWithConnection]);
+    await connectSignaling();
+
+    // Send connection request (camera must accept)
+    const requested = await requestRoom(
+      device.roomCode,
+      device.name || 'Viewer',
+      localPlatform,
+    );
+
+    if (!requested) {
+      setConnectionErrorCode('ROOM_NOT_FOUND');
+      setConnectionStep('failed');
+      isProcessingScan.current = false;
+      return;
+    }
+
+    setConnectionStep('awaiting-acceptance');
+
+    // 30s timeout for camera to respond
+    handshakeTimeoutRef.current = setTimeout(() => {
+      setConnectionErrorCode('REQUEST_TIMEOUT');
+      setConnectionStep('failed');
+      isProcessingScan.current = false;
+    }, 30000);
+  }, [connectSignaling, requestRoom, isInternetReachable]);
 
   // Handle manual code entry
   const handleManualCodeSubmit = useCallback(async (code: string) => {
     if (isProcessingScan.current) return;
 
+    // GOL-68: block if no internet
+    if (isInternetReachable === false) {
+      setConnectionErrorCode('NO_INTERNET');
+      setConnectionStep('failed');
+      return;
+    }
+
     isProcessingScan.current = true;
     setIsScanning(false);
 
     await proceedWithConnection(code);
-  }, [proceedWithConnection]);
+  }, [proceedWithConnection, isInternetReachable]);
 
   return (
     <View style={styles.container}>
@@ -252,9 +352,11 @@ export default function ViewerScreen() {
         )}
       </View>
 
-      {/* Video or Scanner or Manual Entry */}
+      {/* Video or Scanner or Manual Entry or No Internet */}
       <View style={styles.mainContent}>
-        {isConnected ? (
+        {blockedDevice ? (
+          <NoInternetCard onGoBack={handleRescan} />
+        ) : isConnected ? (
           <RemoteVideoView
             stream={remoteStream}
             isConnecting={!remoteStream}

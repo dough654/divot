@@ -17,7 +17,7 @@ import Animated, {
 import { useTheme, useToast } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
 import type { Theme } from '@/src/context';
-import { QRCodeDisplay } from '@/src/components/pairing';
+import { QRCodeDisplay, ConnectionRequestModal } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import {
   RecordingButton,
@@ -37,7 +37,7 @@ import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { formatRoomCode } from '@/src/utils';
-import type { ConnectionStep } from '@/src/types';
+import type { ConnectionStep, ConnectionRequest } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
 
 const MIN_LOADING_TIME_MS = 800;
@@ -66,6 +66,7 @@ export default function CameraScreen() {
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const [lastRecordedClip, setLastRecordedClip] = useState<Clip | null>(null);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [pendingRequest, setPendingRequest] = useState<ConnectionRequest | null>(null);
 
   const recorderRef = useRef<VisionCameraRecorderRef>(null);
   const recordingStartTimeRef = useRef<number | null>(null);
@@ -118,6 +119,8 @@ export default function CameraScreen() {
     createRoom,
     rejoinRoom,
     onPeerJoined,
+    respondToRequest,
+    onConnectionRequest,
   } = useSignaling({ autoConnect: false });
 
   // Native WebRTC video stream from VisionCamera frame processor
@@ -318,6 +321,26 @@ export default function CameraScreen() {
     });
     return unsubscribe;
   }, [onPeerJoined, createOffer]);
+
+  // Handle incoming connection requests (BLE tap handshake)
+  useEffect(() => {
+    const unsubscribe = onConnectionRequest((request) => {
+      setPendingRequest(request);
+    });
+    return unsubscribe;
+  }, [onConnectionRequest]);
+
+  const handleAcceptConnection = useCallback(() => {
+    if (!pendingRequest || !roomCode) return;
+    respondToRequest(roomCode, pendingRequest.requesterId, true);
+    setPendingRequest(null);
+  }, [pendingRequest, roomCode, respondToRequest]);
+
+  const handleDeclineConnection = useCallback(() => {
+    if (!pendingRequest || !roomCode) return;
+    respondToRequest(roomCode, pendingRequest.requesterId, false);
+    setPendingRequest(null);
+  }, [pendingRequest, roomCode, respondToRequest]);
 
   // Update connection step based on WebRTC and reconnection state
   useEffect(() => {
@@ -642,6 +665,15 @@ export default function CameraScreen() {
         progress={syncProgress}
         onCancel={cancelTransfer}
         onDismiss={handleSyncDismiss}
+      />
+
+      {/* Connection Request Modal (BLE tap handshake) */}
+      <ConnectionRequestModal
+        visible={!!pendingRequest}
+        deviceName={pendingRequest?.deviceName ?? ''}
+        platform={pendingRequest?.platform ?? ''}
+        onAccept={handleAcceptConnection}
+        onDecline={handleDeclineConnection}
       />
     </View>
   );

@@ -21,7 +21,15 @@ export type SignalingEventType =
   | 'ice-candidate'
   | 'peer-joined'
   | 'peer-left'
+  | 'room:request'
+  | 'room:request-response'
   | 'error';
+
+export type ConnectionRequest = {
+  deviceName: string;
+  platform: string;
+  requesterId: string;
+};
 
 export type CreateRoomResponse = {
   roomCode: string;

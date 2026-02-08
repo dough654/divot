@@ -37,6 +37,7 @@ const stepInfo: Record<ConnectionStep, { label: string; icon: keyof typeof Ionic
   'setting-up-hotspot': { label: 'Setting up hotspot...', icon: 'phone-portrait' },
   'connecting-to-hotspot': { label: 'Connecting to hotspot...', icon: 'cellular' },
   'exchanging-signaling': { label: 'Exchanging signals...', icon: 'swap-horizontal' },
+  'awaiting-acceptance': { label: 'Waiting for approval...', icon: 'time-outline' },
   'establishing-webrtc': { label: 'Establishing connection...', icon: 'git-branch' },
   connected: { label: 'Connected', icon: 'checkmark-circle' },
   reconnecting: { label: 'Reconnecting...', icon: 'refresh' },
@@ -52,6 +53,7 @@ const spinningSteps: ConnectionStep[] = [
   'setting-up-hotspot',
   'connecting-to-hotspot',
   'exchanging-signaling',
+  'awaiting-acceptance',
   'establishing-webrtc',
   'reconnecting',
 ];

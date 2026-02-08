@@ -92,6 +92,33 @@ export const connectionErrors = {
       { label: 'Dismiss', action: 'dismiss' as const },
     ],
   },
+
+  connectionDeclined: {
+    title: 'Connection Declined',
+    message: 'The camera declined the connection request.',
+    recoveryActions: [
+      { label: 'Scan Again', action: 'rescan' as const, primary: true },
+      { label: 'Dismiss', action: 'dismiss' as const },
+    ],
+  },
+
+  connectionRequestTimeout: {
+    title: 'Request Timed Out',
+    message: 'The camera did not respond in time.',
+    recoveryActions: [
+      { label: 'Try Again', action: 'retry' as const, primary: true },
+      { label: 'Dismiss', action: 'dismiss' as const },
+    ],
+  },
+
+  noInternet: {
+    title: 'Internet Required',
+    message: 'An internet connection is required to reach the connection server.',
+    recoveryActions: [
+      { label: 'Try Again', action: 'retry' as const, primary: true },
+      { label: 'Dismiss', action: 'dismiss' as const },
+    ],
+  },
 } as const;
 
 /**
@@ -206,6 +233,12 @@ export const getSignalingError = (code: string): ErrorInfo => {
       return connectionErrors.signalingFailed;
     case 'TIMEOUT':
       return connectionErrors.timeout;
+    case 'CONNECTION_DECLINED':
+      return connectionErrors.connectionDeclined;
+    case 'REQUEST_TIMEOUT':
+      return connectionErrors.connectionRequestTimeout;
+    case 'NO_INTERNET':
+      return connectionErrors.noInternet;
     default:
       return connectionErrors.signalingFailed;
   }

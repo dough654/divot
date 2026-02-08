@@ -13,3 +13,4 @@ export * from './use-themed-styles';
 export * from './use-press-animation';
 export * from './use-haptics';
 export * from './use-ble-discovery';
+export * from './use-connectivity';
