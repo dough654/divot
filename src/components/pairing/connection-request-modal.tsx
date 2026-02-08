@@ -35,6 +35,7 @@ export const ConnectionRequestModal = ({
   const [secondsLeft, setSecondsLeft] = useState(timeoutSeconds);
   const [expired, setExpired] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevExpiredRef = useRef(false);
 
   useEffect(() => {
     if (visible) {
@@ -63,11 +64,15 @@ export const ConnectionRequestModal = ({
     };
   }, [visible, timeoutSeconds]);
 
-  // Call onTimeout (or onDecline as fallback) outside of the state updater to avoid setState-during-render
+  // Fire timeout callback only on the rising edge of `expired` (false → true).
+  // Without this guard, re-opening the modal re-triggers the expired effect because
+  // onTimeout changes reference (pendingRequest changed) while expired is still true
+  // from the previous session — the queued setExpired(false) hasn't flushed yet.
   useEffect(() => {
-    if (expired) {
+    if (expired && !prevExpiredRef.current) {
       (onTimeout ?? onDecline)();
     }
+    prevExpiredRef.current = expired;
   }, [expired, onTimeout, onDecline]);
 
   const platformIcon: keyof typeof Ionicons.glyphMap =
