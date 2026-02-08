@@ -105,7 +105,8 @@ export const connectionErrors = {
     title: 'Request Timed Out',
     message: 'The camera did not respond in time.',
     recoveryActions: [
-      { label: 'Scan Again', action: 'rescan' as const, primary: true },
+      { label: 'Try Again', action: 'retry' as const, primary: true },
+      { label: 'Scan Again', action: 'rescan' as const },
     ],
   },
 

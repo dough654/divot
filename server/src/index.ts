@@ -192,7 +192,8 @@ io.on('connection', (socket: Socket) => {
       return;
     }
 
-    if (pendingRequests.has(data.roomCode)) {
+    const existingRequester = pendingRequests.get(data.roomCode);
+    if (existingRequester && existingRequester !== socket.id) {
       callback({ error: 'Request already pending' });
       return;
     }

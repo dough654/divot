@@ -42,6 +42,7 @@ export default function ViewerScreen() {
   const [blockedDevice, setBlockedDevice] = useState<DiscoveredDevice | null>(null);
   const handshakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handshakeActiveRef = useRef(false);
+  const lastBLEDeviceRef = useRef<DiscoveredDevice | null>(null);
 
   // Connectivity status (GOL-68)
   const { isInternetReachable } = useConnectivity();
@@ -250,6 +251,7 @@ export default function ViewerScreen() {
   const handleRescan = useCallback(() => {
     isProcessingScan.current = false;
     handshakeActiveRef.current = false;
+    lastBLEDeviceRef.current = null;
     if (handshakeTimeoutRef.current) {
       clearTimeout(handshakeTimeoutRef.current);
       handshakeTimeoutRef.current = null;
@@ -261,34 +263,11 @@ export default function ViewerScreen() {
     setBlockedDevice(null);
   }, []);
 
-  // Handle recovery actions from ErrorDetail
-  const handleErrorAction = useCallback((action: RecoveryAction['action']) => {
-    switch (action) {
-      case 'retry':
-        if (roomCodeRef.current) {
-          setConnectionErrorCode(null);
-          proceedWithConnection(roomCodeRef.current);
-        } else {
-          handleRescan();
-        }
-        break;
-      case 'rescan':
-        handleRescan();
-        break;
-      case 'settings':
-        Linking.openSettings();
-        break;
-      case 'dismiss':
-        handleRescan();
-        break;
-      default:
-        handleRescan();
-    }
-  }, [proceedWithConnection, handleRescan]);
-
   // Handle nearby device selection (BLE tap → handshake flow)
   const handleDeviceSelect = useCallback(async (device: DiscoveredDevice) => {
     if (isProcessingScan.current) return;
+
+    lastBLEDeviceRef.current = device;
 
     // GOL-68: check connectivity for cross-platform connections
     const localPlatform = Platform.OS as 'ios' | 'android';
@@ -332,6 +311,36 @@ export default function ViewerScreen() {
       isProcessingScan.current = false;
     }, 30000);
   }, [connectSignaling, requestRoom, isInternetReachable]);
+
+  // Handle recovery actions from ErrorDetail
+  const handleErrorAction = useCallback((action: RecoveryAction['action']) => {
+    switch (action) {
+      case 'retry':
+        if (lastBLEDeviceRef.current) {
+          // Re-do the BLE handshake with the same device
+          setConnectionErrorCode(null);
+          isProcessingScan.current = false;
+          handleDeviceSelect(lastBLEDeviceRef.current);
+        } else if (roomCodeRef.current) {
+          setConnectionErrorCode(null);
+          proceedWithConnection(roomCodeRef.current);
+        } else {
+          handleRescan();
+        }
+        break;
+      case 'rescan':
+        handleRescan();
+        break;
+      case 'settings':
+        Linking.openSettings();
+        break;
+      case 'dismiss':
+        handleRescan();
+        break;
+      default:
+        handleRescan();
+    }
+  }, [proceedWithConnection, handleRescan, handleDeviceSelect]);
 
   // Handle manual code entry
   const handleManualCodeSubmit = useCallback(async (code: string) => {
