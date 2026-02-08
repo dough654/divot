@@ -201,11 +201,15 @@ export default function CameraScreen() {
     forwardPlugin?.call(frame);
   }, [forwardPlugin]);
 
-  // Auto-reconnect
+  // Auto-reconnect — mask signaling state when on P2P so Scenario B doesn't fire
+  const effectiveSignalingState = autoConnect.activeTransport === 'p2p'
+    ? 'connected' as const
+    : signalingConnectionState;
+
   const { reconnectionState } = useAutoReconnect({
     role: 'camera',
     iceConnectionState: webrtcStatus.iceConnectionState,
-    signalingConnectionState,
+    signalingConnectionState: effectiveSignalingState,
     wasConnected,
     roomCode,
     isRecording: cameraState === 'recording',

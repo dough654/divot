@@ -125,10 +125,16 @@ export default function ViewerScreen() {
 
   // Auto-reconnect (viewer: restartIce/renegotiate are no-ops since camera initiates)
   const noopSdpAction = useCallback(async () => null, []);
+  // When on P2P, mask signaling state so auto-reconnect doesn't see the
+  // server as "disconnected" and trigger Scenario B (signaling recovery).
+  const effectiveSignalingState = autoConnect.activeTransport === 'p2p'
+    ? 'connected' as const
+    : signalingConnectionState;
+
   const { reconnectionState } = useAutoReconnect({
     role: 'viewer',
     iceConnectionState: webrtcStatus.iceConnectionState,
-    signalingConnectionState,
+    signalingConnectionState: effectiveSignalingState,
     wasConnected,
     roomCode: roomCodeRef.current,
     isRecording: false,
