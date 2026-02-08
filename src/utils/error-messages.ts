@@ -98,7 +98,6 @@ export const connectionErrors = {
     message: 'The camera declined the connection request.',
     recoveryActions: [
       { label: 'Scan Again', action: 'rescan' as const, primary: true },
-      { label: 'Dismiss', action: 'dismiss' as const },
     ],
   },
 
@@ -106,8 +105,7 @@ export const connectionErrors = {
     title: 'Request Timed Out',
     message: 'The camera did not respond in time.',
     recoveryActions: [
-      { label: 'Try Again', action: 'retry' as const, primary: true },
-      { label: 'Dismiss', action: 'dismiss' as const },
+      { label: 'Scan Again', action: 'rescan' as const, primary: true },
     ],
   },
 
