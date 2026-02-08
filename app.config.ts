@@ -21,7 +21,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSCameraUsageDescription: 'SwingLink needs camera access to film and stream your golf swing.',
       NSMicrophoneUsageDescription: 'SwingLink needs microphone access for audio during video streaming.',
       NSLocalNetworkUsageDescription: 'SwingLink uses local network to discover and connect to nearby devices.',
-      NSBonjourServices: ['_swinglink._tcp'],
+      NSBonjourServices: ['_swinglink._tcp', '_swinglink-sig._tcp'],
       NSPhotoLibraryUsageDescription: 'SwingLink needs photo library access to save recorded swing videos.',
       NSPhotoLibraryAddUsageDescription: 'SwingLink needs photo library access to save recorded swing videos.',
       NSBluetoothAlwaysUsageDescription: 'SwingLink uses Bluetooth to discover nearby devices for pairing.',
