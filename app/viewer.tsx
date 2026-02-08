@@ -42,6 +42,7 @@ export default function ViewerScreen() {
   const [blockedDevice, setBlockedDevice] = useState<DiscoveredDevice | null>(null);
   const handshakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handshakeGenerationRef = useRef(0);
+  const awaitingHandshakeRef = useRef(false);
   const lastBLEDeviceRef = useRef<DiscoveredDevice | null>(null);
 
   // Connectivity status (GOL-68)
@@ -193,14 +194,11 @@ export default function ViewerScreen() {
   // Handle connection request response (BLE handshake result)
   useEffect(() => {
     const unsubscribe = onConnectionRequestResponse((response) => {
-      // Capture the generation at the time we receive the response.
-      // If it doesn't match the current generation, this response is stale
-      // (e.g. camera auto-declined after the viewer already timed out and retried).
-      const generation = handshakeGenerationRef.current;
-      if (generation === 0) return; // no handshake ever started
-
-      // Bump generation to mark this handshake as consumed
-      handshakeGenerationRef.current++;
+      // Only process if we're actively awaiting a handshake response.
+      // This prevents stale responses (e.g. camera auto-declined from a prior
+      // attempt) from being processed during a retry's async setup.
+      if (!awaitingHandshakeRef.current) return;
+      awaitingHandshakeRef.current = false;
 
       // Clear handshake timeout
       if (handshakeTimeoutRef.current) {
@@ -255,6 +253,7 @@ export default function ViewerScreen() {
 
   const handleRescan = useCallback(() => {
     isProcessingScan.current = false;
+    awaitingHandshakeRef.current = false;
     handshakeGenerationRef.current++;
     lastBLEDeviceRef.current = null;
     if (handshakeTimeoutRef.current) {
@@ -287,7 +286,10 @@ export default function ViewerScreen() {
     setConnectionErrorCode(null);
     roomCodeRef.current = device.roomCode;
 
-    // Bump generation so any stale response from a prior handshake is ignored
+    // Suppress any stale responses arriving during async setup
+    awaitingHandshakeRef.current = false;
+
+    // Bump generation so any stale timeout from a prior handshake is ignored
     handshakeGenerationRef.current++;
     const generation = handshakeGenerationRef.current;
 
@@ -310,12 +312,12 @@ export default function ViewerScreen() {
     }
 
     setConnectionStep('awaiting-acceptance');
+    awaitingHandshakeRef.current = true;
 
     // 30s timeout for camera to respond — only fire if still on this generation
     handshakeTimeoutRef.current = setTimeout(() => {
       if (handshakeGenerationRef.current !== generation) return;
-      // Bump generation so any late-arriving camera response is ignored
-      handshakeGenerationRef.current++;
+      awaitingHandshakeRef.current = false;
       setConnectionErrorCode('REQUEST_TIMEOUT');
       setConnectionStep('failed');
       isProcessingScan.current = false;
