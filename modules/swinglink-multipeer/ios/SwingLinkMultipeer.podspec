@@ -12,5 +12,5 @@ Pod::Spec.new do |s|
   s.source_files   = '**/*.swift'
 
   s.dependency 'ExpoModulesCore'
-  s.framework 'MultipeerConnectivity'
+  s.frameworks = 'MultipeerConnectivity'
 end
