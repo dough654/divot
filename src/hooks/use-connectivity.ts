@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
 export type UseConnectivityResult = {
   /** Whether the device has network connectivity. */
@@ -10,6 +9,7 @@ export type UseConnectivityResult = {
 
 /**
  * Subscribes to network state changes and returns current connectivity status.
+ * Gracefully returns null values if the native module isn't linked (pre-rebuild).
  */
 export const useConnectivity = (): UseConnectivityResult => {
   const [state, setState] = useState<UseConnectivityResult>({
@@ -18,14 +18,22 @@ export const useConnectivity = (): UseConnectivityResult => {
   });
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((netState: NetInfoState) => {
-      setState({
-        isConnected: netState.isConnected,
-        isInternetReachable: netState.isInternetReachable,
-      });
-    });
+    let unsubscribe: (() => void) | undefined;
 
-    return unsubscribe;
+    try {
+      // Dynamic import avoids crash if native module isn't linked yet
+      const NetInfo = require('@react-native-community/netinfo').default;
+      unsubscribe = NetInfo.addEventListener((netState: { isConnected: boolean | null; isInternetReachable: boolean | null }) => {
+        setState({
+          isConnected: netState.isConnected,
+          isInternetReachable: netState.isInternetReachable,
+        });
+      });
+    } catch {
+      console.warn('[useConnectivity] @react-native-community/netinfo native module not available. Rebuild the dev client.');
+    }
+
+    return () => unsubscribe?.();
   }, []);
 
   return state;
