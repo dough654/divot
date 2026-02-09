@@ -39,9 +39,9 @@ type UseAutoConnectResult = {
 };
 
 /**
- * Decides which signaling transport to use (MultipeerConnectivity P2P vs
- * signaling server) and returns a single `SignalingChannel` for
- * `useWebRTCConnection`.
+ * Decides which signaling transport to use (MultipeerConnectivity on iOS,
+ * Wi-Fi Direct on Android, or signaling server) and returns a single
+ * `SignalingChannel` for `useWebRTCConnection`.
  *
  * "First transport wins" — once a transport locks in, it stays for the session.
  */
@@ -60,9 +60,7 @@ export const useAutoConnect = (options: UseAutoConnectOptions): UseAutoConnectRe
 
   // Determine if P2P is worth attempting
   const localPlatform = Platform.OS as 'ios' | 'android';
-  const canAttemptP2P = localPlatform === 'ios' && (
-    role === 'camera' || remotePlatform === 'ios'
-  );
+  const canAttemptP2P = role === 'camera' || remotePlatform === localPlatform;
 
   const p2p = useP2PSignaling({
     roomCode,

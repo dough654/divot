@@ -1,7 +1,13 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { SwingLinkMultipeerModule } from '@/modules/swinglink-multipeer/src';
+import { SwingLinkWifiDirectModule } from '@/modules/swinglink-wifi-direct/src';
 import type { MultipeerState, SignalingMessage, P2PInvitation } from '@/modules/swinglink-multipeer/src';
 import type { SignalingChannel, IceCandidateInfo } from '@/src/types';
+
+const nativeModule = Platform.OS === 'ios'
+  ? SwingLinkMultipeerModule
+  : SwingLinkWifiDirectModule;
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
@@ -29,17 +35,15 @@ const noop = () => {};
 const noopUnsubscribe = () => noop;
 
 /**
- * Wraps the SwingLinkMultipeer native module into a `SignalingChannel` that
- * `useWebRTCConnection` can consume, identical in shape to the one
- * `useSignaling` returns for server-based signaling.
+ * Wraps the platform-specific P2P native module (MultipeerConnectivity on iOS,
+ * Wi-Fi Direct on Android) into a `SignalingChannel` that `useWebRTCConnection`
+ * can consume, identical in shape to the one `useSignaling` returns for
+ * server-based signaling.
  *
- * iOS-only for now — returns state `'unavailable'` on Android (native module
- * resolves to `null` via `requireOptionalNativeModule`).
+ * Returns state `'unavailable'` if the native module is absent (e.g. Expo Go).
  */
 export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalingResult => {
   const { roomCode, role, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
-
-  const nativeModule = SwingLinkMultipeerModule;
 
   const [state, setState] = useState<MultipeerState | 'unavailable'>(
     nativeModule ? 'idle' : 'unavailable'
@@ -76,12 +80,12 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
   const acceptInvitation = useCallback(() => {
     nativeModule?.respondToInvitation(true);
     setPendingInvitation(null);
-  }, [nativeModule]);
+  }, []);
 
   const rejectInvitation = useCallback(() => {
     nativeModule?.respondToInvitation(false);
     setPendingInvitation(null);
-  }, [nativeModule]);
+  }, []);
 
   const stop = useCallback(() => {
     clearTimeout_();
@@ -89,7 +93,7 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
     nativeModule?.disconnect();
     setPendingInvitation(null);
     setState((prev) => (prev === 'unavailable' ? 'unavailable' : 'disconnected'));
-  }, [nativeModule, clearTimeout_, removeAllListeners]);
+  }, [clearTimeout_, removeAllListeners]);
 
   const start = useCallback(() => {
     if (!nativeModule || !roomCode) return;
@@ -165,21 +169,21 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
         return current;
       });
     }, timeoutMs);
-  }, [nativeModule, roomCode, role, timeoutMs, clearTimeout_, removeAllListeners]);
+  }, [roomCode, role, timeoutMs, clearTimeout_, removeAllListeners]);
 
   // --- Channel methods ---
 
   const sendOffer = useCallback((sdp: string) => {
     nativeModule?.sendMessage('offer', sdp);
-  }, [nativeModule]);
+  }, []);
 
   const sendAnswer = useCallback((sdp: string) => {
     nativeModule?.sendMessage('answer', sdp);
-  }, [nativeModule]);
+  }, []);
 
   const sendIceCandidate = useCallback((candidate: IceCandidateInfo) => {
     nativeModule?.sendMessage('ice-candidate', JSON.stringify(candidate));
-  }, [nativeModule]);
+  }, []);
 
   const onOffer = useCallback((handler: (sdp: string) => void) => {
     callbacksRef.current.onOffer.add(handler);
@@ -222,7 +226,7 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
       onIceCandidate,
       disconnect,
     };
-  }, [nativeModule, sendOffer, sendAnswer, sendIceCandidate, onOffer, onAnswer, onIceCandidate, disconnect]);
+  }, [sendOffer, sendAnswer, sendIceCandidate, onOffer, onAnswer, onIceCandidate, disconnect]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -231,7 +235,7 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
       removeAllListeners();
       nativeModule?.disconnect();
     };
-  }, [nativeModule, clearTimeout_, removeAllListeners]);
+  }, [clearTimeout_, removeAllListeners]);
 
   return { channel, state, pendingInvitation, acceptInvitation, rejectInvitation, start, stop };
 };
