@@ -47,6 +47,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'BLUETOOTH_SCAN',
       'BLUETOOTH_CONNECT',
       'ACCESS_FINE_LOCATION',
+      'NEARBY_WIFI_DEVICES',
     ],
   },
   web: {
