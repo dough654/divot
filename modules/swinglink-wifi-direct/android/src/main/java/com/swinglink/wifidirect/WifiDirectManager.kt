@@ -11,7 +11,7 @@ import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
 import android.os.Build
 import android.util.Log
-import java.util.concurrent.CompletableDeferred
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -70,8 +70,8 @@ class WifiDirectManager(private val context: Context) {
   private var targetPort: Int = -1
   private var localDeviceName: String = Build.MODEL
 
-  /** Deferred that the TCP server hello callback awaits for the JS respondToInvitation result. */
-  private var invitationDeferred: CompletableDeferred<Boolean>? = null
+  /** Future that the TCP server hello callback awaits for the JS respondToInvitation result. */
+  private var invitationFuture: CompletableFuture<Boolean>? = null
 
   // ─── Camera: startAdvertising ──────────────────────────────────
 
@@ -142,9 +142,9 @@ class WifiDirectManager(private val context: Context) {
   private fun handleViewerHello(peerName: String) {
     Log.i(TAG, "Viewer hello received: $peerName")
 
-    // Create a deferred that respondToInvitation will complete
-    val deferred = CompletableDeferred<Boolean>()
-    invitationDeferred = deferred
+    // Create a future that respondToInvitation will complete
+    val future = CompletableFuture<Boolean>()
+    invitationFuture = future
 
     // Notify JS
     onInvitationReceived?.invoke(peerName)
@@ -152,8 +152,7 @@ class WifiDirectManager(private val context: Context) {
     // Wait for JS response on a separate thread to avoid blocking the executor
     Thread({
       try {
-        // kotlinx.coroutines not available; use blocking get
-        val accepted = deferred.get()
+        val accepted = future.get()
         executor.execute {
           if (accepted) {
             Log.i(TAG, "Invitation accepted, sending hello-ack:accepted")
@@ -164,7 +163,7 @@ class WifiDirectManager(private val context: Context) {
             tcpServer?.send(mapOf("type" to "hello-ack", "payload" to "rejected"))
             onPeerDisconnected?.invoke()
           }
-          invitationDeferred = null
+          invitationFuture = null
         }
       } catch (e: Exception) {
         Log.e(TAG, "Error waiting for invitation response", e)
@@ -295,12 +294,12 @@ class WifiDirectManager(private val context: Context) {
 
   fun respondToInvitation(accept: Boolean) {
     executor.execute {
-      val deferred = invitationDeferred
-      if (deferred == null) {
+      val future = invitationFuture
+      if (future == null) {
         Log.w(TAG, "respondToInvitation called but no pending invitation")
         return@execute
       }
-      deferred.complete(accept)
+      future.complete(accept)
     }
   }
 
@@ -315,8 +314,8 @@ class WifiDirectManager(private val context: Context) {
     Log.i(TAG, "tearDown")
 
     // Reject pending invitation
-    invitationDeferred?.complete(false)
-    invitationDeferred = null
+    invitationFuture?.complete(false)
+    invitationFuture = null
 
     // Stop TCP
     tcpServer?.stop()
