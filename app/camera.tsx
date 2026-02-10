@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Modal, Alert, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, Modal, Alert, Linking, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +34,7 @@ import { useVisionCameraStream } from '@/src/hooks/use-vision-camera-stream';
 import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { useBLEAdvertising } from '@/src/hooks/use-ble-discovery';
 import { useAutoConnect } from '@/src/hooks/use-auto-connect';
+import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { TransferProgressModal } from '@/src/components/clip-sync';
@@ -164,6 +165,15 @@ export default function CameraScreen() {
   const { quality } = useConnectionQuality({
     peerConnection,
     enabled: isConnected,
+  });
+
+  // Connection analytics (GOL-76) — camera doesn't know the discovery method
+  useConnectionAnalytics({
+    autoConnectState: autoConnect.state,
+    activeTransport: autoConnect.activeTransport,
+    isConnected,
+    connectionMethod: null,
+    localPlatform: Platform.OS as 'ios' | 'android',
   });
 
   // Adaptive bitrate - adjusts video quality based on network conditions

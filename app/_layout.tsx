@@ -15,13 +15,31 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, ReactNode } from 'react';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
+import Constants from 'expo-constants';
 
 import { AppThemeProvider, ToastProvider, SettingsProvider, useSettings, useTheme } from '@/src/context';
+import { setPostHogInstance } from '@/src/services/analytics';
 import type { ThemeMode } from '@/src/context';
 
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
+
+const posthogApiKey = Constants.expoConfig?.extra?.posthogApiKey as string | undefined;
+
+/**
+ * Bridge that captures the PostHog instance for use outside React.
+ */
+const PostHogBridge = ({ children }: { children: ReactNode }) => {
+  const posthog = usePostHog();
+
+  useEffect(() => {
+    if (posthog) setPostHogInstance(posthog);
+  }, [posthog]);
+
+  return <>{children}</>;
+};
 
 /**
  * Bridge component that connects SettingsProvider to AppThemeProvider.
@@ -91,7 +109,7 @@ export default function RootLayout() {
     return null;
   }
 
-  return (
+  const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SettingsProvider>
         <ThemedApp>
@@ -142,5 +160,18 @@ export default function RootLayout() {
         </ThemedApp>
       </SettingsProvider>
     </GestureHandlerRootView>
+  );
+
+  if (!posthogApiKey) return content;
+
+  return (
+    <PostHogProvider
+      apiKey={posthogApiKey}
+      options={{ host: 'https://us.i.posthog.com' }}
+    >
+      <PostHogBridge>
+        {content}
+      </PostHogBridge>
+    </PostHogProvider>
   );
 }

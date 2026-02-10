@@ -20,6 +20,7 @@ import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { useBLEScanning } from '@/src/hooks/use-ble-discovery';
 import { useConnectivity } from '@/src/hooks/use-connectivity';
 import { useAutoConnect } from '@/src/hooks/use-auto-connect';
+import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import { connectionErrors, getSignalingError } from '@/src/utils/error-messages';
 import { shouldBlockConnection } from '@/src/utils/connectivity';
@@ -37,6 +38,7 @@ export default function ViewerScreen() {
   const [isScanning, setIsScanning] = useState(true);
   const [useManualEntry, setUseManualEntry] = useState(false);
   const [connectionErrorCode, setConnectionErrorCode] = useState<string | null>(null);
+  const [connectionMethod, setConnectionMethod] = useState<'ble' | 'qr' | 'manual' | null>(null);
   const isProcessingScan = useRef(false);
 
   const roomCodeRef = useRef<string | null>(null);
@@ -108,6 +110,17 @@ export default function ViewerScreen() {
   const { quality } = useConnectionQuality({
     peerConnection,
     enabled: isConnected,
+  });
+
+  // Connection analytics (GOL-76)
+  useConnectionAnalytics({
+    autoConnectState: autoConnect.state,
+    activeTransport: autoConnect.activeTransport,
+    isConnected,
+    connectionMethod,
+    localPlatform: Platform.OS as 'ios' | 'android',
+    remotePlatform: selectedDevice?.platform,
+    nearbyDeviceCount: nearbyDevices.length,
   });
 
   const router = useRouter();
@@ -210,6 +223,7 @@ export default function ViewerScreen() {
 
     isProcessingScan.current = true;
     setIsScanning(false);
+    setConnectionMethod('qr');
 
     await proceedWithConnection(payload.sessionId);
   }, [proceedWithConnection, isInternetReachable]);
@@ -331,6 +345,7 @@ export default function ViewerScreen() {
     isProcessingScan.current = true;
     setIsScanning(false);
     setConnectionErrorCode(null);
+    setConnectionMethod('ble');
     roomCodeRef.current = device.roomCode;
     setSelectedDevice(device);
     // connectionStep will be set by the P2P effect or the needsServerSignaling effect
@@ -429,6 +444,7 @@ export default function ViewerScreen() {
 
     isProcessingScan.current = true;
     setIsScanning(false);
+    setConnectionMethod('manual');
 
     await proceedWithConnection(code);
   }, [proceedWithConnection, isInternetReachable]);

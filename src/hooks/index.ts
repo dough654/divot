@@ -17,3 +17,5 @@ export * from './use-p2p-signaling';
 export * from './use-auto-connect';
 // use-connectivity excluded from barrel — has native dep (@react-native-community/netinfo)
 // Import directly: import { useConnectivity } from '@/src/hooks/use-connectivity';
+// use-connection-analytics excluded from barrel — depends on posthog-react-native (native dep)
+// Import directly: import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
