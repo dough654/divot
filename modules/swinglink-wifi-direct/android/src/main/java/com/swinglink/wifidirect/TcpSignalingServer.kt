@@ -135,6 +135,9 @@ class TcpSignalingServer {
         "hello" -> {
           val peerName = json.optString("payload", "Unknown Device")
           Log.i(TAG, "Received hello from: $peerName")
+          // Clear the handshake timeout — the established connection may idle indefinitely.
+          // Matches TcpSignalingClient's pattern after hello-ack.
+          clientSocket?.soTimeout = 0
           onClientConnected?.invoke(peerName)
         }
         else -> {

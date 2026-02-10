@@ -458,7 +458,13 @@ class WifiDirectManager(private val context: Context) {
                 executor.execute { handleConnectionChanged(info) }
               }
             } else {
-              Log.d(TAG, "Wi-Fi P2P disconnected")
+              Log.i(TAG, "Wi-Fi P2P disconnected — closing TCP sockets")
+              executor.execute {
+                // Close TCP to unblock read loops; their finally blocks emit onPeerDisconnected.
+                // Don't call full tearDown() — the OS handles Wi-Fi Direct group removal.
+                tcpServer?.stop()
+                tcpClient?.disconnect()
+              }
             }
           }
 

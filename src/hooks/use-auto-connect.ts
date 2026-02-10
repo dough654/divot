@@ -84,6 +84,12 @@ export const useAutoConnect = (options: UseAutoConnectOptions): UseAutoConnectRe
       // Skip P2P entirely
       setState('needs-server');
     }
+
+    return () => {
+      // Stop P2P when enabled/roomCode changes while mounted.
+      // Idempotent with useP2PSignaling's own unmount cleanup.
+      p2p.stop();
+    };
   }, [enabled, roomCode, canAttemptP2P]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // React to P2P state changes
