@@ -14,6 +14,7 @@ import android.util.Log
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Core orchestrator for Wi-Fi Direct signaling.
@@ -80,7 +81,7 @@ class WifiDirectManager(private val context: Context) {
 
   fun startAdvertising(roomCode: String) {
     executor.execute {
-      tearDown()
+      awaitTearDown()
 
       this.isCamera = true
       this.roomCode = roomCode
@@ -178,7 +179,7 @@ class WifiDirectManager(private val context: Context) {
 
   fun startBrowsing(roomCode: String) {
     executor.execute {
-      tearDown()
+      awaitTearDown()
 
       this.isCamera = false
       this.roomCode = roomCode
@@ -354,8 +355,25 @@ class WifiDirectManager(private val context: Context) {
     executor.execute { tearDown() }
   }
 
-  /** Must be called on the executor thread. */
-  private fun tearDown() {
+  /**
+   * Tears down and waits for removeGroup to complete before returning.
+   * Must be called on the executor thread.
+   */
+  private fun awaitTearDown() {
+    val future = tearDown()
+    try {
+      future.get(5, TimeUnit.SECONDS)
+    } catch (e: Exception) {
+      Log.w(TAG, "awaitTearDown: timed out or interrupted", e)
+    }
+  }
+
+  /**
+   * Tears down all Wi-Fi Direct state. Returns a future that completes
+   * when removeGroup finishes (or immediately if there's nothing to remove).
+   * Must be called on the executor thread.
+   */
+  private fun tearDown(): CompletableFuture<Unit> {
     Log.i(TAG, "tearDown")
 
     // Reject pending invitation
@@ -384,21 +402,30 @@ class WifiDirectManager(private val context: Context) {
     }
     broadcastReceiver = null
 
-    // Remove Wi-Fi Direct group
+    // Clear all local services and service requests to avoid stale state
+    wifiP2pManager.clearLocalServices(channel, null)
+    wifiP2pManager.clearServiceRequests(channel, null)
+
+    // Remove Wi-Fi Direct group and signal completion via future
+    val groupRemoved = CompletableFuture<Unit>()
     wifiP2pManager.removeGroup(channel, object : WifiP2pManager.ActionListener {
       override fun onSuccess() {
         Log.i(TAG, "Wi-Fi Direct group removed")
+        groupRemoved.complete(Unit)
       }
 
       override fun onFailure(reason: Int) {
         // reason=0 (ERROR) if no group exists, reason=2 (BUSY) if framework is occupied
-        Log.d(TAG, "removeGroup: reason=$reason")
+        Log.d(TAG, "removeGroup: reason=$reason (may not have been in a group)")
+        groupRemoved.complete(Unit)
       }
     })
 
     roomCode = null
     targetPort = -1
     pendingConnectionInfo = null
+
+    return groupRemoved
   }
 
   // ─── BroadcastReceiver ────────────────────────────────────────

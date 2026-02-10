@@ -9,7 +9,7 @@ const nativeModule = Platform.OS === 'ios'
   ? SwingLinkMultipeerModule
   : SwingLinkWifiDirectModule;
 
-const DEFAULT_TIMEOUT_MS = 15_000;
+const VIEWER_TIMEOUT_MS = 25_000;
 
 /**
  * Requests Wi-Fi Direct runtime permissions on Android.
@@ -66,7 +66,7 @@ const noopUnsubscribe = () => noop;
  * Returns state `'unavailable'` if the native module is absent (e.g. Expo Go).
  */
 export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalingResult => {
-  const { roomCode, role, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
+  const { roomCode, role, timeoutMs = VIEWER_TIMEOUT_MS } = options;
 
   const [state, setState] = useState<MultipeerState | 'unavailable'>(
     nativeModule ? 'idle' : 'unavailable'
@@ -192,19 +192,22 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
         nativeModule.startBrowsing(roomCode);
       }
 
-      // Connection timeout
-      timeoutRef.current = setTimeout(() => {
-        timeoutRef.current = null;
-        setState((current) => {
-          // Only timeout if we haven't connected yet
-          if (current === 'searching' || current === 'connecting') {
-            removeAllListeners();
-            nativeModule.disconnect();
-            return 'disconnected';
-          }
-          return current;
-        });
-      }, timeoutMs);
+      // Connection timeout — only for viewer. Camera advertises indefinitely
+      // since it defaults to serverChannel anyway (first transport wins).
+      if (role === 'viewer') {
+        timeoutRef.current = setTimeout(() => {
+          timeoutRef.current = null;
+          setState((current) => {
+            // Only timeout if we haven't connected yet
+            if (current === 'searching' || current === 'connecting') {
+              removeAllListeners();
+              nativeModule.disconnect();
+              return 'disconnected';
+            }
+            return current;
+          });
+        }, timeoutMs);
+      }
     };
 
     run();
