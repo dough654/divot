@@ -73,6 +73,9 @@ class WifiDirectManager(private val context: Context) {
   /** Future that the TCP server hello callback awaits for the JS respondToInvitation result. */
   private var invitationFuture: CompletableFuture<Boolean>? = null
 
+  /** Cached connection info when CONNECTION_CHANGED fires before service discovery sets targetPort. */
+  private var pendingConnectionInfo: WifiP2pInfo? = null
+
   // ─── Camera: startAdvertising ──────────────────────────────────
 
   fun startAdvertising(roomCode: String) {
@@ -201,6 +204,15 @@ class WifiDirectManager(private val context: Context) {
     // Stop discovery — we found our match
     serviceDiscoverer?.stopDiscovery()
 
+    // If CONNECTION_CHANGED already fired before discovery completed, use the cached info
+    val cached = pendingConnectionInfo
+    if (cached != null) {
+      Log.i(TAG, "Using cached connection info (CONNECTION_CHANGED fired before service found)")
+      pendingConnectionInfo = null
+      startViewerTcpClient(cached)
+      return
+    }
+
     val config = WifiP2pConfig().apply {
       deviceAddress = device.deviceAddress
     }
@@ -208,7 +220,17 @@ class WifiDirectManager(private val context: Context) {
     wifiP2pManager.connect(channel, config, object : WifiP2pManager.ActionListener {
       override fun onSuccess() {
         Log.i(TAG, "Wi-Fi Direct connect initiated to ${device.deviceAddress}")
-        // CONNECTION_CHANGED broadcast will fire when actually connected
+        // CONNECTION_CHANGED broadcast will fire when actually connected.
+        // Also request connection info explicitly — if devices are already
+        // connected (from a prior session), CONNECTION_CHANGED won't re-fire.
+        wifiP2pManager.requestConnectionInfo(channel) { info ->
+          executor.execute {
+            if (info.groupFormed && tcpClient == null) {
+              Log.i(TAG, "Already connected, starting TCP client from explicit info request")
+              startViewerTcpClient(info)
+            }
+          }
+        }
       }
 
       override fun onFailure(reason: Int) {
@@ -230,19 +252,42 @@ class WifiDirectManager(private val context: Context) {
       return
     }
 
-    // Viewer: connect TCP client to group owner
+    // Viewer: if service discovery hasn't set the port yet, cache this info
+    // for handleServiceFound to pick up later.
+    if (targetPort <= 0) {
+      Log.d(TAG, "Viewer: Wi-Fi Direct connected but target port not yet known, caching connection info")
+      pendingConnectionInfo = info
+      return
+    }
+
+    startViewerTcpClient(info)
+  }
+
+  /**
+   * Starts the viewer-side TCP client to connect to the camera's signaling server.
+   * Called from handleConnectionChanged (normal flow) or handleServiceFound (cached/explicit flow).
+   * Must be called on the executor thread.
+   */
+  private fun startViewerTcpClient(info: WifiP2pInfo) {
+    // Guard against double-start
+    if (tcpClient != null) {
+      Log.d(TAG, "TCP client already started, ignoring")
+      return
+    }
+
     val goAddress = info.groupOwnerAddress?.hostAddress
     if (goAddress == null) {
       Log.e(TAG, "Group owner address is null")
       return
     }
 
-    if (targetPort <= 0) {
+    val port = targetPort
+    if (port <= 0) {
       Log.e(TAG, "Target port not set, cannot connect TCP client")
       return
     }
 
-    Log.i(TAG, "Viewer: connecting TCP client to $goAddress:$targetPort")
+    Log.i(TAG, "Viewer: connecting TCP client to $goAddress:$port")
 
     val client = TcpSignalingClient()
     tcpClient = client
@@ -273,7 +318,7 @@ class WifiDirectManager(private val context: Context) {
     }
 
     tcpThread = Thread({
-      client.connect(goAddress, targetPort, localDeviceName)
+      client.connect(goAddress, port, localDeviceName)
     }, "WD-TcpClient").also { it.isDaemon = true; it.start() }
   }
 
@@ -346,13 +391,14 @@ class WifiDirectManager(private val context: Context) {
       }
 
       override fun onFailure(reason: Int) {
-        // reason=2 (P2P_UNSUPPORTED) or reason=0 (ERROR) if no group exists — that's fine
-        Log.d(TAG, "removeGroup: reason=$reason (may not have been in a group)")
+        // reason=0 (ERROR) if no group exists, reason=2 (BUSY) if framework is occupied
+        Log.d(TAG, "removeGroup: reason=$reason")
       }
     })
 
     roomCode = null
     targetPort = -1
+    pendingConnectionInfo = null
   }
 
   // ─── BroadcastReceiver ────────────────────────────────────────
