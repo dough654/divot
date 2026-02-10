@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import { SwingLinkMultipeerModule } from '@/modules/swinglink-multipeer/src';
 import { SwingLinkWifiDirectModule } from '@/modules/swinglink-wifi-direct/src';
 import type { MultipeerState, SignalingMessage, P2PInvitation } from '@/modules/swinglink-multipeer/src';
@@ -10,6 +10,29 @@ const nativeModule = Platform.OS === 'ios'
   : SwingLinkWifiDirectModule;
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+
+/**
+ * Requests Wi-Fi Direct runtime permissions on Android.
+ * Android 13+ (API 33) requires NEARBY_WIFI_DEVICES; older versions need ACCESS_FINE_LOCATION.
+ * iOS returns 'granted' immediately — MPC handles permissions via Info.plist.
+ */
+const requestWifiDirectPermissions = async (): Promise<'granted' | 'denied'> => {
+  if (Platform.OS !== 'android') return 'granted';
+
+  // Android 13+ (API 33): NEARBY_WIFI_DEVICES replaces location for Wi-Fi Direct
+  if (Platform.Version >= 33) {
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.NEARBY_WIFI_DEVICES
+    );
+    return result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' : 'denied';
+  }
+
+  // Android < 13: ACCESS_FINE_LOCATION required for Wi-Fi Direct peer discovery
+  const result = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+  );
+  return result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' : 'denied';
+};
 
 type UseP2PSignalingOptions = {
   roomCode: string | null;
@@ -52,6 +75,7 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const subscriptionsRef = useRef<Array<{ remove: () => void }>>([]);
+  const startCancelledRef = useRef(false);
 
   const callbacksRef = useRef<{
     onOffer: Set<(sdp: string) => void>;
@@ -88,6 +112,7 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
   }, []);
 
   const stop = useCallback(() => {
+    startCancelledRef.current = true;
     clearTimeout_();
     removeAllListeners();
     nativeModule?.disconnect();
@@ -98,77 +123,91 @@ export const useP2PSignaling = (options: UseP2PSignalingOptions): UseP2PSignalin
   const start = useCallback(() => {
     if (!nativeModule || !roomCode) return;
 
-    // Clean up any prior session
-    removeAllListeners();
-    clearTimeout_();
+    startCancelledRef.current = false;
 
-    setState('searching');
+    const run = async () => {
+      const permissionStatus = await requestWifiDirectPermissions();
+      if (startCancelledRef.current) return;
 
-    // Subscribe to native events
-    const peerConnectedSub = nativeModule.addListener(
-      'onPeerConnected',
-      () => {
-        clearTimeout_();
-        setPendingInvitation(null);
-        setState('connected');
-      }
-    );
-
-    const peerDisconnectedSub = nativeModule.addListener(
-      'onPeerDisconnected',
-      () => {
+      if (permissionStatus !== 'granted') {
         setState('disconnected');
+        return;
       }
-    );
 
-    const signalingMessageSub = nativeModule.addListener(
-      'onSignalingMessage',
-      (message: SignalingMessage) => {
-        switch (message.type) {
-          case 'offer':
-            callbacksRef.current.onOffer.forEach((cb) => cb(message.payload));
-            break;
-          case 'answer':
-            callbacksRef.current.onAnswer.forEach((cb) => cb(message.payload));
-            break;
-          case 'ice-candidate': {
-            const candidate: IceCandidateInfo = JSON.parse(message.payload);
-            callbacksRef.current.onIceCandidate.forEach((cb) => cb(candidate));
-            break;
+      // Clean up any prior session
+      removeAllListeners();
+      clearTimeout_();
+
+      setState('searching');
+
+      // Subscribe to native events
+      const peerConnectedSub = nativeModule.addListener(
+        'onPeerConnected',
+        () => {
+          clearTimeout_();
+          setPendingInvitation(null);
+          setState('connected');
+        }
+      );
+
+      const peerDisconnectedSub = nativeModule.addListener(
+        'onPeerDisconnected',
+        () => {
+          setState('disconnected');
+        }
+      );
+
+      const signalingMessageSub = nativeModule.addListener(
+        'onSignalingMessage',
+        (message: SignalingMessage) => {
+          switch (message.type) {
+            case 'offer':
+              callbacksRef.current.onOffer.forEach((cb) => cb(message.payload));
+              break;
+            case 'answer':
+              callbacksRef.current.onAnswer.forEach((cb) => cb(message.payload));
+              break;
+            case 'ice-candidate': {
+              const candidate: IceCandidateInfo = JSON.parse(message.payload);
+              callbacksRef.current.onIceCandidate.forEach((cb) => cb(candidate));
+              break;
+            }
           }
         }
-      }
-    );
+      );
 
-    const invitationReceivedSub = nativeModule.addListener(
-      'onInvitationReceived',
-      (event: P2PInvitation) => {
-        setPendingInvitation(event);
-      }
-    );
-
-    subscriptionsRef.current = [peerConnectedSub, peerDisconnectedSub, signalingMessageSub, invitationReceivedSub];
-
-    // Start advertising or browsing based on role
-    if (role === 'camera') {
-      nativeModule.startAdvertising(roomCode);
-    } else {
-      nativeModule.startBrowsing(roomCode);
-    }
-
-    // Connection timeout
-    timeoutRef.current = setTimeout(() => {
-      timeoutRef.current = null;
-      setState((current) => {
-        // Only timeout if we haven't connected yet
-        if (current === 'searching' || current === 'connecting') {
-          removeAllListeners();
-          nativeModule.disconnect();
-          return 'disconnected';
+      const invitationReceivedSub = nativeModule.addListener(
+        'onInvitationReceived',
+        (event: P2PInvitation) => {
+          setPendingInvitation(event);
         }
-        return current;
-      });
-    }, timeoutMs);
+      );
+
+      subscriptionsRef.current = [peerConnectedSub, peerDisconnectedSub, signalingMessageSub, invitationReceivedSub];
+
+      // Start advertising or browsing based on role
+      if (role === 'camera') {
+        nativeModule.startAdvertising(roomCode);
+      } else {
+        nativeModule.startBrowsing(roomCode);
+      }
+
+      // Connection timeout
+      timeoutRef.current = setTimeout(() => {
+        timeoutRef.current = null;
+        setState((current) => {
+          // Only timeout if we haven't connected yet
+          if (current === 'searching' || current === 'connecting') {
+            removeAllListeners();
+            nativeModule.disconnect();
+            return 'disconnected';
+          }
+          return current;
+        });
+      }, timeoutMs);
+    };
+
+    run();
   }, [roomCode, role, timeoutMs, clearTimeout_, removeAllListeners]);
 
   // --- Channel methods ---
