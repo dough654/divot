@@ -8,7 +8,7 @@ import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useTheme } from '@/src/context';
 import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
-import { QRCodeScanner, ManualCodeEntry, NearbyDevices, NoInternetCard } from '@/src/components/pairing';
+import { QRCodeScanner, ManualCodeEntry, NearbyDevices, NoInternetCard, BLEPermissionBanner } from '@/src/components/pairing';
 import { ConnectionStatus } from '@/src/components/connection';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { ErrorDetail } from '@/src/components/ui';
@@ -23,6 +23,7 @@ import { useAutoConnect } from '@/src/hooks/use-auto-connect';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import { connectionErrors, getSignalingError } from '@/src/utils/error-messages';
 import { shouldBlockConnection } from '@/src/utils/connectivity';
+import { getBannerDismissed, setBannerDismissed } from '@/src/utils/ble-banner-storage';
 import type { ConnectionStep } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
 import type { DiscoveredDevice } from '@/modules/swinglink-ble';
@@ -53,9 +54,25 @@ export default function ViewerScreen() {
 
   // BLE scanning for nearby cameras (silently disabled if permissions denied)
   const {
+    permissionStatus: blePermissionStatus,
     isScanning: isBLEScanning,
     devices: nearbyDevices,
   } = useBLEScanning({ enabled: isScanning && !useManualEntry });
+
+  // BLE permission banner (Android only — iOS always reports 'granted')
+  const [bleBannerVisible, setBLEBannerVisible] = useState(false);
+
+  useEffect(() => {
+    if (blePermissionStatus !== 'denied') return;
+    getBannerDismissed().then((dismissed) => {
+      if (!dismissed) setBLEBannerVisible(true);
+    });
+  }, [blePermissionStatus]);
+
+  const handleDismissBLEBanner = useCallback(() => {
+    setBLEBannerVisible(false);
+    setBannerDismissed();
+  }, []);
 
   // Hooks
   const {
@@ -470,6 +487,9 @@ export default function ViewerScreen() {
             />
           ) : (
             <View style={styles.scannerLayout}>
+              {bleBannerVisible && (
+                <BLEPermissionBanner onDismiss={handleDismissBLEBanner} />
+              )}
               <NearbyDevices
                 devices={nearbyDevices}
                 isScanning={isBLEScanning}
