@@ -25,6 +25,8 @@ export type ConnectionStatusProps = {
   quality?: ConnectionQuality | null;
   /** Compact mode for tighter layouts */
   compact?: boolean;
+  /** When connected, replaces "connected" text with this label (e.g. "HD 60fps") */
+  presetLabel?: string;
 };
 
 const stepInfo: Record<ConnectionStep, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
@@ -88,6 +90,7 @@ export const ConnectionStatus = ({
   step,
   quality,
   compact = false,
+  presetLabel,
 }: ConnectionStatusProps) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -239,15 +242,27 @@ export const ConnectionStatus = ({
             color={getStatusColor()}
           />
         </Animated.View>
-        <Animated.Text
-          key={step}
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(150)}
-          layout={LinearTransition.duration(200)}
-          style={[styles.compactLabel, isConnected && styles.labelConnected]}
-        >
-          {info.label.toLowerCase()}
-        </Animated.Text>
+        {isConnected && presetLabel ? (
+          <Animated.Text
+            key={`preset-${presetLabel}`}
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(150)}
+            layout={LinearTransition.duration(200)}
+            style={[styles.compactLabel, styles.labelConnected]}
+          >
+            {presetLabel}
+          </Animated.Text>
+        ) : (
+          <Animated.Text
+            key={step}
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(150)}
+            layout={LinearTransition.duration(200)}
+            style={[styles.compactLabel, isConnected && styles.labelConnected]}
+          >
+            {info.label.toLowerCase()}
+          </Animated.Text>
+        )}
         {isConnected && quality && (
           <>
             <View

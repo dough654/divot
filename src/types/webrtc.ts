@@ -66,4 +66,5 @@ export type ConnectionQuality = {
   packetLossPercent: number;
   jitterMs: number;
   timestamp: number;
+  candidateType?: 'host' | 'srflx' | 'prflx' | 'relay';
 };

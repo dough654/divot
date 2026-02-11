@@ -51,6 +51,14 @@ export const useConnectionQuality = (
       const stats = await peerConnection.getStats();
       let newQuality: ConnectionQuality = { ...initialQuality, timestamp: Date.now() };
 
+      // Build a map of local candidate IDs to their candidate types
+      const localCandidateTypes = new Map<string, string>();
+      stats.forEach((report: Record<string, unknown>) => {
+        if (report.type === 'local-candidate' && typeof report.id === 'string' && typeof report.candidateType === 'string') {
+          localCandidateTypes.set(report.id, report.candidateType);
+        }
+      });
+
       stats.forEach((report: Record<string, unknown>) => {
         // Look for inbound-rtp stats (for viewer receiving video)
         if (report.type === 'inbound-rtp' && report.kind === 'video') {
@@ -86,10 +94,19 @@ export const useConnectionQuality = (
           };
         }
 
-        // Look for candidate-pair stats for RTT/latency
+        // Look for candidate-pair stats for RTT/latency and ICE candidate type
         if (report.type === 'candidate-pair' && report.state === 'succeeded') {
           const rtt = (report.currentRoundTripTime as number) || 0;
           newQuality.latencyMs = Math.round(rtt * 1000);
+
+          // Extract the local ICE candidate type from the succeeded pair
+          const localCandidateId = report.localCandidateId as string | undefined;
+          if (localCandidateId) {
+            const candidateType = localCandidateTypes.get(localCandidateId);
+            if (candidateType === 'host' || candidateType === 'srflx' || candidateType === 'prflx' || candidateType === 'relay') {
+              newQuality.candidateType = candidateType;
+            }
+          }
         }
       });
 

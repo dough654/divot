@@ -9,7 +9,7 @@ import { useTheme } from '@/src/context';
 import type { Theme } from '@/src/context';
 import { RemoteVideoView } from '@/src/components/video';
 import { QRCodeScanner, ManualCodeEntry, NearbyDevices, NoInternetCard, BLEPermissionBanner } from '@/src/components/pairing';
-import { ConnectionStatus } from '@/src/components/connection';
+import { ConnectionStatus, TransportBadge } from '@/src/components/connection';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { ErrorDetail } from '@/src/components/ui';
 import { useSignaling } from '@/src/hooks/use-signaling';
@@ -25,6 +25,7 @@ import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import { connectionErrors, getSignalingError } from '@/src/utils/error-messages';
 import { shouldBlockConnection } from '@/src/utils/connectivity';
+import { resolveNetworkTransport } from '@/src/utils';
 import { getBannerDismissed, setBannerDismissed } from '@/src/utils/ble-banner-storage';
 import type { ConnectionStep } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
@@ -473,24 +474,10 @@ export default function ViewerScreen() {
         {!useManualEntry && (
           <ConnectionStatus step={connectionStep} quality={quality} compact />
         )}
-        {isConnected && autoConnect.activeTransport && (
-          <View style={[
-            styles.transportBadge,
-            autoConnect.activeTransport === 'p2p' ? styles.transportBadgeP2P : styles.transportBadgeServer,
-          ]}>
-            <Ionicons
-              name={autoConnect.activeTransport === 'p2p' ? 'radio' : 'cloud-outline'}
-              size={11}
-              color={autoConnect.activeTransport === 'p2p' ? '#7C6BFF' : theme.colors.textTertiary}
-            />
-            <Text style={[
-              styles.transportBadgeText,
-              autoConnect.activeTransport === 'p2p' && styles.transportBadgeTextP2P,
-            ]}>
-              {autoConnect.activeTransport === 'p2p' ? 'P2P' : 'Server'}
-            </Text>
-          </View>
-        )}
+        {isConnected && (() => {
+          const transport = resolveNetworkTransport(autoConnect.activeTransport, quality?.candidateType);
+          return transport ? <TransportBadge transport={transport} /> : null;
+        })()}
       </View>
 
       {/* Video or Scanner or Manual Entry or No Internet */}
@@ -702,28 +689,5 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontSize: 10,
     color: 'rgba(255,255,255,0.7)',
     textTransform: 'lowercase' as const,
-  },
-  transportBadge: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 4,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.md,
-  },
-  transportBadgeP2P: {
-    backgroundColor: 'rgba(124,107,255,0.15)',
-  },
-  transportBadgeServer: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  transportBadgeText: {
-    fontSize: theme.fontSize.xs,
-    fontFamily: theme.fontFamily.body,
-    color: theme.colors.textTertiary,
-  },
-  transportBadgeTextP2P: {
-    color: '#7C6BFF',
-    fontFamily: theme.fontFamily.bodySemiBold,
   },
 }));

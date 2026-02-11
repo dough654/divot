@@ -18,7 +18,7 @@ import { useTheme, useToast } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 import { QRCodeDisplay, ConnectionRequestModal } from '@/src/components/pairing';
-import { ConnectionStatus } from '@/src/components/connection';
+import { ConnectionStatus, TransportBadge } from '@/src/components/connection';
 import {
   RecordingButton,
   RecordingIndicator,
@@ -39,7 +39,7 @@ import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { TransferProgressModal } from '@/src/components/clip-sync';
-import { formatRoomCode } from '@/src/utils';
+import { formatRoomCode, resolveNetworkTransport } from '@/src/utils';
 import type { ConnectionStep, ConnectionRequest } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
 
@@ -515,7 +515,12 @@ export default function CameraScreen() {
           <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
           <Text style={styles.backLabel}>Home</Text>
         </Pressable>
-        <ConnectionStatus step={connectionStep} quality={quality} compact />
+        <ConnectionStatus
+          step={connectionStep}
+          quality={quality}
+          compact
+          presetLabel={isConnected && isStreamReady ? getPresetLabel(qualityPreset) : undefined}
+        />
         {isRecording && (
           <RecordingIndicator
             duration={recordingDuration}
@@ -523,38 +528,16 @@ export default function CameraScreen() {
             compact
           />
         )}
-        {isConnected && isStreamReady && !isRecording && (
-          <View style={styles.streamingBadge}>
-            <View style={styles.streamingDot} />
-            <Text style={styles.streamingFpsText}>
-              Live · {getPresetLabel(qualityPreset)}
-            </Text>
-          </View>
-        )}
         {isAdvertising && !isConnected && (
           <View style={styles.discoverableBadge}>
             <Ionicons name="bluetooth" size={12} color={theme.colors.textTertiary} />
             <Text style={styles.discoverableText}>Discoverable</Text>
           </View>
         )}
-        {isConnected && autoConnect.activeTransport && (
-          <View style={[
-            styles.transportBadge,
-            autoConnect.activeTransport === 'p2p' ? styles.transportBadgeP2P : styles.transportBadgeServer,
-          ]}>
-            <Ionicons
-              name={autoConnect.activeTransport === 'p2p' ? 'radio' : 'cloud-outline'}
-              size={11}
-              color={autoConnect.activeTransport === 'p2p' ? '#7C6BFF' : theme.colors.textTertiary}
-            />
-            <Text style={[
-              styles.transportBadgeText,
-              autoConnect.activeTransport === 'p2p' && styles.transportBadgeTextP2P,
-            ]}>
-              {autoConnect.activeTransport === 'p2p' ? 'P2P' : 'Server'}
-            </Text>
-          </View>
-        )}
+        {isConnected && (() => {
+          const transport = resolveNetworkTransport(autoConnect.activeTransport, quality?.candidateType);
+          return transport ? <TransportBadge transport={transport} /> : null;
+        })()}
       </View>
 
       <View style={styles.portraitWrapper}>
@@ -779,27 +762,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontSize: 17,
     color: theme.colors.text,
   },
-  streamingBadge: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 6,
-    backgroundColor: theme.colors.successBackground,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.md,
-  },
-  streamingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.success,
-  },
-  streamingFpsText: {
-    fontSize: theme.fontSize.xs,
-    fontFamily: theme.fontFamily.body,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.success,
-  },
   discoverableBadge: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -1002,28 +964,5 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   pillQuality: {
     backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  transportBadge: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 4,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.md,
-  },
-  transportBadgeP2P: {
-    backgroundColor: 'rgba(124,107,255,0.15)',
-  },
-  transportBadgeServer: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  transportBadgeText: {
-    fontSize: theme.fontSize.xs,
-    fontFamily: theme.fontFamily.body,
-    color: theme.colors.textTertiary,
-  },
-  transportBadgeTextP2P: {
-    color: '#7C6BFF',
-    fontFamily: theme.fontFamily.bodySemiBold,
   },
 }));
