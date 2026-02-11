@@ -4,8 +4,8 @@ import { createSession, endSession, addClipToSession } from '@/src/services/sess
 import { getSessionLocation } from '@/src/utils/session-location';
 
 export type UseSessionLifecycleOptions = {
-  /** Whether the device is currently connected to a peer. */
-  isConnected: boolean;
+  /** Whether the session should be active (e.g. camera screen is mounted). */
+  isActive: boolean;
   /** Which role this device is playing. */
   role: 'camera' | 'viewer';
 };
@@ -15,16 +15,17 @@ export type UseSessionLifecycleReturn = {
   activeSession: Session | null;
   /** Tags a clip with the active session. Returns true if tagged. */
   tagClip: (clipId: string) => Promise<boolean>;
-  /** Manually ends the current session (e.g. on navigation away). */
+  /** Manually ends the current session. */
   endCurrentSession: () => Promise<void>;
 };
 
 /**
- * Manages session lifecycle: auto-creates a session on connect, ends on disconnect.
+ * Manages session lifecycle: auto-creates a session when isActive becomes true,
+ * ends it when isActive becomes false or on unmount.
  * Uses refs to avoid stale closures in async callbacks.
  */
 export const useSessionLifecycle = ({
-  isConnected,
+  isActive,
   role,
 }: UseSessionLifecycleOptions): UseSessionLifecycleReturn => {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
@@ -36,9 +37,9 @@ export const useSessionLifecycle = ({
     activeSessionRef.current = activeSession;
   }, [activeSession]);
 
-  // Create session on connect
+  // Create session when active
   useEffect(() => {
-    if (isConnected && !activeSessionRef.current && !isCreatingRef.current) {
+    if (isActive && !activeSessionRef.current && !isCreatingRef.current) {
       isCreatingRef.current = true;
 
       const start = async () => {
@@ -55,18 +56,18 @@ export const useSessionLifecycle = ({
 
       start();
     }
-  }, [isConnected, role]);
+  }, [isActive, role]);
 
-  // End session on disconnect
+  // End session when deactivated
   useEffect(() => {
-    if (!isConnected && activeSessionRef.current) {
+    if (!isActive && activeSessionRef.current) {
       const sessionId = activeSessionRef.current.id;
       setActiveSession(null);
       endSession(sessionId).catch((err) => {
         console.error('Failed to end session:', err);
       });
     }
-  }, [isConnected]);
+  }, [isActive]);
 
   // Cleanup on unmount
   useEffect(() => {

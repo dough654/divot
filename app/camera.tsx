@@ -179,8 +179,8 @@ export default function CameraScreen() {
     enabled: isConnected,
   });
 
-  // Session lifecycle — auto-create session on connect, end on disconnect
-  const { tagClip, activeSession } = useSessionLifecycle({ isConnected, role: 'camera' });
+  // Session lifecycle — auto-create on camera mount, end on unmount
+  const { tagClip, activeSession } = useSessionLifecycle({ isActive: true, role: 'camera' });
   const activeSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
