@@ -1,5 +1,6 @@
 import { View, Text, ActivityIndicator, Pressable } from 'react-native';
 import { RTCView, MediaStream } from 'react-native-webrtc';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
@@ -26,6 +27,7 @@ export const RemoteVideoView = ({
   onToggleObjectFit,
 }: RemoteVideoViewProps) => {
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
 
   if (isConnecting) {
     return (
@@ -54,7 +56,7 @@ export const RemoteVideoView = ({
       />
       {onToggleObjectFit && (
         <Pressable
-          style={styles.toggleButton}
+          style={[styles.toggleButton, { bottom: 12 + insets.bottom }]}
           onPress={onToggleObjectFit}
           accessibilityRole="button"
           accessibilityLabel={objectFit === 'contain' ? 'Fill screen' : 'Fit to screen'}
@@ -92,7 +94,6 @@ const createStyles = makeThemedStyles((_theme: Theme) => ({
   },
   toggleButton: {
     position: 'absolute' as const,
-    bottom: 12,
     right: 12,
     width: 36,
     height: 36,

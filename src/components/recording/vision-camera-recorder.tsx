@@ -1,5 +1,5 @@
 import { StyleSheet, View, Platform } from 'react-native';
-import { useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useRef, forwardRef, useImperativeHandle } from 'react';
 import { Camera, CameraDevice, VideoFile, VisionCameraProxy, useFrameProcessor } from 'react-native-vision-camera';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { File } from 'expo-file-system';
@@ -39,7 +39,10 @@ const IS_ANDROID = Platform.OS === 'android';
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
   ({ device, isActive, audio = true }, ref) => {
     const cameraRef = useRef<Camera>(null);
-    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+    // Shared values so Reanimated worklets can reactively access dimensions
+    const containerWidth = useSharedValue(0);
+    const containerHeight = useSharedValue(0);
 
     // Shared value written from the frame processor worklet (Android only)
     const rotationDegrees = useSharedValue(0);
@@ -59,7 +62,10 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
     // Applied to an Animated.View wrapper around Camera (avoids type issues
     // with createAnimatedComponent on Camera's native SurfaceView).
     const cameraWrapperStyle = useAnimatedStyle(() => {
-      if (!IS_ANDROID || containerSize.width === 0 || containerSize.height === 0) {
+      const w = containerWidth.value;
+      const h = containerHeight.value;
+
+      if (!IS_ANDROID || w === 0 || h === 0) {
         return {};
       }
 
@@ -69,7 +75,7 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
       }
 
       if (degrees === 90) {
-        const scale = containerSize.height / containerSize.width;
+        const scale = h / w;
         return {
           transform: [{ rotate: '-90deg' }, { scale }],
         };
@@ -80,7 +86,7 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
         };
       }
       if (degrees === 270) {
-        const scale = containerSize.height / containerSize.width;
+        const scale = h / w;
         return {
           transform: [{ rotate: '90deg' }, { scale }],
         };
@@ -135,7 +141,8 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
         style={styles.container}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
-          setContainerSize({ width, height });
+          containerWidth.value = width;
+          containerHeight.value = height;
         }}
       >
         <Animated.View style={[styles.cameraWrapper, IS_ANDROID && cameraWrapperStyle]}>
