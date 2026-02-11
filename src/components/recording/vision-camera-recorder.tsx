@@ -1,6 +1,7 @@
-import { StyleSheet, View } from 'react-native';
-import { useRef, forwardRef, useImperativeHandle } from 'react';
-import { Camera, CameraDevice, VideoFile, type ReadonlyFrameProcessor } from 'react-native-vision-camera';
+import { StyleSheet, View, Platform } from 'react-native';
+import { useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { Camera, CameraDevice, VideoFile, VisionCameraProxy, useFrameProcessor } from 'react-native-vision-camera';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { File } from 'expo-file-system';
 
 export type VisionCameraRecorderProps = {
@@ -10,8 +11,6 @@ export type VisionCameraRecorderProps = {
   isActive: boolean;
   /** Whether audio recording is enabled. Defaults to true. */
   audio?: boolean;
-  /** Optional frame processor for native WebRTC streaming. */
-  frameProcessor?: ReadonlyFrameProcessor;
 };
 
 export type VisionCameraRecorderRef = {
@@ -26,17 +25,69 @@ export type VisionCameraRecorderRef = {
   takeSnapshot: (options?: { quality?: number }) => Promise<string | null>;
 };
 
+const IS_ANDROID = Platform.OS === 'android';
+
 /**
- * VisionCamera-based recording view with camera preview.
- * Exposes recording controls via ref.
+ * VisionCamera-based recording view with camera preview and internal
+ * WebRTC frame forwarding.
  *
- * On Android, the SurfaceView doesn't rotate with the UI. We compensate
- * by counter-rotating the Camera view and swapping its dimensions so the
- * preview appears correctly oriented in landscape.
+ * Owns the frame processor plugin (`forwardToWebRTC`) and reads back
+ * the device rotation degrees. On Android, counter-rotates the Camera
+ * view so the preview appears correctly oriented regardless of how the
+ * device is held (the UI is portrait-locked on the camera screen).
  */
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
-  ({ device, isActive, audio = true, frameProcessor }, ref) => {
+  ({ device, isActive, audio = true }, ref) => {
     const cameraRef = useRef<Camera>(null);
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+    // Shared value written from the frame processor worklet (Android only)
+    const rotationDegrees = useSharedValue(0);
+
+    // Frame processor plugin: forwards frames to WebRTC and returns rotation degrees
+    const forwardPlugin = VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC', {});
+
+    const frameProcessor = useFrameProcessor((frame) => {
+      'worklet';
+      const result = forwardPlugin?.call(frame);
+      if (IS_ANDROID && typeof result === 'number') {
+        rotationDegrees.value = result;
+      }
+    }, [forwardPlugin]);
+
+    // Counter-rotation style for Android preview correction.
+    // Applied to an Animated.View wrapper around Camera (avoids type issues
+    // with createAnimatedComponent on Camera's native SurfaceView).
+    const cameraWrapperStyle = useAnimatedStyle(() => {
+      if (!IS_ANDROID || containerSize.width === 0 || containerSize.height === 0) {
+        return {};
+      }
+
+      const degrees = rotationDegrees.value;
+      if (degrees === 0) {
+        return {};
+      }
+
+      if (degrees === 90) {
+        const scale = containerSize.height / containerSize.width;
+        return {
+          transform: [{ rotate: '-90deg' }, { scale }],
+        };
+      }
+      if (degrees === 180) {
+        return {
+          transform: [{ rotate: '180deg' }],
+        };
+      }
+      if (degrees === 270) {
+        const scale = containerSize.height / containerSize.width;
+        return {
+          transform: [{ rotate: '90deg' }, { scale }],
+        };
+      }
+
+      return {};
+    });
 
     useImperativeHandle(ref, () => ({
       startRecording: (options) => {
@@ -80,16 +131,24 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
     }));
 
     return (
-      <View style={styles.container}>
-        <Camera
-          ref={cameraRef}
-          style={styles.camera}
-          device={device}
-          isActive={isActive}
-          video={true}
-          audio={audio}
-          frameProcessor={frameProcessor}
-        />
+      <View
+        style={styles.container}
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout;
+          setContainerSize({ width, height });
+        }}
+      >
+        <Animated.View style={[styles.cameraWrapper, IS_ANDROID && cameraWrapperStyle]}>
+          <Camera
+            ref={cameraRef}
+            style={styles.camera}
+            device={device}
+            isActive={isActive}
+            video={true}
+            audio={audio}
+            frameProcessor={frameProcessor}
+          />
+        </Animated.View>
       </View>
     );
   }
@@ -103,6 +162,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  cameraWrapper: {
+    flex: 1,
   },
   camera: {
     flex: 1,

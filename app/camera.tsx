@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { VideoFile, useFrameProcessor, VisionCameraProxy } from 'react-native-vision-camera';
+import { VideoFile } from 'react-native-vision-camera';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -204,14 +204,6 @@ export default function CameraScreen() {
   }, [isConnected, wasConnected]);
 
   const isSyncing = syncProgress.state === 'sending' || syncProgress.state === 'receiving';
-
-  // Frame processor plugin: forwards each VisionCamera frame to the WebRTC video source natively
-  const forwardPlugin = VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC', {});
-
-  const frameProcessor = useFrameProcessor((frame) => {
-    'worklet';
-    forwardPlugin?.call(frame);
-  }, [forwardPlugin]);
 
   // Auto-reconnect — mask signaling state when on P2P so Scenario B doesn't fire
   const effectiveSignalingState = autoConnect.activeTransport === 'p2p'
@@ -576,7 +568,6 @@ export default function CameraScreen() {
                 device={visionDevice}
                 isActive={true}
                 audio={hasMicrophonePermission}
-                frameProcessor={frameProcessor}
               />
             ) : (
               <View style={styles.cameraPlaceholder}>

@@ -18,6 +18,6 @@ class WebRTCFrameProcessorPlugin: FrameProcessorPlugin {
     let buffer = frame.buffer
     let orientation = frame.orientation
     VisionCameraFrameForwarder.shared.pushFrame(sampleBuffer: buffer, orientation: orientation)
-    return nil
+    return 0
   }
 }

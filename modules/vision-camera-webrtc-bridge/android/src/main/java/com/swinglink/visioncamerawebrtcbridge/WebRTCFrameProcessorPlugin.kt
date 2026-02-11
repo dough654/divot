@@ -19,7 +19,7 @@ class WebRTCFrameProcessorPlugin : FrameProcessorPlugin() {
     val rotationDegrees = orientationToDegrees(frame.orientation)
 
     VisionCameraFrameForwarder.pushFrame(image, timestampNs, rotationDegrees)
-    return null
+    return rotationDegrees
   }
 
   companion object {
