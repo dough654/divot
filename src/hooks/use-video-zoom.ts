@@ -216,10 +216,7 @@ export const useVideoZoom = ({
     }), [scale, translateX, translateY, savedScale, savedTranslateX, savedTranslateY, updateIsZoomed]);
 
   const gesture = useMemo(
-    () => Gesture.Exclusive(
-      doubleTapGesture,
-      Gesture.Simultaneous(pinchGesture, panGesture),
-    ),
+    () => Gesture.Simultaneous(doubleTapGesture, pinchGesture, panGesture),
     [doubleTapGesture, pinchGesture, panGesture],
   );
 
@@ -231,9 +228,9 @@ export const useVideoZoom = ({
     ],
   }));
 
-  /** Toggle between contain (1.0) and cover scale with animation. */
+  /** Toggle between contain (1.0) and a useful zoom level with animation. */
   const toggleZoom = useCallback(() => {
-    const targetScale = isZoomed ? 1 : coverScale.value;
+    const targetScale = isZoomed ? 1 : Math.max(coverScale.value, 2.0);
     scale.value = withTiming(targetScale, TIMING_CONFIG);
     translateX.value = withTiming(0, TIMING_CONFIG);
     translateY.value = withTiming(0, TIMING_CONFIG);
