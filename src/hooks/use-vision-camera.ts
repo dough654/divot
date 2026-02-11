@@ -1,22 +1,32 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   useCameraDevice,
+  useCameraFormat,
   useCameraPermission,
   useMicrophonePermission,
   CameraDevice,
+  CameraDeviceFormat,
   CameraPosition,
 } from 'react-native-vision-camera';
+import { useSettings, RECORDING_FPS_VALUES } from '@/src/context';
+import type { RecordingFps } from '@/src/context';
 
 export type UseVisionCameraOptions = {
   /** Initial camera position. Defaults to 'back'. */
   initialPosition?: CameraPosition;
   /** Whether to request permissions automatically. Defaults to true. */
   autoRequestPermissions?: boolean;
+  /** Target recording fps. When provided, selects the best matching camera format. */
+  targetFps?: number;
 };
 
 export type UseVisionCameraResult = {
   /** The selected camera device, or undefined if not available. */
   device: CameraDevice | undefined;
+  /** The selected camera format for the target fps, or undefined. */
+  format: CameraDeviceFormat | undefined;
+  /** The actual fps the camera will record at (clamped to format max). */
+  actualFps: number;
   /** Whether camera permission is granted. */
   hasCameraPermission: boolean;
   /** Whether microphone permission is granted. */
@@ -44,14 +54,29 @@ export type UseVisionCameraResult = {
 export const useVisionCamera = (
   options: UseVisionCameraOptions = {}
 ): UseVisionCameraResult => {
-  const { initialPosition = 'back', autoRequestPermissions = true } = options;
+  const { initialPosition = 'back', autoRequestPermissions = true, targetFps } = options;
 
   const [position, setPosition] = useState<CameraPosition>(initialPosition);
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
   const [hasRequestedPermissions, setHasRequestedPermissions] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { setSupportedRecordingFps } = useSettings();
+
   const device = useCameraDevice(position);
+
+  // Select best format for target fps
+  const format = useCameraFormat(device, targetFps ? [{ fps: targetFps }] : []);
+  const actualFps = format && targetFps ? Math.min(targetFps, format.maxFps) : 30;
+
+  // Detect which fps values this device supports and push to settings context
+  useEffect(() => {
+    if (!device) return;
+    const supported = RECORDING_FPS_VALUES.filter((fps) =>
+      device.formats.some((f) => f.maxFps >= fps)
+    ) as RecordingFps[];
+    setSupportedRecordingFps(supported.length > 0 ? supported : [30]);
+  }, [device, setSupportedRecordingFps]);
   const { hasPermission: hasCameraPermission, requestPermission: requestCameraPermission } =
     useCameraPermission();
   const { hasPermission: hasMicrophonePermission, requestPermission: requestMicrophonePermission } =
@@ -112,6 +137,8 @@ export const useVisionCamera = (
 
   return {
     device,
+    format,
+    actualFps,
     hasCameraPermission,
     hasMicrophonePermission,
     position,

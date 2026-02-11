@@ -1,6 +1,6 @@
 import { StyleSheet, View, Platform } from 'react-native';
 import { useRef, forwardRef, useImperativeHandle } from 'react';
-import { Camera, CameraDevice, VideoFile, VisionCameraProxy, useFrameProcessor } from 'react-native-vision-camera';
+import { Camera, CameraDevice, CameraDeviceFormat, VideoFile, VisionCameraProxy, useFrameProcessor } from 'react-native-vision-camera';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { File } from 'expo-file-system';
 
@@ -11,6 +11,10 @@ export type VisionCameraRecorderProps = {
   isActive: boolean;
   /** Whether audio recording is enabled. Defaults to true. */
   audio?: boolean;
+  /** Camera format for target fps. When omitted, uses device default. */
+  format?: CameraDeviceFormat;
+  /** Target recording fps. When omitted, uses device default. */
+  fps?: number;
 };
 
 export type VisionCameraRecorderRef = {
@@ -37,7 +41,7 @@ const IS_ANDROID = Platform.OS === 'android';
  * device is held (the UI is portrait-locked on the camera screen).
  */
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
-  ({ device, isActive, audio = true }, ref) => {
+  ({ device, isActive, audio = true, format, fps }, ref) => {
     const cameraRef = useRef<Camera>(null);
 
     // Shared values so Reanimated worklets can reactively access dimensions
@@ -153,6 +157,8 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
             isActive={isActive}
             video={true}
             audio={audio}
+            format={format}
+            fps={fps}
             frameProcessor={frameProcessor}
             androidPreviewViewType="texture-view"
           />

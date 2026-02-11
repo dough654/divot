@@ -6,7 +6,7 @@ import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { useToast } from '@/src/context';
 import { clearAllClips, listClips } from '@/src/services/recording/clip-storage';
-import type { Theme, ThemeMode } from '@/src/context';
+import type { Theme, ThemeMode, RecordingFps } from '@/src/context';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'system', label: 'System' },
@@ -14,12 +14,19 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'dark', label: 'Dark' },
 ];
 
+const FPS_OPTIONS: { value: RecordingFps; label: string }[] = [
+  { value: 30, label: '30' },
+  { value: 60, label: '60' },
+  { value: 120, label: '120' },
+  { value: 240, label: '240' },
+];
+
 const FEEDBACK_EMAIL = 'feedback@swinglink.app';
 
 export default function SettingsScreen() {
   useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
-  const { settings, setHapticsEnabled, setThemeMode } = useSettings();
+  const { settings, setHapticsEnabled, setThemeMode, setRecordingFps } = useSettings();
   const styles = useThemedStyles(createStyles);
   const haptics = useHaptics();
   const { show: showToast } = useToast();
@@ -36,6 +43,11 @@ export default function SettingsScreen() {
   const handleThemeModeChange = (mode: ThemeMode) => {
     haptics.selection();
     setThemeMode(mode);
+  };
+
+  const handleRecordingFpsChange = (fps: RecordingFps) => {
+    haptics.selection();
+    setRecordingFps(fps);
   };
 
   const handleClearClips = async () => {
@@ -134,6 +146,48 @@ export default function SettingsScreen() {
               </Text>
             </Pressable>
           ))}
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Recording FPS Selector */}
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingLabel}>RECORDING FPS</Text>
+            <Text style={styles.settingDescription}>higher fps for slow-motion review</Text>
+          </View>
+        </View>
+
+        <View style={styles.themeOptions}>
+          {FPS_OPTIONS.map((option) => {
+            const isSupported = !settings.supportedRecordingFps || settings.supportedRecordingFps.includes(option.value);
+            const isSelected = settings.recordingFps === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                style={[
+                  styles.themeOption,
+                  isSelected && styles.themeOptionSelected,
+                  !isSupported && styles.themeOptionDisabled,
+                ]}
+                onPress={() => handleRecordingFpsChange(option.value)}
+                disabled={!isSupported}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected, disabled: !isSupported }}
+                accessibilityLabel={`${option.label} fps${!isSupported ? ' (not supported)' : ''}`}
+              >
+                <Text
+                  style={[
+                    styles.themeOptionText,
+                    isSelected && styles.themeOptionTextSelected,
+                    !isSupported && styles.themeOptionTextDisabled,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
@@ -248,6 +302,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     backgroundColor: theme.colors.accent,
     borderColor: theme.colors.accent,
   },
+  themeOptionDisabled: {
+    opacity: 0.35,
+  },
   themeOptionText: {
     fontFamily: theme.fontFamily.bodyMedium,
     fontSize: 16,
@@ -256,6 +313,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   themeOptionTextSelected: {
     color: theme.isDark ? theme.palette.black : theme.palette.white,
+  },
+  themeOptionTextDisabled: {
+    color: theme.colors.textTertiary,
   },
   actionRow: {
     flexDirection: 'row' as const,

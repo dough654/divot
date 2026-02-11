@@ -21,11 +21,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
+export type RecordingFps = 30 | 60 | 120 | 240;
+
+export const RECORDING_FPS_VALUES: RecordingFps[] = [30, 60, 120, 240];
+
 export type Settings = {
   /** Whether haptic feedback is enabled. Defaults to true. */
   hapticsEnabled: boolean;
   /** Theme mode override. Defaults to 'system'. */
   themeMode: ThemeMode;
+  /** Recording fps target. Defaults to 30. */
+  recordingFps: RecordingFps;
+  /** Fps values the current device supports. Null until camera opens. */
+  supportedRecordingFps: RecordingFps[] | null;
 };
 
 type SettingsContextValue = {
@@ -33,6 +41,8 @@ type SettingsContextValue = {
   isLoaded: boolean;
   setHapticsEnabled: (enabled: boolean) => void;
   setThemeMode: (mode: ThemeMode) => void;
+  setRecordingFps: (fps: RecordingFps) => void;
+  setSupportedRecordingFps: (fps: RecordingFps[]) => void;
 };
 
 // ============================================
@@ -44,6 +54,8 @@ const SETTINGS_KEY = '@swinglink/settings';
 const DEFAULT_SETTINGS: Settings = {
   hapticsEnabled: true,
   themeMode: 'system',
+  recordingFps: 30,
+  supportedRecordingFps: null,
 };
 
 // ============================================
@@ -85,10 +97,11 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     loadSettings();
   }, []);
 
-  // Persist settings whenever they change
+  // Persist settings whenever they change (exclude runtime-only fields)
   const persistSettings = useCallback(async (newSettings: Settings) => {
     try {
-      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+      const { supportedRecordingFps: _, ...persistable } = newSettings;
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(persistable));
     } catch (err) {
       console.error('Failed to save settings:', err);
     }
@@ -116,14 +129,35 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     [persistSettings]
   );
 
+  const setRecordingFps = useCallback(
+    (fps: RecordingFps) => {
+      setSettings((prev) => {
+        const updated = { ...prev, recordingFps: fps };
+        persistSettings(updated);
+        return updated;
+      });
+    },
+    [persistSettings]
+  );
+
+  /** Runtime-only — not persisted to AsyncStorage (hardware-dependent, re-detected each session). */
+  const setSupportedRecordingFps = useCallback(
+    (fps: RecordingFps[]) => {
+      setSettings((prev) => ({ ...prev, supportedRecordingFps: fps }));
+    },
+    []
+  );
+
   const value = useMemo<SettingsContextValue>(
     () => ({
       settings,
       isLoaded,
       setHapticsEnabled,
       setThemeMode,
+      setRecordingFps,
+      setSupportedRecordingFps,
     }),
-    [settings, isLoaded, setHapticsEnabled, setThemeMode]
+    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

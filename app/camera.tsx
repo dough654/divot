@@ -14,7 +14,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 
-import { useTheme, useToast } from '@/src/context';
+import { useTheme, useToast, useSettings } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 import { QRCodeDisplay, ConnectionRequestModal } from '@/src/components/pairing';
@@ -50,6 +50,7 @@ type CameraState = 'connecting' | 'previewing' | 'recording' | 'reviewing';
 export default function CameraScreen() {
   useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
+  const { settings } = useSettings();
   const router = useRouter();
   const { show: showToast } = useToast();
   const styles = useThemedStyles(createStyles);
@@ -77,16 +78,19 @@ export default function CameraScreen() {
   const p2pOfferCreatedRef = useRef(false);
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingDurationRef = useRef(0);
+  const recordingFpsRef = useRef(30);
 
   // VisionCamera is always active
   const {
     device: visionDevice,
+    format: visionFormat,
+    actualFps: recordingFps,
     hasCameraPermission,
     hasMicrophonePermission,
     isRequestingPermissions,
     error: visionCameraError,
     toggleCamera,
-  } = useVisionCamera({ autoRequestPermissions: true });
+  } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps });
 
   // Track if we've shown the microphone warning
   const [hasShownMicWarning, setHasShownMicWarning] = useState(false);
@@ -114,6 +118,11 @@ export default function CameraScreen() {
       );
     }
   }, [hasCameraPermission, hasMicrophonePermission, hasShownMicWarning, isRequestingPermissions]);
+
+  // Keep recording fps ref in sync for async callbacks
+  useEffect(() => {
+    recordingFpsRef.current = recordingFps;
+  }, [recordingFps]);
 
   const {
     connectionState: signalingConnectionState,
@@ -429,7 +438,7 @@ export default function CameraScreen() {
           const clip = await saveClip({
             path: video.path,
             duration,
-            fps: 30,
+            fps: recordingFpsRef.current,
           });
 
           setLastRecordedClip(clip);
@@ -551,6 +560,8 @@ export default function CameraScreen() {
                 device={visionDevice}
                 isActive={true}
                 audio={hasMicrophonePermission}
+                format={visionFormat}
+                fps={recordingFps}
               />
             ) : (
               <View style={styles.cameraPlaceholder}>
