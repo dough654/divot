@@ -1,6 +1,6 @@
 import { StyleSheet, View, Platform } from 'react-native';
 import { useRef, forwardRef, useImperativeHandle } from 'react';
-import { Camera, CameraDevice, CameraDeviceFormat, VideoFile, VisionCameraProxy, useFrameProcessor } from 'react-native-vision-camera';
+import { Camera, CameraDevice, CameraDeviceFormat, Frame, VideoFile, VisionCameraProxy, useFrameProcessor } from 'react-native-vision-camera';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { File } from 'expo-file-system';
 
@@ -15,6 +15,8 @@ export type VisionCameraRecorderProps = {
   format?: CameraDeviceFormat;
   /** Target recording fps. When omitted, uses device default. */
   fps?: number;
+  /** Additional frame processing callback, called on every frame in the worklet. */
+  onFrame?: (frame: Frame) => void;
 };
 
 export type VisionCameraRecorderRef = {
@@ -41,7 +43,7 @@ const IS_ANDROID = Platform.OS === 'android';
  * device is held (the UI is portrait-locked on the camera screen).
  */
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
-  ({ device, isActive, audio = true, format, fps }, ref) => {
+  ({ device, isActive, audio = true, format, fps, onFrame }, ref) => {
     const cameraRef = useRef<Camera>(null);
 
     // Shared values so Reanimated worklets can reactively access dimensions
@@ -60,7 +62,10 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
       if (IS_ANDROID && typeof result === 'number') {
         rotationDegrees.value = result;
       }
-    }, [forwardPlugin]);
+      if (onFrame) {
+        onFrame(frame);
+      }
+    }, [forwardPlugin, onFrame]);
 
     // Counter-rotation style for Android preview correction.
     // Applied to an Animated.View wrapper around Camera (avoids type issues

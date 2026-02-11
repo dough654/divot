@@ -8,3 +8,5 @@ export * from './preview-rotation';
 export * from './zoom-math';
 export * from './network-transport';
 export * from './format';
+export * from './pose-normalization';
+export * from './swing-detection';

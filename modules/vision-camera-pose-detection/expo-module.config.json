@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["VisionCameraPoseDetectionModule"]
+  },
+  "android": {
+    "modules": ["com.swinglink.posedetection.VisionCameraPoseDetectionModule"]
+  }
+}

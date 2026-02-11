@@ -13,6 +13,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
+import { useFeatureFlag } from 'posthog-react-native';
 
 import { useTheme, useToast, useSettings } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
@@ -24,7 +25,10 @@ import {
   RecordingIndicator,
   VisionCameraRecorder,
   VisionCameraRecorderRef,
+  PoseOverlay,
 } from '@/src/components/recording';
+import { usePoseDetection } from '@/src/hooks/use-pose-detection';
+import { useSwingAutoDetection } from '@/src/hooks/use-swing-auto-detection';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
@@ -52,6 +56,11 @@ export default function CameraScreen() {
   useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
   const { settings } = useSettings();
+
+  // PostHog feature flags gate native ML inference
+  const poseDetectionFlag = useFeatureFlag('pose-detection-enabled');
+  const autoDetectionFlag = useFeatureFlag('swing-auto-detection-enabled');
+
   const router = useRouter();
   const { show: showToast } = useToast();
   const styles = useThemedStyles(createStyles);
@@ -92,6 +101,26 @@ export default function CameraScreen() {
     error: visionCameraError,
     toggleCamera,
   } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps });
+
+  // Pose detection — gated by feature flag + user setting
+  const poseDetectionEnabled = !!poseDetectionFlag && settings.poseOverlayEnabled;
+  const {
+    poseSharedValue,
+    processFrame: poseProcessFrame,
+    isDetecting: isPoseDetecting,
+  } = usePoseDetection({ enabled: poseDetectionEnabled });
+
+  // Swing auto-detection — gated by feature flag + user setting + pose detection active
+  const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled;
+  const swingStartRef = useRef<(() => void) | null>(null);
+  const swingEndRef = useRef<(() => void) | null>(null);
+  const { detectionState: swingDetectionState, isArmed: isSwingArmed } = useSwingAutoDetection({
+    enabled: autoDetectEnabled,
+    poseSharedValue,
+    sensitivity: settings.swingDetectionSensitivity,
+    onSwingStarted: useCallback(() => { swingStartRef.current?.(); }, []),
+    onSwingEnded: useCallback(() => { swingEndRef.current?.(); }, []),
+  });
 
   // Track if we've shown the microphone warning
   const [hasShownMicWarning, setHasShownMicWarning] = useState(false);
@@ -484,6 +513,10 @@ export default function CameraScreen() {
     }
   }, []);
 
+  // Wire swing auto-detection refs to actual handlers
+  swingStartRef.current = handleStartRecording;
+  swingEndRef.current = handleStopRecording;
+
   const handleRecordPress = useCallback(() => {
     if (isRecording) {
       handleStopRecording();
@@ -557,6 +590,12 @@ export default function CameraScreen() {
             <Text style={styles.discoverableText}>Discoverable</Text>
           </View>
         )}
+        {isSwingArmed && !isRecording && (
+          <View style={styles.autoBadge}>
+            <Ionicons name="body" size={12} color={theme.colors.accent} />
+            <Text style={styles.autoBadgeText}>Auto</Text>
+          </View>
+        )}
         {isConnected && (() => {
           const transport = resolveNetworkTransport(autoConnect.activeTransport, quality?.candidateType);
           return transport ? <TransportBadge transport={transport} /> : null;
@@ -576,6 +615,7 @@ export default function CameraScreen() {
                 audio={hasMicrophonePermission}
                 format={visionFormat}
                 fps={recordingFps}
+                onFrame={poseProcessFrame ?? undefined}
               />
             ) : (
               <View style={styles.cameraPlaceholder}>
@@ -588,6 +628,14 @@ export default function CameraScreen() {
               <View style={styles.errorOverlay}>
                 <Text style={styles.errorText}>{currentError}</Text>
               </View>
+            )}
+
+            {/* Pose skeleton overlay */}
+            {isPoseDetecting && (
+              <PoseOverlay
+                poseSharedValue={poseSharedValue}
+                visible={settings.poseOverlayEnabled}
+              />
             )}
 
             {/* Recording indicator overlay */}
@@ -800,6 +848,20 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontSize: theme.fontSize.xs,
     fontFamily: theme.fontFamily.body,
     color: theme.colors.textTertiary,
+  },
+  autoBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.md,
+  },
+  autoBadgeText: {
+    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
+    color: theme.colors.accent,
   },
   videoContainer: {
     flex: 1,

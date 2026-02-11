@@ -1,5 +1,6 @@
 import { View, Text, Switch, Pressable, Alert, Linking, ScrollView } from 'react-native';
 import { useState } from 'react';
+import Slider from '@react-native-community/slider';
 
 import { useTheme, useSettings } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
@@ -26,7 +27,15 @@ const FEEDBACK_EMAIL = 'feedback@swinglink.app';
 export default function SettingsScreen() {
   useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
-  const { settings, setHapticsEnabled, setThemeMode, setRecordingFps } = useSettings();
+  const {
+    settings,
+    setHapticsEnabled,
+    setThemeMode,
+    setRecordingFps,
+    setPoseOverlayEnabled,
+    setSwingAutoDetectionEnabled,
+    setSwingDetectionSensitivity,
+  } = useSettings();
   const styles = useThemedStyles(createStyles);
   const haptics = useHaptics();
   const { show: showToast } = useToast();
@@ -48,6 +57,20 @@ export default function SettingsScreen() {
   const handleRecordingFpsChange = (fps: RecordingFps) => {
     haptics.selection();
     setRecordingFps(fps);
+  };
+
+  const handlePoseOverlayToggle = (value: boolean) => {
+    haptics.selection();
+    setPoseOverlayEnabled(value);
+  };
+
+  const handleAutoDetectionToggle = (value: boolean) => {
+    haptics.selection();
+    setSwingAutoDetectionEnabled(value);
+  };
+
+  const handleSensitivityChange = (value: number) => {
+    setSwingDetectionSensitivity(value);
   };
 
   const handleClearClips = async () => {
@@ -191,6 +214,75 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Recording Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>recording</Text>
+
+        {/* Pose Overlay Toggle */}
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingLabel}>POSE OVERLAY</Text>
+            <Text style={styles.settingDescription}>show skeleton on camera preview</Text>
+          </View>
+          <Switch
+            value={settings.poseOverlayEnabled}
+            onValueChange={handlePoseOverlayToggle}
+            trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
+            thumbColor={theme.palette.white}
+            accessibilityLabel="Toggle pose overlay"
+            accessibilityHint={settings.poseOverlayEnabled ? 'Disable pose overlay' : 'Enable pose overlay'}
+          />
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Auto-Detect Swings Toggle */}
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingLabel}>AUTO-DETECT SWINGS</Text>
+            <Text style={styles.settingDescription}>automatically start/stop recording</Text>
+          </View>
+          <Switch
+            value={settings.swingAutoDetectionEnabled}
+            onValueChange={handleAutoDetectionToggle}
+            trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
+            thumbColor={theme.palette.white}
+            accessibilityLabel="Toggle swing auto-detection"
+            accessibilityHint={settings.swingAutoDetectionEnabled ? 'Disable auto-detection' : 'Enable auto-detection'}
+          />
+        </View>
+
+        {/* Detection Sensitivity Slider */}
+        {settings.swingAutoDetectionEnabled && (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.settingRow}>
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>DETECTION SENSITIVITY</Text>
+                <Text style={styles.settingDescription}>
+                  {settings.swingDetectionSensitivity < 0.33
+                    ? 'low — fewer false triggers'
+                    : settings.swingDetectionSensitivity > 0.66
+                      ? 'high — catches subtle swings'
+                      : 'medium'}
+                </Text>
+              </View>
+            </View>
+            <Slider
+              style={styles.slider}
+              value={settings.swingDetectionSensitivity}
+              onSlidingComplete={handleSensitivityChange}
+              minimumValue={0}
+              maximumValue={1}
+              step={0.05}
+              minimumTrackTintColor={theme.colors.accent}
+              maximumTrackTintColor={theme.colors.border}
+              thumbTintColor={theme.colors.accent}
+            />
+          </>
+        )}
+      </View>
+
       {/* Data Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>data</Text>
@@ -316,6 +408,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   themeOptionTextDisabled: {
     color: theme.colors.textTertiary,
+  },
+  slider: {
+    width: '100%' as const,
+    height: 40,
+    marginBottom: theme.spacing.sm,
   },
   actionRow: {
     flexDirection: 'row' as const,

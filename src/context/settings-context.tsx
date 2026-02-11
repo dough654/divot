@@ -34,6 +34,12 @@ export type Settings = {
   recordingFps: RecordingFps;
   /** Fps values the current device supports. Null until camera opens. */
   supportedRecordingFps: RecordingFps[] | null;
+  /** Whether the pose skeleton overlay is shown on camera preview. Defaults to false. */
+  poseOverlayEnabled: boolean;
+  /** Whether swing auto-detection is enabled. Defaults to false. */
+  swingAutoDetectionEnabled: boolean;
+  /** Swing detection sensitivity, 0-1. Higher = more sensitive. Defaults to 0.5. */
+  swingDetectionSensitivity: number;
 };
 
 type SettingsContextValue = {
@@ -43,6 +49,9 @@ type SettingsContextValue = {
   setThemeMode: (mode: ThemeMode) => void;
   setRecordingFps: (fps: RecordingFps) => void;
   setSupportedRecordingFps: (fps: RecordingFps[]) => void;
+  setPoseOverlayEnabled: (enabled: boolean) => void;
+  setSwingAutoDetectionEnabled: (enabled: boolean) => void;
+  setSwingDetectionSensitivity: (sensitivity: number) => void;
 };
 
 // ============================================
@@ -56,6 +65,9 @@ const DEFAULT_SETTINGS: Settings = {
   themeMode: 'system',
   recordingFps: 30,
   supportedRecordingFps: null,
+  poseOverlayEnabled: false,
+  swingAutoDetectionEnabled: false,
+  swingDetectionSensitivity: 0.5,
 };
 
 // ============================================
@@ -148,6 +160,39 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     []
   );
 
+  const setPoseOverlayEnabled = useCallback(
+    (enabled: boolean) => {
+      setSettings((prev) => {
+        const updated = { ...prev, poseOverlayEnabled: enabled };
+        persistSettings(updated);
+        return updated;
+      });
+    },
+    [persistSettings]
+  );
+
+  const setSwingAutoDetectionEnabled = useCallback(
+    (enabled: boolean) => {
+      setSettings((prev) => {
+        const updated = { ...prev, swingAutoDetectionEnabled: enabled };
+        persistSettings(updated);
+        return updated;
+      });
+    },
+    [persistSettings]
+  );
+
+  const setSwingDetectionSensitivity = useCallback(
+    (sensitivity: number) => {
+      setSettings((prev) => {
+        const updated = { ...prev, swingDetectionSensitivity: sensitivity };
+        persistSettings(updated);
+        return updated;
+      });
+    },
+    [persistSettings]
+  );
+
   const value = useMemo<SettingsContextValue>(
     () => ({
       settings,
@@ -156,8 +201,11 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
       setThemeMode,
       setRecordingFps,
       setSupportedRecordingFps,
+      setPoseOverlayEnabled,
+      setSwingAutoDetectionEnabled,
+      setSwingDetectionSensitivity,
     }),
-    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps]
+    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps, setPoseOverlayEnabled, setSwingAutoDetectionEnabled, setSwingDetectionSensitivity]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
