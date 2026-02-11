@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { useTheme, useSettings } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
+import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { useToast } from '@/src/context';
 import { clearAllClips, listClips } from '@/src/services/recording/clip-storage';
 import type { Theme, ThemeMode } from '@/src/context';
@@ -16,6 +17,7 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 const FEEDBACK_EMAIL = 'feedback@swinglink.app';
 
 export default function SettingsScreen() {
+  useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
   const { settings, setHapticsEnabled, setThemeMode } = useSettings();
   const styles = useThemedStyles(createStyles);

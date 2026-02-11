@@ -6,6 +6,7 @@ import Animated from 'react-native-reanimated';
 
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, usePressAnimation } from '@/src/hooks';
+import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { EmptyState, SkeletonClipItem } from '@/src/components/ui';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -102,6 +103,7 @@ const ClipItem = ({ clip, onPress, onMenuPress, index }: ClipItemProps & { index
 };
 
 export default function ClipsScreen() {
+  useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
   const router = useRouter();
   const styles = useThemedStyles(createStyles);

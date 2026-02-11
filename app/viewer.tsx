@@ -21,6 +21,7 @@ import { useBLEScanning } from '@/src/hooks/use-ble-discovery';
 import { useConnectivity } from '@/src/hooks/use-connectivity';
 import { useAutoConnect } from '@/src/hooks/use-auto-connect';
 import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
+import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
 import { connectionErrors, getSignalingError } from '@/src/utils/error-messages';
 import { shouldBlockConnection } from '@/src/utils/connectivity';
@@ -31,6 +32,7 @@ import type { DiscoveredDevice } from '@/modules/swinglink-ble';
 import type { RecoveryAction } from '@/src/utils/error-messages';
 
 export default function ViewerScreen() {
+  const { isLandscape } = useScreenOrientation();
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();

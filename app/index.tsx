@@ -5,9 +5,11 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "@/src/context";
 import { useThemedStyles, makeThemedStyles } from "@/src/hooks";
+import { useScreenOrientation } from "@/src/hooks/use-screen-orientation";
 import type { Theme } from "@/src/context";
 
 export default function HomeScreen() {
+  useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);

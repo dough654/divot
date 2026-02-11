@@ -35,6 +35,7 @@ import { useAutoReconnect } from '@/src/hooks/use-auto-reconnect';
 import { useBLEAdvertising } from '@/src/hooks/use-ble-discovery';
 import { useAutoConnect } from '@/src/hooks/use-auto-connect';
 import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
+import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { TransferProgressModal } from '@/src/components/clip-sync';
@@ -47,6 +48,7 @@ const MIN_LOADING_TIME_MS = 800;
 type CameraState = 'connecting' | 'previewing' | 'recording' | 'reviewing';
 
 export default function CameraScreen() {
+  useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
   const router = useRouter();
   const { show: showToast } = useToast();

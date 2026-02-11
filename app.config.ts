@@ -8,7 +8,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'SwingLink',
   slug: 'swing-app',
   version: '1.0.0',
-  orientation: 'portrait',
+  orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'swinglink',
   userInterfaceStyle: 'automatic',
@@ -61,6 +61,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     'expo-router',
+    'expo-screen-orientation',
     [
       '@config-plugins/react-native-webrtc',
       {

@@ -19,3 +19,5 @@ export * from './use-auto-connect';
 // Import directly: import { useConnectivity } from '@/src/hooks/use-connectivity';
 // use-connection-analytics excluded from barrel — depends on posthog-react-native (native dep)
 // Import directly: import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
+// use-screen-orientation excluded from barrel — depends on expo-screen-orientation (native dep)
+// Import directly: import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import type { Theme } from '@/src/context';
 import { VideoPlayer } from '@/src/components/playback';
 import { getClip } from '@/src/services/recording/clip-storage';
@@ -26,6 +27,7 @@ const formatDate = (timestamp: number): string => {
 };
 
 export default function PlaybackScreen() {
+  const { isLandscape } = useScreenOrientation();
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
