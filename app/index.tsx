@@ -42,6 +42,15 @@ export default function HomeScreen() {
       hint: "View and playback recorded swing videos",
       active: false,
     },
+    {
+      href: "/sessions" as const,
+      icon: "calendar-outline" as const,
+      title: "SESSIONS",
+      description: "practice history",
+      label: "Sessions",
+      hint: "Browse past practice sessions and their clips",
+      active: false,
+    },
   ];
 
   return (

@@ -38,6 +38,7 @@ import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
+import { useSessionLifecycle } from '@/src/hooks/use-session-lifecycle';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { formatRoomCode, resolveNetworkTransport } from '@/src/utils';
 import type { ConnectionStep, ConnectionRequest } from '@/src/types';
@@ -177,6 +178,14 @@ export default function CameraScreen() {
     peerConnection,
     enabled: isConnected,
   });
+
+  // Session lifecycle — auto-create session on connect, end on disconnect
+  const { tagClip, activeSession } = useSessionLifecycle({ isConnected, role: 'camera' });
+  const activeSessionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeSessionIdRef.current = activeSession?.id ?? null;
+  }, [activeSession]);
 
   // Connection analytics (GOL-76) — camera doesn't know the discovery method
   useConnectionAnalytics({
@@ -439,7 +448,12 @@ export default function CameraScreen() {
             path: video.path,
             duration,
             fps: recordingFpsRef.current,
+            sessionId: activeSessionIdRef.current ?? undefined,
           });
+
+          if (clip.sessionId) {
+            tagClip(clip.id);
+          }
 
           setLastRecordedClip(clip);
           setCameraState('reviewing');

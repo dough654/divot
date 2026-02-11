@@ -86,6 +86,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         isAccessMediaLocationEnabled: true,
       },
     ],
+    [
+      'expo-location',
+      {
+        locationAlwaysAndWhenInUsePermission:
+          'SwingLink uses your location to tag practice sessions.',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,

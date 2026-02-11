@@ -1,106 +1,15 @@
 import { View, Text, FlatList, Pressable, RefreshControl, Alert, Modal, TextInput, Platform } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import Animated from 'react-native-reanimated';
 
 import { useTheme } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, usePressAnimation } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { EmptyState, SkeletonClipItem } from '@/src/components/ui';
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+import { ClipItem } from '@/src/components/clips';
 import type { Theme } from '@/src/context';
 import { listClips, deleteClip, renameClip } from '@/src/services/recording/clip-storage';
 import type { Clip } from '@/src/types/recording';
-
-/**
- * Formats a timestamp to a readable date string.
- */
-const formatDate = (timestamp: number): string => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) {
-    return `Today, ${date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-  } else if (diffDays === 1) {
-    return `Yesterday, ${date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-  } else if (diffDays < 7) {
-    return date.toLocaleDateString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' });
-  } else {
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  }
-};
-
-/**
- * Formats duration in seconds to MM:SS.
- */
-const formatDuration = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-/**
- * Formats file size in bytes to human readable format.
- */
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-type ClipItemProps = {
-  clip: Clip;
-  onPress: () => void;
-  onMenuPress: () => void;
-};
-
-const ClipItem = ({ clip, onPress, onMenuPress, index }: ClipItemProps & { index: number }) => {
-  const { theme } = useTheme();
-  const styles = useThemedStyles(createItemStyles);
-
-  const { animatedStyle, handlePressIn, handlePressOut } = usePressAnimation({
-    defaultColor: 'transparent',
-    pressedColor: theme.colors.accentDim,
-  });
-
-  const clipName = clip.name || `Swing ${formatDate(clip.timestamp)}`;
-
-  return (
-    <AnimatedPressable
-      style={[styles.container, animatedStyle]}
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim } : undefined}
-      accessibilityRole="button"
-      accessibilityLabel={`${clipName}, ${formatDuration(clip.duration)}, ${formatFileSize(clip.fileSize)}`}
-      accessibilityHint="Open clip for playback"
-    >
-      <Text style={styles.number}>{String(index + 1).padStart(2, '0')}</Text>
-      <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={1}>
-          {clipName}
-        </Text>
-        <Text style={styles.meta}>
-          {formatDuration(clip.duration)} · {formatFileSize(clip.fileSize)} · {clip.fps}fps
-        </Text>
-      </View>
-      <Pressable
-        style={styles.menuButton}
-        onPress={onMenuPress}
-        android_ripple={Platform.OS === 'android' ? { color: theme.colors.accentDim, borderless: true } : undefined}
-        accessibilityRole="button"
-        accessibilityLabel={`Options for ${clipName}`}
-        accessibilityHint="Open menu to rename or delete clip"
-      >
-        <Ionicons name="ellipsis-vertical" size={18} color={theme.colors.textTertiary} />
-      </Pressable>
-    </AnimatedPressable>
-  );
-};
 
 export default function ClipsScreen() {
   useScreenOrientation({ lock: 'portrait' });
@@ -403,40 +312,3 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
 }));
 
-const createItemStyles = makeThemedStyles((theme: Theme) => ({
-  container: {
-    flex: 1,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    gap: 12,
-  },
-  number: {
-    fontFamily: theme.fontFamily.display,
-    fontSize: 24,
-    color: theme.colors.textTertiary,
-    width: 32,
-    textAlign: 'right' as const,
-  },
-  info: {
-    flex: 1,
-  },
-  title: {
-    fontFamily: theme.fontFamily.display,
-    fontSize: 18,
-    color: theme.colors.text,
-    textTransform: 'uppercase' as const,
-    letterSpacing: -0.3,
-    marginBottom: 2,
-  },
-  meta: {
-    fontFamily: theme.fontFamily.body,
-    fontSize: 15,
-    color: theme.colors.textTertiary,
-    textTransform: 'lowercase' as const,
-  },
-  menuButton: {
-    padding: theme.spacing.sm,
-  },
-}));

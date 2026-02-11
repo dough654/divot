@@ -3,6 +3,7 @@ import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Clip, ClipMetadata } from '@/src/types/recording';
 import { deleteAnnotations } from '@/src/services/annotation/annotation-storage';
+import { removeClipFromSession } from '@/src/services/session/session-storage';
 
 const CLIPS_DIR_NAME = 'clips';
 const METADATA_KEY = '@swinglink/clips_metadata';
@@ -70,6 +71,8 @@ export type SaveClipOptions = {
   fps: number;
   /** Optional name for the clip. */
   name?: string;
+  /** Session ID to associate this clip with. */
+  sessionId?: string;
 };
 
 /**
@@ -87,7 +90,7 @@ const toFileUri = (path: string): string => {
  * Copies the video file to the clips directory and updates metadata.
  */
 export const saveClip = async (options: SaveClipOptions): Promise<Clip> => {
-  const { path: sourcePath, duration, fps, name } = options;
+  const { path: sourcePath, duration, fps, name, sessionId } = options;
 
   ensureClipsDirectory();
 
@@ -113,6 +116,7 @@ export const saveClip = async (options: SaveClipOptions): Promise<Clip> => {
     fileSize,
     fps,
     name,
+    sessionId,
   };
 
   // Update metadata
@@ -165,6 +169,9 @@ export const deleteClip = async (clipId: string): Promise<boolean> => {
   // Delete associated annotations
   deleteAnnotations(clipId);
 
+  // Remove from any session
+  await removeClipFromSession(clipId);
+
   // Update metadata
   metadata.clips.splice(clipIndex, 1);
   await saveMetadata(metadata);
@@ -216,6 +223,22 @@ export const saveClipToGallery = async (clipId: string): Promise<boolean> => {
 export const getStorageUsed = async (): Promise<number> => {
   const metadata = await loadMetadata();
   return metadata.clips.reduce((total, clip) => total + clip.fileSize, 0);
+};
+
+/**
+ * Lists clips belonging to a specific session.
+ */
+export const listClipsBySession = async (sessionId: string): Promise<Clip[]> => {
+  const metadata = await loadMetadata();
+  return metadata.clips.filter((clip) => clip.sessionId === sessionId);
+};
+
+/**
+ * Lists clips that don't belong to any session.
+ */
+export const listUnsortedClips = async (): Promise<Clip[]> => {
+  const metadata = await loadMetadata();
+  return metadata.clips.filter((clip) => !clip.sessionId);
 };
 
 /**

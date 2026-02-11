@@ -155,6 +155,20 @@ export default function RootLayout() {
                   headerBackTitle: 'Clips',
                 }}
               />
+              <Stack.Screen
+                name="sessions"
+                options={{
+                  title: 'Sessions',
+                  headerBackTitle: 'Home',
+                }}
+              />
+              <Stack.Screen
+                name="session/[id]"
+                options={{
+                  title: 'Session',
+                  headerBackTitle: 'Sessions',
+                }}
+              />
             </NavigationLayout>
           </ToastProvider>
         </ThemedApp>

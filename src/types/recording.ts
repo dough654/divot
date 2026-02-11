@@ -35,6 +35,8 @@ export type Clip = {
   fps: number;
   /** Optional user-provided name. */
   name?: string;
+  /** Session this clip belongs to, if any. */
+  sessionId?: string;
 };
 
 /**
