@@ -264,17 +264,9 @@ export const ConnectionStatus = ({
           </Animated.Text>
         )}
         {isConnected && quality && (
-          <>
-            <View
-              style={[
-                styles.qualityDot,
-                { backgroundColor: qualityColors[qualityRating] },
-              ]}
-            />
-            <Text style={styles.compactQuality}>
-              {quality.latencyMs}ms
-            </Text>
-          </>
+          <Text style={styles.compactQuality}>
+            · {quality.latencyMs}ms
+          </Text>
         )}
       </Animated.View>
     );
