@@ -1,4 +1,8 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
+import { config as loadEnv } from 'dotenv';
+
+// Load .env.local if present (gitignored via .env*.local pattern)
+loadEnv({ path: '.env.local' });
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'SwingLink',
