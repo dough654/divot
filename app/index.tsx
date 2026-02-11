@@ -36,9 +36,9 @@ export default function HomeScreen() {
     {
       href: "/clips" as const,
       icon: "film" as const,
-      title: "MY CLIPS",
+      title: "ALL CLIPS",
       description: "review swings",
-      label: "My Clips",
+      label: "All Clips",
       hint: "View and playback recorded swing videos",
       active: false,
     },
