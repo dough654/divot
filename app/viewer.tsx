@@ -452,10 +452,16 @@ export default function ViewerScreen() {
     await proceedWithConnection(code);
   }, [proceedWithConnection, isInternetReachable]);
 
+  const isLandscapeConnected = isLandscape && isConnected;
+
   return (
     <View style={styles.container}>
       {/* Connection Status */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[
+        styles.topBar,
+        isLandscapeConnected && styles.topBarLandscape,
+        { paddingTop: insets.top + 8 },
+      ]}>
         <Pressable
           onPress={() => useManualEntry ? setUseManualEntry(false) : router.back()}
           style={styles.backButton}
@@ -489,7 +495,7 @@ export default function ViewerScreen() {
       </View>
 
       {/* Video or Scanner or Manual Entry or No Internet */}
-      <View style={styles.mainContent}>
+      <View style={[styles.mainContent, isLandscapeConnected && styles.mainContentLandscape]}>
         {blockedDevice ? (
           <NoInternetCard onGoBack={handleRescan} />
         ) : isConnected ? (
@@ -592,6 +598,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
+    zIndex: 10,
+  },
+  topBarLandscape: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   backButton: {
     flexDirection: 'row' as const,
@@ -606,6 +620,14 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   mainContent: {
     flex: 1,
     overflow: 'hidden' as const,
+  },
+  mainContentLandscape: {
+    // Push video behind the absolute-positioned top bar
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   scannerLayout: {
     flex: 1,
