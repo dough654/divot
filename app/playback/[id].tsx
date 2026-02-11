@@ -105,7 +105,7 @@ export default function PlaybackScreen() {
     <>
       <Stack.Screen
         options={{
-          headerShown: true,
+          headerShown: !isLandscape,
           headerTitle: () => (
             <View style={styles.headerTitleContainer}>
               <Text style={styles.headerTitle}>{clipTitle}</Text>
@@ -115,7 +115,7 @@ export default function PlaybackScreen() {
         }}
       />
       <View style={styles.container}>
-        <VideoPlayer uri={clip.path} clipId={clip.id} />
+        <VideoPlayer uri={clip.path} clipId={clip.id} isLandscape={isLandscape} />
       </View>
     </>
   );
