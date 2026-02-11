@@ -5,3 +5,4 @@ export * from './error-messages';
 export * from './orientation-mapping';
 export * from './connectivity';
 export * from './preview-rotation';
+export * from './zoom-math';

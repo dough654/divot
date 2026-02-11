@@ -41,7 +41,6 @@ export default function ViewerScreen() {
   const [useManualEntry, setUseManualEntry] = useState(false);
   const [connectionErrorCode, setConnectionErrorCode] = useState<string | null>(null);
   const [connectionMethod, setConnectionMethod] = useState<'ble' | 'qr' | 'manual' | null>(null);
-  const [videoObjectFit, setVideoObjectFit] = useState<'contain' | 'cover'>('contain');
   const isProcessingScan = useRef(false);
 
   const roomCodeRef = useRef<string | null>(null);
@@ -502,8 +501,6 @@ export default function ViewerScreen() {
           <RemoteVideoView
             stream={remoteStream}
             isConnecting={!remoteStream}
-            objectFit={videoObjectFit}
-            onToggleObjectFit={() => setVideoObjectFit((prev) => prev === 'contain' ? 'cover' : 'contain')}
           />
         ) : isScanning ? (
           useManualEntry ? (
