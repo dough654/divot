@@ -1,21 +1,32 @@
-import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, Pressable } from 'react-native';
 import { RTCView, MediaStream } from 'react-native-webrtc';
 import { Ionicons } from '@expo/vector-icons';
+
+import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import type { Theme } from '@/src/context';
 
 export type RemoteVideoViewProps = {
   stream: MediaStream | null;
   isConnecting?: boolean;
   style?: object;
+  /** Video scaling mode. 'contain' shows full frame (pillarboxed), 'cover' fills viewport (cropped). */
+  objectFit?: 'contain' | 'cover';
+  /** Called when the user taps the fill/fit toggle. */
+  onToggleObjectFit?: () => void;
 };
 
 /**
- * Displays the remote video stream from a peer.
+ * Displays the remote video stream from a peer with an optional fill/fit toggle.
  */
 export const RemoteVideoView = ({
   stream,
   isConnecting = false,
   style,
+  objectFit = 'contain',
+  onToggleObjectFit,
 }: RemoteVideoViewProps) => {
+  const styles = useThemedStyles(createStyles);
+
   if (isConnecting) {
     return (
       <View style={[styles.container, styles.placeholder, style]}>
@@ -39,29 +50,55 @@ export const RemoteVideoView = ({
       <RTCView
         streamURL={stream.toURL()}
         style={styles.video}
-        objectFit="contain"
+        objectFit={objectFit}
       />
+      {onToggleObjectFit && (
+        <Pressable
+          style={styles.toggleButton}
+          onPress={onToggleObjectFit}
+          accessibilityRole="button"
+          accessibilityLabel={objectFit === 'contain' ? 'Fill screen' : 'Fit to screen'}
+          accessibilityHint="Toggle between fit and fill video modes"
+        >
+          <Ionicons
+            name={objectFit === 'contain' ? 'expand-outline' : 'contract-outline'}
+            size={20}
+            color="#fff"
+          />
+        </Pressable>
+      )}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = makeThemedStyles((_theme: Theme) => ({
   container: {
     flex: 1,
     backgroundColor: '#000',
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: 'hidden' as const,
   },
   video: {
     flex: 1,
   },
   placeholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   placeholderText: {
     color: '#888',
     marginTop: 12,
     fontSize: 16,
   },
-});
+  toggleButton: {
+    position: 'absolute' as const,
+    bottom: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+}));
