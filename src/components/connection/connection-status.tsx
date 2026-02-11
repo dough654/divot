@@ -248,7 +248,7 @@ export const ConnectionStatus = ({
             entering={FadeIn.duration(200)}
             exiting={FadeOut.duration(150)}
             layout={LinearTransition.duration(200)}
-            style={[styles.compactLabel, styles.labelConnected]}
+            style={[styles.compactLabel, styles.labelConnected, { textTransform: 'none' as const }]}
           >
             {presetLabel}
           </Animated.Text>
