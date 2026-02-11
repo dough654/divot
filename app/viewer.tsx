@@ -552,26 +552,13 @@ export default function ViewerScreen() {
         </Pressable>
       )}
 
-      {/* Error / Connection info bar */}
-      {((connectionStep === 'failed' || connectionStep === 'reconnect-failed') && currentError || isConnected) && (
+      {/* Error bar */}
+      {(connectionStep === 'failed' || connectionStep === 'reconnect-failed') && currentError && (
         <View style={[styles.bottomBar, { bottom: 10 + insets.bottom }]}>
-          {(connectionStep === 'failed' || connectionStep === 'reconnect-failed') && currentError && (
-            <ErrorDetail
-              error={currentError}
-              onAction={handleErrorAction}
-            />
-          )}
-
-          {isConnected && (
-            <View style={styles.qualityInfo}>
-              <Text style={styles.qualityLabel}>
-                Preview
-              </Text>
-              <Text style={styles.qualityValue}>
-                {remoteStream ? 'Live' : 'Waiting...'}
-              </Text>
-            </View>
-          )}
+          <ErrorDetail
+            error={currentError}
+            onAction={handleErrorAction}
+          />
         </View>
       )}
 
@@ -675,24 +662,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     borderColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.md,
-  },
-  qualityInfo: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-around' as const,
-    width: '100%' as const,
-    backgroundColor: 'transparent',
-  },
-  qualityLabel: {
-    fontFamily: theme.fontFamily.body,
-    fontSize: 10,
-    textTransform: 'lowercase' as const,
-    color: theme.colors.textTertiary,
-  },
-  qualityValue: {
-    fontFamily: theme.fontFamily.display,
-    fontSize: 20,
-    letterSpacing: -0.5,
-    color: theme.colors.text,
   },
   floatingLivePill: {
     position: 'absolute' as const,
