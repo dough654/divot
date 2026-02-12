@@ -36,16 +36,21 @@ export const INITIAL_SWING_COUNTERS: SwingCounters = {
  * Computes the average wrist velocity between two consecutive pose frames.
  * Uses Euclidean distance of the average wrist position divided by time delta.
  *
+ * Returns `null` when wrist data is unavailable (confidence too low in either
+ * frame). This is distinct from returning 0 — null means "no data" (e.g. wrists
+ * blurred during fast motion), while 0 means "wrists visible but stationary".
+ * Callers should treat null as "skip this frame" rather than "below threshold".
+ *
  * @param prevPose - The previous pose frame
  * @param currentPose - The current pose frame
- * @returns Velocity in normalized units per second, or 0 if wrists not detected
+ * @returns Velocity in normalized units per second, or null if wrists not trackable
  */
 export const computeWristVelocity = (
   prevPose: PoseFrame,
   currentPose: PoseFrame,
-): number => {
+): number | null => {
   const timeDeltaMs = currentPose.timestamp - prevPose.timestamp;
-  if (timeDeltaMs <= 0) return 0;
+  if (timeDeltaMs <= 0) return null;
 
   const minConfidence = 0.3;
 
@@ -77,7 +82,7 @@ export const computeWristVelocity = (
     count++;
   }
 
-  if (count === 0) return 0;
+  if (count === 0) return null;
 
   const averageDisplacement = totalVelocity / count;
   const timeDeltaSec = timeDeltaMs / 1000;
@@ -99,7 +104,7 @@ export type SwingStateTransition = {
  * State flow: idle → armed → detecting → recording → cooldown → armed
  *
  * @param state - Current detection state
- * @param velocity - Current wrist velocity in normalized units/sec
+ * @param velocity - Current wrist velocity in normalized units/sec, or null if wrists not trackable
  * @param timestamp - Current frame timestamp in ms
  * @param config - Detection configuration
  * @param counters - Current frame counters
@@ -107,11 +112,19 @@ export type SwingStateTransition = {
  */
 export const nextSwingState = (
   state: SwingDetectionState,
-  velocity: number,
+  velocity: number | null,
   timestamp: number,
   config: SwingDetectionConfig,
   counters: SwingCounters,
 ): SwingStateTransition => {
+  // Null velocity = wrists not trackable (e.g. blurred during fast motion).
+  // Preserve current state and counters — absence of data is not evidence
+  // against a swing. This prevents the confirmation counter from resetting
+  // on frames where the ML model loses wrist tracking mid-swing.
+  if (velocity === null) {
+    return { state, event: null, counters };
+  }
+
   const aboveThreshold = velocity >= config.velocityThreshold;
 
   switch (state) {

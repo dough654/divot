@@ -33,21 +33,21 @@ const makePoseFrame = (
 };
 
 describe('computeWristVelocity', () => {
-  it('returns 0 when time delta is 0', () => {
+  it('returns null when time delta is 0', () => {
     const pose = makePoseFrame(100, { x: 0.3, y: 0.5, confidence: 0.9 }, { x: 0.7, y: 0.5, confidence: 0.9 });
-    expect(computeWristVelocity(pose, pose)).toBe(0);
+    expect(computeWristVelocity(pose, pose)).toBeNull();
   });
 
-  it('returns 0 when time delta is negative', () => {
+  it('returns null when time delta is negative', () => {
     const prev = makePoseFrame(200, { x: 0.3, y: 0.5, confidence: 0.9 }, { x: 0.7, y: 0.5, confidence: 0.9 });
     const curr = makePoseFrame(100, { x: 0.4, y: 0.5, confidence: 0.9 }, { x: 0.8, y: 0.5, confidence: 0.9 });
-    expect(computeWristVelocity(prev, curr)).toBe(0);
+    expect(computeWristVelocity(prev, curr)).toBeNull();
   });
 
-  it('returns 0 when no wrists have sufficient confidence', () => {
+  it('returns null when no wrists have sufficient confidence', () => {
     const prev = makePoseFrame(0, { x: 0.3, y: 0.5, confidence: 0.1 }, { x: 0.7, y: 0.5, confidence: 0.1 });
     const curr = makePoseFrame(100, { x: 0.5, y: 0.5, confidence: 0.1 }, { x: 0.9, y: 0.5, confidence: 0.1 });
-    expect(computeWristVelocity(prev, curr)).toBe(0);
+    expect(computeWristVelocity(prev, curr)).toBeNull();
   });
 
   it('computes velocity from a single valid wrist', () => {
@@ -81,6 +81,30 @@ describe('computeWristVelocity', () => {
 describe('nextSwingState', () => {
   const config = DEFAULT_SWING_DETECTION_CONFIG;
   const counters = INITIAL_SWING_COUNTERS;
+
+  describe('null velocity (wrists lost)', () => {
+    it('preserves state and counters when velocity is null', () => {
+      const detectingCounters = { ...counters, confirmationCount: 2 };
+      const result = nextSwingState('detecting', null, 200, config, detectingCounters);
+      expect(result.state).toBe('detecting');
+      expect(result.event).toBeNull();
+      expect(result.counters.confirmationCount).toBe(2);
+    });
+
+    it('preserves recording state when wrists are lost mid-swing', () => {
+      const recordingCounters = { ...counters, swingStartTimestamp: 1000, cooldownCount: 1 };
+      const result = nextSwingState('recording', null, 1500, config, recordingCounters);
+      expect(result.state).toBe('recording');
+      expect(result.event).toBeNull();
+      expect(result.counters.cooldownCount).toBe(1);
+    });
+
+    it('preserves armed state when wrists are lost', () => {
+      const result = nextSwingState('armed', null, 100, config, counters);
+      expect(result.state).toBe('armed');
+      expect(result.event).toBeNull();
+    });
+  });
 
   describe('idle state', () => {
     it('stays idle regardless of velocity', () => {

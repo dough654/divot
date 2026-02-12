@@ -104,10 +104,11 @@ export const useSwingAutoDetection = ({
     // TODO: Remove debug logging after tuning is complete
     if (__DEV__) {
       const threshold = configRef.current.velocityThreshold;
-      const above = velocity >= threshold;
-      // Log every frame so we can see actual velocity values
+      const velocityLabel = velocity === null
+        ? 'v=null (wrists lost)'
+        : `v=${velocity.toFixed(3)} ${velocity >= threshold ? 'ABOVE' : 'below'}`;
       console.log(
-        `[SwingDetect] v=${velocity.toFixed(3)} thresh=${threshold.toFixed(3)} ${above ? 'ABOVE' : 'below'} | ${prevState}→${transition.state}` +
+        `[SwingDetect] ${velocityLabel} thresh=${threshold.toFixed(3)} | ${prevState}→${transition.state}` +
         (transition.event ? ` | EVENT: ${transition.event.type}` : '') +
         ` | confirm=${transition.counters.confirmationCount} cool=${transition.counters.cooldownCount}`
       );
