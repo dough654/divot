@@ -109,13 +109,17 @@ export default function CameraScreen() {
   // Must be disabled during reviewing/recording to prevent beeps and accidental recordings
   const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled && cameraState === 'previewing';
   const { playSwingStart, playSwingEnd } = useSwingFeedback({ enabled: autoDetectEnabled });
-  const swingStartRef = useRef<(() => void) | null>(null);
+  const swingStartRef = useRef<(() => boolean | void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
   const { isArmed: isSwingArmed } = useSwingAutoDetection({
     enabled: autoDetectEnabled,
     latestPose,
     sensitivity: settings.swingDetectionSensitivity,
-    onSwingStarted: useCallback(() => { playSwingStart(); swingStartRef.current?.(); }, [playSwingStart]),
+    onSwingStarted: useCallback(() => {
+      const accepted = swingStartRef.current?.();
+      // Only play beep if the recorder accepted (buffer was old enough)
+      if (accepted !== false) playSwingStart();
+    }, [playSwingStart]),
     onSwingEnded: useCallback(() => { playSwingEnd(); swingEndRef.current?.(); }, [playSwingEnd]),
   });
 

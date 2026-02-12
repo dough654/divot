@@ -22,7 +22,10 @@ export type RollingRecorderState =
 const DEFAULT_POST_ROLL_MS = 1500;
 
 /** Default max duration of each buffer segment before cycling (ms). */
-const DEFAULT_MAX_SEGMENT_MS = 5000;
+const DEFAULT_MAX_SEGMENT_MS = 4000;
+
+/** Minimum buffer age before accepting swing detection (ms). Ensures meaningful pre-roll. */
+const MIN_PRE_ROLL_MS = 2000;
 
 export type UseRollingRecorderOptions = {
   /** Ref to the VisionCamera recorder component. */
@@ -46,8 +49,8 @@ export type UseRollingRecorderOptions = {
 export type UseRollingRecorderReturn = {
   /** Whether the recorder is actively buffering. */
   isBuffering: boolean;
-  /** Notify the recorder that a swing has been detected. Triggers fixed-window capture. */
-  notifySwingDetected: () => void;
+  /** Notify the recorder that a swing has been detected. Returns true if capture started. */
+  notifySwingDetected: () => boolean;
   /** Suspend rolling recording (e.g. for manual record). */
   suspend: () => void;
   /** Resume rolling recording after suspension. */
@@ -63,8 +66,8 @@ export type UseRollingRecorderReturn = {
  * for `postRollDurationMs`, then stops and saves.
  *
  * Pre-roll is natural — the current segment was already recording
- * before the swing was detected. With 5s segments, average pre-roll
- * is ~2.5s. Total clip: pre-roll + 1.5s post = ~4s average.
+ * before the swing was detected. With 4s segments and a 2s minimum
+ * buffer age, pre-roll is 2–4s. Total clip: ~3.5–5.5s.
  *
  * Excluded from hooks barrel — import directly:
  * `import { useRollingRecorder } from '@/src/hooks/use-rolling-recorder'`
@@ -263,10 +266,18 @@ export const useRollingRecorder = ({
     };
   }, []);
 
-  /** Notify that a swing was detected. Triggers fixed-window capture. */
-  const notifySwingDetected = useCallback(() => {
-    if (__DEV__) console.log(`[RollingRecorder] notifySwingDetected state=${stateRef.current}`);
-    if (stateRef.current !== 'buffering') return;
+  /** Notify that a swing was detected. Returns true if capture started, false if ignored. */
+  const notifySwingDetected = useCallback((): boolean => {
+    const bufferAge = Date.now() - segmentStartTimeRef.current;
+    if (__DEV__) console.log(`[RollingRecorder] notifySwingDetected state=${stateRef.current} bufferAge=${bufferAge}ms`);
+
+    if (stateRef.current !== 'buffering') return false;
+
+    // Require minimum buffer age for meaningful pre-roll
+    if (bufferAge < MIN_PRE_ROLL_MS) {
+      if (__DEV__) console.log(`[RollingRecorder] ignoring — buffer too young (${bufferAge}ms < ${MIN_PRE_ROLL_MS}ms)`);
+      return false;
+    }
 
     // Stop cycling — keep current segment recording for post-roll
     clearCycleTimer();
@@ -290,6 +301,8 @@ export const useRollingRecorder = ({
         onErrorRef.current?.(msg);
       });
     }, postRollMsRef.current);
+
+    return true;
   }, [recorderRef, clearCycleTimer, clearPostRollTimer]);
 
   const suspend = useCallback(() => {
