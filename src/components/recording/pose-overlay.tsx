@@ -1,10 +1,8 @@
 import { StyleSheet, View } from 'react-native';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import Svg, { Circle, Line } from 'react-native-svg';
-import { JOINT_NAMES, SKELETON_CONNECTIONS, POSE_ARRAY_LENGTH } from '@/src/utils/pose-normalization';
-
-/** Minimum confidence threshold to display a joint. */
-const MIN_CONFIDENCE = 0.3;
+import { JOINT_NAMES, SKELETON_CONNECTIONS } from '@/src/utils/pose-normalization';
+import { smoothPoseData, jointOpacity, SmoothedPose } from '@/src/utils/skeleton-smoothing';
 
 /** Joint circle radius in SVG units. */
 const JOINT_RADIUS = 4;
@@ -14,13 +12,7 @@ const LINE_WIDTH = 2;
 
 /** Joint and line colors. */
 const JOINT_COLOR = '#00FF88';
-const LINE_COLOR = 'rgba(0, 255, 136, 0.6)';
-
-type ParsedJoint = {
-  x: number;
-  y: number;
-  confidence: number;
-};
+const LINE_COLOR_BASE = [0, 255, 136] as const;
 
 type PoseOverlayProps = {
   /** Raw 42-element pose array, or null if no pose detected. */
@@ -31,28 +23,21 @@ type PoseOverlayProps = {
 
 /**
  * SVG skeleton overlay rendered on top of the camera preview.
- * Draws 14 joint circles + skeleton connections from raw pose data.
+ * Draws 14 joint circles + skeleton connections from EMA-smoothed pose data.
  *
  * Coordinates are normalized (0-1) and scaled to the container dimensions.
- * Joints with confidence below MIN_CONFIDENCE are hidden.
+ * Joints fade out gradually when they drop below confidence threshold,
+ * persisting for several frames before disappearing.
  */
 export const PoseOverlay = ({ poseData, visible }: PoseOverlayProps) => {
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const smoothedRef = useRef<SmoothedPose | null>(null);
 
-  // Parse raw array into joint map
+  // Compute smoothed pose on each poseData change
   const joints = useMemo(() => {
-    if (!poseData || poseData.length !== POSE_ARRAY_LENGTH) return null;
-
-    const map = new Map<string, ParsedJoint>();
-    for (let i = 0; i < JOINT_NAMES.length; i++) {
-      const offset = i * 3;
-      map.set(JOINT_NAMES[i], {
-        x: poseData[offset],
-        y: poseData[offset + 1],
-        confidence: poseData[offset + 2],
-      });
-    }
-    return map;
+    const smoothed = smoothPoseData(poseData, smoothedRef.current);
+    smoothedRef.current = smoothed;
+    return smoothed;
   }, [poseData]);
 
   if (!visible || containerSize.width === 0 || containerSize.height === 0) {
@@ -85,9 +70,11 @@ export const PoseOverlay = ({ poseData, visible }: PoseOverlayProps) => {
           const a = joints.get(jointA);
           const b = joints.get(jointB);
 
-          if (!a || !b || a.confidence < MIN_CONFIDENCE || b.confidence < MIN_CONFIDENCE) {
-            return null;
-          }
+          if (!a || !b) return null;
+
+          // Line opacity = minimum of the two endpoint opacities
+          const lineOpacity = Math.min(jointOpacity(a.staleness), jointOpacity(b.staleness));
+          const [r, g, bl] = LINE_COLOR_BASE;
 
           return (
             <Line
@@ -96,7 +83,7 @@ export const PoseOverlay = ({ poseData, visible }: PoseOverlayProps) => {
               y1={a.y * height}
               x2={b.x * width}
               y2={b.y * height}
-              stroke={LINE_COLOR}
+              stroke={`rgba(${r}, ${g}, ${bl}, ${(0.6 * lineOpacity).toFixed(2)})`}
               strokeWidth={LINE_WIDTH}
               strokeLinecap="round"
             />
@@ -106,7 +93,9 @@ export const PoseOverlay = ({ poseData, visible }: PoseOverlayProps) => {
         {/* Joint circles */}
         {joints && JOINT_NAMES.map((jointName) => {
           const joint = joints.get(jointName);
-          if (!joint || joint.confidence < MIN_CONFIDENCE) return null;
+          if (!joint) return null;
+
+          const opacity = jointOpacity(joint.staleness);
 
           return (
             <Circle
@@ -115,6 +104,7 @@ export const PoseOverlay = ({ poseData, visible }: PoseOverlayProps) => {
               cy={joint.y * height}
               r={JOINT_RADIUS}
               fill={JOINT_COLOR}
+              fillOpacity={opacity}
             />
           );
         })}
