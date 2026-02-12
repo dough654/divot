@@ -65,8 +65,13 @@ export const useVisionCamera = (
 
   const device = useCameraDevice(position);
 
-  // Select best format for target fps
-  const format = useCameraFormat(device, targetFps ? [{ fps: targetFps }] : []);
+  // Select best format: prefer highest resolution, then closest fps match.
+  // Without a resolution preference VisionCamera can pick a tiny low-res format
+  // (especially on front cameras where fewer high-fps formats exist).
+  const format = useCameraFormat(device, targetFps
+    ? [{ videoResolution: { width: 1920, height: 1080 } }, { fps: targetFps }]
+    : [{ videoResolution: { width: 1920, height: 1080 } }],
+  );
   const actualFps = format && targetFps ? Math.min(targetFps, format.maxFps) : 30;
 
   // Detect which fps values this device supports and push to settings context
