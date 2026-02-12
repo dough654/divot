@@ -62,3 +62,25 @@ export type SwingEvent =
   | { type: 'swingStarted'; timestamp: number }
   | { type: 'swingEnded'; timestamp: number; durationMs: number }
   | { type: 'swingCancelled'; reason: string };
+
+/** States for the address position detection state machine. */
+export type AddressDetectionState = 'watching' | 'confirming' | 'in-address';
+
+/** Configuration for address position detection. */
+export type AddressDetectionConfig = {
+  /** Max distance between wrists (normalized coords). */
+  wristProximityThreshold: number;
+  /** Max average joint velocity for "still" (normalized units/poll). */
+  stillnessThreshold: number;
+  /** Consecutive polls meeting criteria to confirm address. */
+  confirmationPolls: number;
+  /** Consecutive polls with criteria broken to exit address. */
+  exitPolls: number;
+  /** Max vertical distance between avg wrist Y and avg hip Y (normalized). */
+  wristHipVerticalThreshold: number;
+};
+
+/** Events emitted by the address detection state machine. */
+export type AddressEvent =
+  | { type: 'addressEntered' }
+  | { type: 'addressExited' };

@@ -12,3 +12,4 @@ export * from './pose-normalization';
 export * from './swing-detection';
 export * from './rolling-recorder-state';
 export * from './skeleton-smoothing';
+export * from './address-detection';
