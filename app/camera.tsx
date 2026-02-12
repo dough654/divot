@@ -192,9 +192,9 @@ export default function CameraScreen() {
     if (clip.sessionId) {
       tagClip(clip.id);
     }
-    setLastRecordedClip(clip);
-    setCameraState('reviewing');
-  }, [tagClip]);
+    // Stay in previewing — rolling recorder re-arms automatically
+    showToast(`Swing captured (${clip.duration}s)`, { variant: 'success' });
+  }, [tagClip, showToast]);
   const handleRollingError = useCallback((error: string) => {
     showToast(`Recording Error: ${error}`, { variant: 'error' });
   }, [showToast]);
