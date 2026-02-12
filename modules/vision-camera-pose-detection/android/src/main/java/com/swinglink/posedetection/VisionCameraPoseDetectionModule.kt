@@ -1,5 +1,6 @@
 package com.swinglink.posedetection
 
+import android.util.Log
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import com.mrousavy.camera.frameprocessors.FrameProcessorPluginRegistry
@@ -17,6 +18,7 @@ class VisionCameraPoseDetectionModule : Module() {
     Name("VisionCameraPoseDetection")
 
     OnCreate {
+      Log.d(TAG, "Registering detectPose frame processor plugin")
       FrameProcessorPluginRegistry.addFrameProcessorPlugin("detectPose") { _, _ ->
         PoseDetectorPlugin()
       }
@@ -27,7 +29,16 @@ class VisionCameraPoseDetectionModule : Module() {
     }
 
     Function("getLatestPose") {
-      return@Function PoseDetectorPlugin.latestPoseData
+      val data = PoseDetectorPlugin.latestPoseData
+      if (pollCount++ % 100L == 0L) {
+        Log.d(TAG, "getLatestPose poll #$pollCount: ${if (data != null) "${data.size} values" else "null"}")
+      }
+      return@Function data
     }
+  }
+
+  companion object {
+    private const val TAG = "PoseDetection"
+    private var pollCount = 0L
   }
 }

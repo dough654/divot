@@ -1,6 +1,7 @@
 package com.swinglink.posedetection
 
 import android.media.Image
+import android.util.Log
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.pose.Pose
@@ -16,19 +17,27 @@ import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions
  * [x, y, confidence] for each joint in the standard order matching our JS JOINT_NAMES.
  *
  * Coordinate system:
- *   - ML Kit returns coordinates in image pixel space
- *   - We normalize to 0-1 relative to image dimensions
+ *   - ML Kit returns landmark coords in the ROTATED (upright) image space
+ *   - InputImage.width/height are the ORIGINAL sensor dimensions (pre-rotation)
+ *   - When rotation is 90° or 270° we swap width/height for normalization
  *   - Y is already top-left origin (no flip needed, unlike iOS Vision)
  */
 class MLKitPoseDetector {
 
   private val detector: PoseDetector
+  private var errorCount = 0L
+
+  companion object {
+    private const val TAG = "PoseDetection"
+  }
 
   init {
+    Log.d(TAG, "Initializing ML Kit PoseDetector (STREAM_MODE, bundled model)")
     val options = PoseDetectorOptions.Builder()
       .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
       .build()
     detector = PoseDetection.getClient(options)
+    Log.d(TAG, "ML Kit PoseDetector created successfully")
   }
 
   /**
@@ -65,6 +74,9 @@ class MLKitPoseDetector {
     val pose: Pose = try {
       Tasks.await(detector.process(inputImage))
     } catch (e: Exception) {
+      if (errorCount++ % 60L == 0L) {
+        Log.e(TAG, "ML Kit process() failed (error #$errorCount): ${e.javaClass.simpleName}: ${e.message}")
+      }
       return null
     }
 
@@ -72,8 +84,12 @@ class MLKitPoseDetector {
       return null
     }
 
-    val imageWidth = inputImage.width.toDouble()
-    val imageHeight = inputImage.height.toDouble()
+    // ML Kit landmarks are in the rotated (upright) coordinate space, but
+    // InputImage.width/height report the original sensor dimensions.
+    // Swap when rotation is 90° or 270° so normalization matches landmark space.
+    val isRotated = rotationDegrees == 90 || rotationDegrees == 270
+    val imageWidth = if (isRotated) inputImage.height.toDouble() else inputImage.width.toDouble()
+    val imageHeight = if (isRotated) inputImage.width.toDouble() else inputImage.height.toDouble()
     if (imageWidth <= 0 || imageHeight <= 0) return null
 
     val result = MutableList(42) { 0.0 }

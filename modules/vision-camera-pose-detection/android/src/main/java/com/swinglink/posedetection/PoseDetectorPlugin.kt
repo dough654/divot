@@ -1,5 +1,6 @@
 package com.swinglink.posedetection
 
+import android.util.Log
 import com.mrousavy.camera.frameprocessors.Frame
 import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
 
@@ -17,16 +18,35 @@ class PoseDetectorPlugin : FrameProcessorPlugin() {
 
   private val detector = MLKitPoseDetector()
 
+  init {
+    Log.d(TAG, "PoseDetectorPlugin instance created")
+  }
+
   override fun callback(frame: Frame, arguments: Map<String, Any>?): Any? {
     val image = frame.image
     val rotationDegrees = orientationToDegrees(frame.orientation)
 
     val result = detector.detectPose(image, rotationDegrees)
     latestPoseData = result
+
+    if (frameCount % LOG_INTERVAL == 0L) {
+      if (result != null) {
+        val maxConf = (2 until result.size step 3).maxOfOrNull { result[it] } ?: 0.0
+        Log.d(TAG, "Frame #$frameCount: pose detected (${result.size} values, maxConf=%.2f)".format(maxConf))
+      } else {
+        Log.d(TAG, "Frame #$frameCount: no pose detected")
+      }
+    }
+    frameCount++
+
     return result
   }
 
   companion object {
+    private const val TAG = "PoseDetection"
+    private const val LOG_INTERVAL = 60L
+    private var frameCount = 0L
+
     /** Latest pose result. Written from frame processor thread, read from JS thread. */
     @Volatile
     var latestPoseData: List<Double>? = null

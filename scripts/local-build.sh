@@ -86,6 +86,7 @@ rsync -az --delete \
   --exclude='/android' \
   --exclude='/ios' \
   --exclude='builds' \
+  --exclude='build-output.*' \
   "${LOCAL_DIR}/" "${MAC_HOST}:${REMOTE_DIR}/"
 echo "    Done."
 
