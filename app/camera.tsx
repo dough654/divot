@@ -89,6 +89,7 @@ export default function CameraScreen() {
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingDurationRef = useRef(0);
   const recordingFpsRef = useRef(30);
+  const autoTriggeredRecordingRef = useRef(false);
 
   // VisionCamera is always active
   const {
@@ -109,14 +110,19 @@ export default function CameraScreen() {
   // Swing auto-detection — gated by feature flag + user setting + pose detection active
   const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled;
   const { playSwingStart, playSwingEnd } = useSwingFeedback({ enabled: autoDetectEnabled });
+  const playSwingEndRef = useRef(playSwingEnd);
+  playSwingEndRef.current = playSwingEnd;
   const swingStartRef = useRef<(() => void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
   const { isArmed: isSwingArmed } = useSwingAutoDetection({
     enabled: autoDetectEnabled,
     latestPose,
     sensitivity: settings.swingDetectionSensitivity,
-    onSwingStarted: useCallback(() => { playSwingStart(); swingStartRef.current?.(); }, [playSwingStart]),
-    onSwingEnded: useCallback(() => { playSwingEnd(); swingEndRef.current?.(); }, [playSwingEnd]),
+    onSwingStarted: useCallback(() => { playSwingStart(); autoTriggeredRecordingRef.current = true; swingStartRef.current?.(); }, [playSwingStart]),
+    // Don't play end sound here — recording is still active and expo-av
+    // would conflict with VisionCamera's audio session. Sound plays in
+    // onRecordingFinished instead.
+    onSwingEnded: useCallback(() => { swingEndRef.current?.(); }, []),
   });
 
   // Track if we've shown the microphone warning
@@ -468,6 +474,14 @@ export default function CameraScreen() {
     recorderRef.current.startRecording({
       onRecordingFinished: async (video: VideoFile) => {
         const duration = recordingDurationRef.current;
+        const wasAutoTriggered = autoTriggeredRecordingRef.current;
+        autoTriggeredRecordingRef.current = false;
+
+        // Play end sound after recording finishes — safe now that
+        // VisionCamera has released the audio session.
+        if (wasAutoTriggered) {
+          playSwingEndRef.current();
+        }
 
         try {
           const clip = await saveClip({
@@ -491,6 +505,7 @@ export default function CameraScreen() {
         }
       },
       onRecordingError: (error: unknown) => {
+        autoTriggeredRecordingRef.current = false;
         const errorMsg = error instanceof Error ? error.message : 'Recording failed';
         setRecordingError(errorMsg);
         setCameraState('previewing');

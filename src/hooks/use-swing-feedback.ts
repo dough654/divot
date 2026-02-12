@@ -5,7 +5,6 @@ import type { AVPlaybackSource } from 'expo-av';
 import { useHaptics } from './use-haptics';
 
 /* eslint-disable @typescript-eslint/no-var-requires */
-const SWING_START_SOUND: AVPlaybackSource = require('@/assets/sounds/swing-start.wav');
 const SWING_END_SOUND: AVPlaybackSource = require('@/assets/sounds/swing-end.wav');
 /* eslint-enable @typescript-eslint/no-var-requires */
 
@@ -15,27 +14,36 @@ type UseSwingFeedbackOptions = {
 };
 
 type UseSwingFeedbackReturn = {
-  /** Play the "swing started" audio cue + heavy haptic. */
+  /** Heavy haptic for swing start. Audio is intentionally omitted here
+   *  because expo-av reconfigures the AVAudioSession which conflicts
+   *  with VisionCamera's audio recording. */
   playSwingStart: () => void;
-  /** Play the "swing ended" audio cue + medium haptic. */
+  /** Play the "swing ended" audio cue + medium haptic.
+   *  Safe to call after recording has fully stopped (VisionCamera
+   *  has released the audio session). */
   playSwingEnd: () => void;
 };
 
 /**
  * Hook that provides audio and haptic feedback for swing detection events.
  *
- * Preloads short WAV sounds on mount (when enabled) and exposes fire-and-forget
- * play functions. Unloads sounds on unmount. Fails silently on errors.
+ * Swing start uses haptic-only to avoid audio session conflicts with
+ * VisionCamera's recording. Swing end plays an audio cue (safe because
+ * recording has finished by the time it's called).
+ *
+ * Preloads the end sound via expo-av on mount. Unloads on unmount.
+ * Fails silently on errors.
  *
  * Excluded from hooks barrel — import directly:
  * `import { useSwingFeedback } from '@/src/hooks/use-swing-feedback'`
  */
 export const useSwingFeedback = ({ enabled }: UseSwingFeedbackOptions): UseSwingFeedbackReturn => {
-  const startSoundRef = useRef<Audio.Sound | null>(null);
   const endSoundRef = useRef<Audio.Sound | null>(null);
   const haptics = useHaptics();
 
-  // Preload sounds when enabled, unload on disable/unmount
+  // Preload end sound when enabled, unload on disable/unmount.
+  // Don't call setAudioModeAsync here — VisionCamera owns the audio
+  // session while the camera screen is active.
   useEffect(() => {
     if (!enabled) return;
 
@@ -43,25 +51,14 @@ export const useSwingFeedback = ({ enabled }: UseSwingFeedbackOptions): UseSwing
 
     const load = async () => {
       try {
-        // Allow playback alongside other audio (e.g. music) and while phone is silenced
-        await Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          shouldDuckAndroid: true,
-        });
-
-        const [startResult, endResult] = await Promise.all([
-          Audio.Sound.createAsync(SWING_START_SOUND),
-          Audio.Sound.createAsync(SWING_END_SOUND),
-        ]);
+        const result = await Audio.Sound.createAsync(SWING_END_SOUND);
 
         if (cancelled) {
-          startResult.sound.unloadAsync().catch(() => {});
-          endResult.sound.unloadAsync().catch(() => {});
+          result.sound.unloadAsync().catch(() => {});
           return;
         }
 
-        startSoundRef.current = startResult.sound;
-        endSoundRef.current = endResult.sound;
+        endSoundRef.current = result.sound;
       } catch {
         // Audio loading failed — haptics will still work
       }
@@ -71,20 +68,16 @@ export const useSwingFeedback = ({ enabled }: UseSwingFeedbackOptions): UseSwing
 
     return () => {
       cancelled = true;
-      startSoundRef.current?.unloadAsync().catch(() => {});
       endSoundRef.current?.unloadAsync().catch(() => {});
-      startSoundRef.current = null;
       endSoundRef.current = null;
     };
   }, [enabled]);
 
   const playSwingStart = useCallback(() => {
     if (!enabled) return;
+    // Haptic only — playing audio here would reconfigure the iOS
+    // AVAudioSession and break VisionCamera's recording.
     haptics.heavy();
-    const sound = startSoundRef.current;
-    if (!sound) return;
-    // Rewind to start in case it was already played, then play
-    sound.setPositionAsync(0).then(() => sound.playAsync()).catch(() => {});
   }, [enabled, haptics]);
 
   const playSwingEnd = useCallback(() => {
@@ -92,7 +85,14 @@ export const useSwingFeedback = ({ enabled }: UseSwingFeedbackOptions): UseSwing
     haptics.medium();
     const sound = endSoundRef.current;
     if (!sound) return;
-    sound.setPositionAsync(0).then(() => sound.playAsync()).catch(() => {});
+    // Configure audio mode just before playing — VisionCamera should
+    // have released the audio session by now.
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true,
+    }).then(() => {
+      sound.setPositionAsync(0).then(() => sound.playAsync()).catch(() => {});
+    }).catch(() => {});
   }, [enabled, haptics]);
 
   return { playSwingStart, playSwingEnd };
