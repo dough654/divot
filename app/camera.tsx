@@ -105,8 +105,9 @@ export default function CameraScreen() {
   const poseDetectionEnabled = !!poseDetectionFlag && settings.poseOverlayEnabled;
   const { latestPose, rawPoseData } = usePoseDetection({ enabled: poseDetectionEnabled });
 
-  // Swing auto-detection — gated by feature flag + user setting + pose detection active
-  const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled;
+  // Swing auto-detection — gated by feature flag + user setting + pose detection + camera previewing
+  // Must be disabled during reviewing/recording to prevent beeps and accidental recordings
+  const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled && cameraState === 'previewing';
   const { playSwingStart, playSwingEnd } = useSwingFeedback({ enabled: autoDetectEnabled });
   const swingStartRef = useRef<(() => void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
