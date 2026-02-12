@@ -10,13 +10,17 @@
  * start from the finalization callback, never from cancelRecording()'s
  * promise, to ensure VisionCamera has fully finalized the previous
  * segment.
+ *
+ * Fixed-window capture: when a swing is detected, the current buffer
+ * segment continues recording for a short post-roll duration (default
+ * 1.5s), then stops and saves. Pre-roll is natural — the segment was
+ * already recording before detection. No swing-end detection needed.
  */
 
 export type RollingRecorderState =
   | 'idle'
   | 'buffering'
   | 'transitioning'
-  | 'capturing'
   | 'post-rolling';
 
 export type RollingRecorderAction =
@@ -26,8 +30,7 @@ export type RollingRecorderAction =
   | { type: 'resume' }
   | { type: 'cycleExpired' }
   | { type: 'cancelFinalized' }
-  | { type: 'swingStarted' }
-  | { type: 'swingEnded' }
+  | { type: 'swingDetected' }
   | { type: 'postRollExpired' }
   | { type: 'recordingSaved' }
   | { type: 'recordingError' };
@@ -39,8 +42,7 @@ export type RollingRecorderEffect =
   | 'scheduleCycle'
   | 'clearCycleTimer'
   | 'schedulePostRoll'
-  | 'clearPostRollTimer'
-  | 'startCaptureRecording';
+  | 'clearPostRollTimer';
 
 export type StateTransition = {
   state: RollingRecorderState;
@@ -71,7 +73,7 @@ export const nextRollingRecorderState = (
         return { state: 'idle', effects: [] };
       }
       const effects: RollingRecorderEffect[] = ['clearCycleTimer', 'clearPostRollTimer'];
-      if (currentState === 'buffering' || currentState === 'capturing' || currentState === 'post-rolling') {
+      if (currentState === 'buffering' || currentState === 'post-rolling') {
         effects.push('cancelRecording');
       }
       return { state: 'idle', effects };
@@ -95,36 +97,22 @@ export const nextRollingRecorderState = (
       // Fired when onRecordingFinished (iOS) or onRecordingError with
       // capture/recording-canceled (Android) is called after cancelRecording.
       if (currentState === 'transitioning') {
-        // Normal cycle — restart buffer
         if (suspended) {
           return { state: 'idle', effects: [] };
         }
         return { state: 'buffering', effects: ['startRecording', 'scheduleCycle'] };
       }
-      if (currentState === 'capturing') {
-        // Swing arrived during transition — cancel finished, now start capture
-        return { state: 'capturing', effects: ['startCaptureRecording'] };
-      }
       return { state: currentState, effects: [] };
     }
 
-    case 'swingStarted': {
+    case 'swingDetected': {
       if (currentState === 'buffering') {
-        return { state: 'capturing', effects: ['clearCycleTimer'] };
+        // Keep current segment recording, stop cycling, schedule post-roll stop
+        return { state: 'post-rolling', effects: ['clearCycleTimer', 'schedulePostRoll'] };
       }
-      if (currentState === 'transitioning') {
-        // Can't start recording yet — VisionCamera is still finalizing.
-        // Set state to capturing; cancelFinalized will start the capture.
-        return { state: 'capturing', effects: [] };
-      }
+      // During transitioning or other states — ignore (transition is <200ms,
+      // next swing will be caught after buffering resumes)
       return { state: currentState, effects: [] };
-    }
-
-    case 'swingEnded': {
-      if (currentState !== 'capturing') {
-        return { state: currentState, effects: [] };
-      }
-      return { state: 'post-rolling', effects: ['schedulePostRoll'] };
     }
 
     case 'postRollExpired': {
@@ -132,7 +120,7 @@ export const nextRollingRecorderState = (
         return { state: currentState, effects: [] };
       }
       return { state: currentState, effects: ['stopRecording'] };
-      // State transitions to idle when recordingSaved fires
+      // State transitions when recordingSaved fires
     }
 
     case 'recordingSaved': {

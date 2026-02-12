@@ -42,17 +42,11 @@ describe('nextRollingRecorderState', () => {
       expect(result.effects).toEqual([]);
     });
 
-    it('cancels recording and returns to idle on disable', () => {
+    it('cancels recording and returns to idle on disable from buffering', () => {
       const result = nextRollingRecorderState('buffering', { type: 'disable' }, false);
       expect(result.state).toBe('idle');
       expect(result.effects).toContain('cancelRecording');
       expect(result.effects).toContain('clearCycleTimer');
-    });
-
-    it('cancels recording from capturing state on disable', () => {
-      const result = nextRollingRecorderState('capturing', { type: 'disable' }, false);
-      expect(result.state).toBe('idle');
-      expect(result.effects).toContain('cancelRecording');
     });
 
     it('cancels recording from post-rolling state on disable', () => {
@@ -60,6 +54,13 @@ describe('nextRollingRecorderState', () => {
       expect(result.state).toBe('idle');
       expect(result.effects).toContain('cancelRecording');
       expect(result.effects).toContain('clearPostRollTimer');
+    });
+
+    it('clears timers but does not cancel recording from transitioning on disable', () => {
+      const result = nextRollingRecorderState('transitioning', { type: 'disable' }, false);
+      expect(result.state).toBe('idle');
+      expect(result.effects).toContain('clearCycleTimer');
+      expect(result.effects).not.toContain('cancelRecording');
     });
 
     it('is a no-op when disabling from idle', () => {
@@ -77,8 +78,8 @@ describe('nextRollingRecorderState', () => {
     });
 
     it('ignores cycle expiry in non-buffering states', () => {
-      const result = nextRollingRecorderState('capturing', { type: 'cycleExpired' }, false);
-      expect(result.state).toBe('capturing');
+      const result = nextRollingRecorderState('post-rolling', { type: 'cycleExpired' }, false);
+      expect(result.state).toBe('post-rolling');
       expect(result.effects).toEqual([]);
     });
 
@@ -94,60 +95,49 @@ describe('nextRollingRecorderState', () => {
       expect(result.state).toBe('idle');
       expect(result.effects).toEqual([]);
     });
-  });
 
-  describe('swing detection capture flow', () => {
-    it('transitions from buffering to capturing on swing started', () => {
-      const result = nextRollingRecorderState('buffering', { type: 'swingStarted' }, false);
-      expect(result.state).toBe('capturing');
-      expect(result.effects).toContain('clearCycleTimer');
-    });
-
-    it('sets capturing state when swing starts during transitioning (no immediate effects)', () => {
-      const result = nextRollingRecorderState('transitioning', { type: 'swingStarted' }, false);
-      expect(result.state).toBe('capturing');
+    it('ignores cancel finalized in non-transitioning states', () => {
+      const result = nextRollingRecorderState('buffering', { type: 'cancelFinalized' }, false);
+      expect(result.state).toBe('buffering');
       expect(result.effects).toEqual([]);
     });
+  });
 
-    it('starts capture recording when cancel finalizes during capturing state', () => {
-      const result = nextRollingRecorderState('capturing', { type: 'cancelFinalized' }, false);
-      expect(result.state).toBe('capturing');
-      expect(result.effects).toContain('startCaptureRecording');
+  describe('fixed-window swing capture', () => {
+    it('transitions from buffering to post-rolling on swing detected', () => {
+      const result = nextRollingRecorderState('buffering', { type: 'swingDetected' }, false);
+      expect(result.state).toBe('post-rolling');
+      expect(result.effects).toContain('clearCycleTimer');
+      expect(result.effects).toContain('schedulePostRoll');
     });
 
-    it('ignores swing started when idle', () => {
-      const result = nextRollingRecorderState('idle', { type: 'swingStarted' }, false);
+    it('ignores swing detected when idle', () => {
+      const result = nextRollingRecorderState('idle', { type: 'swingDetected' }, false);
       expect(result.state).toBe('idle');
       expect(result.effects).toEqual([]);
     });
 
-    it('ignores swing started when already capturing', () => {
-      const result = nextRollingRecorderState('capturing', { type: 'swingStarted' }, false);
-      expect(result.state).toBe('capturing');
+    it('ignores swing detected when transitioning', () => {
+      const result = nextRollingRecorderState('transitioning', { type: 'swingDetected' }, false);
+      expect(result.state).toBe('transitioning');
       expect(result.effects).toEqual([]);
     });
 
-    it('transitions from capturing to post-rolling on swing ended', () => {
-      const result = nextRollingRecorderState('capturing', { type: 'swingEnded' }, false);
+    it('ignores swing detected when already post-rolling', () => {
+      const result = nextRollingRecorderState('post-rolling', { type: 'swingDetected' }, false);
       expect(result.state).toBe('post-rolling');
-      expect(result.effects).toContain('schedulePostRoll');
-    });
-
-    it('ignores swing ended when not capturing', () => {
-      const result = nextRollingRecorderState('buffering', { type: 'swingEnded' }, false);
-      expect(result.state).toBe('buffering');
       expect(result.effects).toEqual([]);
     });
 
     it('stops recording when post-roll expires', () => {
       const result = nextRollingRecorderState('post-rolling', { type: 'postRollExpired' }, false);
-      expect(result.state).toBe('post-rolling'); // stays until save completes
+      expect(result.state).toBe('post-rolling');
       expect(result.effects).toContain('stopRecording');
     });
 
     it('ignores post-roll expiry in wrong state', () => {
-      const result = nextRollingRecorderState('capturing', { type: 'postRollExpired' }, false);
-      expect(result.state).toBe('capturing');
+      const result = nextRollingRecorderState('buffering', { type: 'postRollExpired' }, false);
+      expect(result.state).toBe('buffering');
       expect(result.effects).toEqual([]);
     });
   });
@@ -174,8 +164,8 @@ describe('nextRollingRecorderState', () => {
       expect(result.effects).toContain('clearPostRollTimer');
     });
 
-    it('clears timers from any state', () => {
-      for (const state of ['capturing', 'post-rolling'] as RollingRecorderState[]) {
+    it('clears timers from any active state', () => {
+      for (const state of ['post-rolling', 'transitioning'] as RollingRecorderState[]) {
         const result = nextRollingRecorderState(state, { type: 'recordingError' }, false);
         expect(result.state).toBe('idle');
         expect(result.effects).toContain('clearCycleTimer');
@@ -190,8 +180,8 @@ describe('nextRollingRecorderState', () => {
       expect(result.effects).toContain('cancelRecording');
     });
 
-    it('suspend cancels recording from capturing', () => {
-      const result = nextRollingRecorderState('capturing', { type: 'suspend' }, false);
+    it('suspend cancels recording from post-rolling', () => {
+      const result = nextRollingRecorderState('post-rolling', { type: 'suspend' }, false);
       expect(result.state).toBe('idle');
       expect(result.effects).toContain('cancelRecording');
     });
@@ -214,8 +204,7 @@ describe('nextRollingRecorderState', () => {
     it('goes through enable → buffer → swing → post-roll → save → re-arm', () => {
       const { state, allEffects } = applyActions('idle', [
         { action: { type: 'enable' } },
-        { action: { type: 'swingStarted' } },
-        { action: { type: 'swingEnded' } },
+        { action: { type: 'swingDetected' } },
         { action: { type: 'postRollExpired' } },
         { action: { type: 'recordingSaved' } },
       ]);
@@ -234,38 +223,50 @@ describe('nextRollingRecorderState', () => {
         { action: { type: 'enable' } },
         { action: { type: 'cycleExpired' } },
         { action: { type: 'cancelFinalized' } },
-        { action: { type: 'swingStarted' } },
+        { action: { type: 'swingDetected' } },
       ]);
 
-      expect(state).toBe('capturing');
+      expect(state).toBe('post-rolling');
     });
 
-    it('handles swing during transition — waits for cancel then starts capture', () => {
+    it('ignores swing during transition — catches next one after re-arm', () => {
       const { state, allEffects } = applyActions('idle', [
         { action: { type: 'enable' } },
         { action: { type: 'cycleExpired' } },
-        { action: { type: 'swingStarted' } },       // during transitioning — no effects
-        { action: { type: 'cancelFinalized' } },     // now starts capture recording
-      ]);
-
-      expect(state).toBe('capturing');
-      expect(allEffects).toContain('startCaptureRecording');
-    });
-
-    it('handles swing + end during transition — capture starts after cancel', () => {
-      const { state, allEffects } = applyActions('idle', [
-        { action: { type: 'enable' } },
-        { action: { type: 'cycleExpired' } },
-        { action: { type: 'swingStarted' } },       // sets capturing
-        { action: { type: 'cancelFinalized' } },     // starts capture recording
-        { action: { type: 'swingEnded' } },
+        { action: { type: 'swingDetected' } },        // during transitioning — ignored
+        { action: { type: 'cancelFinalized' } },       // restarts buffering
+        { action: { type: 'swingDetected' } },          // now caught
         { action: { type: 'postRollExpired' } },
         { action: { type: 'recordingSaved' } },
       ]);
 
       expect(state).toBe('buffering');
-      expect(allEffects).toContain('startCaptureRecording');
+      expect(allEffects).toContain('schedulePostRoll');
       expect(allEffects).toContain('stopRecording');
+    });
+
+    it('handles multiple cycles before swing', () => {
+      const { state } = applyActions('idle', [
+        { action: { type: 'enable' } },
+        { action: { type: 'cycleExpired' } },
+        { action: { type: 'cancelFinalized' } },
+        { action: { type: 'cycleExpired' } },
+        { action: { type: 'cancelFinalized' } },
+        { action: { type: 'swingDetected' } },
+      ]);
+
+      expect(state).toBe('post-rolling');
+    });
+
+    it('handles suspend during post-rolling then saves', () => {
+      const { state } = applyActions('idle', [
+        { action: { type: 'enable' } },
+        { action: { type: 'swingDetected' } },
+        { action: { type: 'postRollExpired' } },
+        { action: { type: 'recordingSaved' }, suspended: true },
+      ]);
+
+      expect(state).toBe('idle');
     });
   });
 });

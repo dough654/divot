@@ -508,11 +508,12 @@ export default function CameraScreen() {
   }, []);
 
   // Wire swing auto-detection refs to rolling recorder (auto-detect) or direct recording (fallback)
+  // Rolling recorder uses fixed-window capture — only swing detection matters, not swing end
   swingStartRef.current = rollingRecorderEnabled
-    ? rollingRecorder.notifySwingStarted
+    ? rollingRecorder.notifySwingDetected
     : handleStartRecording;
   swingEndRef.current = rollingRecorderEnabled
-    ? rollingRecorder.notifySwingEnded
+    ? () => {} // fixed-window capture ignores swing end
     : handleStopRecording;
 
   const handleRecordPress = useCallback(() => {
