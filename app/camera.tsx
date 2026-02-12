@@ -25,7 +25,6 @@ import {
   RecordingIndicator,
   VisionCameraRecorder,
   VisionCameraRecorderRef,
-  PoseOverlay,
 } from '@/src/components/recording';
 import { usePoseDetection } from '@/src/hooks/use-pose-detection';
 import { useSwingAutoDetection } from '@/src/hooks/use-swing-auto-detection';
@@ -102,30 +101,17 @@ export default function CameraScreen() {
     toggleCamera,
   } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps });
 
-  // Debug: log PostHog flag values
-  useEffect(() => {
-    console.log('[PoseDetection] PostHog flags:', {
-      poseDetectionFlag,
-      autoDetectionFlag,
-      poseOverlaySetting: settings.poseOverlayEnabled,
-    });
-  }, [poseDetectionFlag, autoDetectionFlag, settings.poseOverlayEnabled]);
-
   // Pose detection — gated by feature flag + user setting
   const poseDetectionEnabled = !!poseDetectionFlag && settings.poseOverlayEnabled;
-  const {
-    poseSharedValue,
-    processFrame: poseProcessFrame,
-    isDetecting: isPoseDetecting,
-  } = usePoseDetection({ enabled: poseDetectionEnabled });
+  const { latestPose, rawPoseData } = usePoseDetection({ enabled: poseDetectionEnabled });
 
   // Swing auto-detection — gated by feature flag + user setting + pose detection active
   const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled;
   const swingStartRef = useRef<(() => void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
-  const { detectionState: swingDetectionState, isArmed: isSwingArmed } = useSwingAutoDetection({
+  const { isArmed: isSwingArmed } = useSwingAutoDetection({
     enabled: autoDetectEnabled,
-    poseSharedValue,
+    latestPose,
     sensitivity: settings.swingDetectionSensitivity,
     onSwingStarted: useCallback(() => { swingStartRef.current?.(); }, []),
     onSwingEnded: useCallback(() => { swingEndRef.current?.(); }, []),
@@ -624,7 +610,9 @@ export default function CameraScreen() {
                 audio={hasMicrophonePermission}
                 format={visionFormat}
                 fps={recordingFps}
-                onFrame={poseProcessFrame ?? undefined}
+                poseDetectionEnabled={poseDetectionEnabled}
+                poseOverlayVisible={poseDetectionEnabled}
+                poseData={rawPoseData}
               />
             ) : (
               <View style={styles.cameraPlaceholder}>
@@ -637,14 +625,6 @@ export default function CameraScreen() {
               <View style={styles.errorOverlay}>
                 <Text style={styles.errorText}>{currentError}</Text>
               </View>
-            )}
-
-            {/* Pose skeleton overlay */}
-            {isPoseDetecting && (
-              <PoseOverlay
-                poseSharedValue={poseSharedValue}
-                visible={settings.poseOverlayEnabled}
-              />
             )}
 
             {/* Recording indicator overlay */}

@@ -25,5 +25,9 @@ class VisionCameraPoseDetectionModule : Module() {
     Function("isAvailable") {
       return@Function true
     }
+
+    Function("getLatestPose") {
+      return@Function PoseDetectorPlugin.latestPoseData
+    }
   }
 }

@@ -3,6 +3,8 @@ import { requireNativeModule } from 'expo-modules-core';
 type NativeModule = {
   /** No-op — plugin is registered in OnCreate. Exposed for potential future config. */
   isAvailable: () => boolean;
+  /** Returns the latest pose detection result (42-element array), or null if no pose detected. */
+  getLatestPose: () => number[] | null;
 };
 
 /**

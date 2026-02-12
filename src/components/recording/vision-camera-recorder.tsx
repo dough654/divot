@@ -1,8 +1,9 @@
 import { StyleSheet, View, Platform } from 'react-native';
 import { useRef, forwardRef, useImperativeHandle } from 'react';
-import { Camera, CameraDevice, CameraDeviceFormat, Frame, VideoFile, VisionCameraProxy, useFrameProcessor } from 'react-native-vision-camera';
+import { Camera, CameraDevice, CameraDeviceFormat, VideoFile, VisionCameraProxy, useFrameProcessor, runAtTargetFps } from 'react-native-vision-camera';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { File } from 'expo-file-system';
+import { PoseOverlay } from './pose-overlay';
 
 export type VisionCameraRecorderProps = {
   /** The camera device to use. */
@@ -15,8 +16,14 @@ export type VisionCameraRecorderProps = {
   format?: CameraDeviceFormat;
   /** Target recording fps. When omitted, uses device default. */
   fps?: number;
-  /** Additional frame processing callback, called on every frame in the worklet. */
-  onFrame?: (frame: Frame) => void;
+  /** Whether pose detection should run on frames. */
+  poseDetectionEnabled?: boolean;
+  /** Target fps for pose detection. Defaults to 10. */
+  poseDetectionFps?: number;
+  /** Whether the pose skeleton overlay is visible. */
+  poseOverlayVisible?: boolean;
+  /** Raw 42-element pose array for overlay rendering (polled from native by parent). */
+  poseData?: number[] | null;
 };
 
 export type VisionCameraRecorderRef = {
@@ -33,17 +40,31 @@ export type VisionCameraRecorderRef = {
 
 const IS_ANDROID = Platform.OS === 'android';
 
+// Frame processor plugins — initialized at module scope so they're
+// available in the worklet closure without going through React refs.
+const forwardPlugin = VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC', {});
+const posePlugin = VisionCameraProxy.initFrameProcessorPlugin('detectPose', {});
+
 /**
  * VisionCamera-based recording view with camera preview and internal
- * WebRTC frame forwarding.
+ * WebRTC frame forwarding + optional pose detection.
  *
- * Owns the frame processor plugin (`forwardToWebRTC`) and reads back
- * the device rotation degrees. On Android, counter-rotates the Camera
- * view so the preview appears correctly oriented regardless of how the
- * device is held (the UI is portrait-locked on the camera screen).
+ * Owns the frame processor that runs both the WebRTC forwarding and
+ * pose detection plugins. Pose detection results are stored natively
+ * by the plugin and polled from JS by the parent via usePoseDetection —
+ * this component receives the polled data as the `poseData` prop for
+ * overlay rendering.
+ *
+ * This architecture bypasses the broken react-native-worklets `runOnJS`
+ * serialization (missing `_createSerializableNumber` globals in
+ * VisionCamera's frame processor context).
  */
 export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCameraRecorderProps>(
-  ({ device, isActive, audio = true, format, fps, onFrame }, ref) => {
+  ({
+    device, isActive, audio = true, format, fps,
+    poseDetectionEnabled = false, poseDetectionFps = 10,
+    poseOverlayVisible = false, poseData,
+  }, ref) => {
     const cameraRef = useRef<Camera>(null);
 
     // Shared values so Reanimated worklets can reactively access dimensions
@@ -53,23 +74,24 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
     // Shared value written from the frame processor worklet (Android only)
     const rotationDegrees = useSharedValue(0);
 
-    // Frame processor plugin: forwards frames to WebRTC and returns rotation degrees
-    const forwardPlugin = VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC', {});
-
     const frameProcessor = useFrameProcessor((frame) => {
       'worklet';
+      // WebRTC forwarding
       const result = forwardPlugin?.call(frame);
       if (IS_ANDROID && typeof result === 'number') {
         rotationDegrees.value = result;
       }
-      if (onFrame) {
-        onFrame(frame);
+
+      // Pose detection — plugin stores result natively, polled from JS thread
+      if (poseDetectionEnabled && posePlugin) {
+        runAtTargetFps(poseDetectionFps, () => {
+          'worklet';
+          posePlugin.call(frame);
+        });
       }
-    }, [forwardPlugin, onFrame]);
+    }, [poseDetectionEnabled, poseDetectionFps]);
 
     // Counter-rotation style for Android preview correction.
-    // Applied to an Animated.View wrapper around Camera (avoids type issues
-    // with createAnimatedComponent on Camera's native SurfaceView).
     const cameraWrapperStyle = useAnimatedStyle(() => {
       const w = containerWidth.value;
       const h = containerHeight.value;
@@ -131,7 +153,6 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           const snapshotFile = new File(snapshot.path);
           const base64Data = await snapshotFile.base64();
 
-          // Clean up temp file
           try {
             snapshotFile.delete();
           } catch {
@@ -168,6 +189,12 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
             androidPreviewViewType="texture-view"
           />
         </Animated.View>
+        {poseOverlayVisible && (
+          <PoseOverlay
+            poseData={poseData ?? null}
+            visible={poseOverlayVisible}
+          />
+        )}
       </View>
     );
   }

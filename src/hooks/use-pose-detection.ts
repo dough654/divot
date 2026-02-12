@@ -1,89 +1,82 @@
-import { useState, useCallback } from 'react';
-import { VisionCameraProxy, Frame, runAtTargetFps } from 'react-native-vision-camera';
-import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
-import { parsePoseArray } from '@/src/utils/pose-normalization';
+import { useState, useEffect, useRef } from 'react';
+import { parsePoseArray, POSE_ARRAY_LENGTH } from '@/src/utils/pose-normalization';
+import { VisionCameraPoseDetectionModule } from '../../modules/vision-camera-pose-detection/src';
 import type { PoseFrame } from '@/src/types/pose';
 
-// Ensure the native module is loaded so the plugin is registered
-import '../../modules/vision-camera-pose-detection/src';
-
 export type UsePoseDetectionOptions = {
-  /** Whether pose detection is enabled (gated by feature flag + user setting). */
+  /** Whether pose detection polling is active. */
   enabled: boolean;
-  /** Target detection frames per second. Defaults to 10. */
-  targetDetectionFps?: number;
+  /** Polling rate in fps. Defaults to 10. */
+  pollingFps?: number;
 };
 
 export type UsePoseDetectionReturn = {
-  /** Raw 42-element shared value for the overlay (worklet-accessible). */
-  poseSharedValue: SharedValue<number[]>;
-  /** Parsed pose frame for JS consumers. Updated at detection fps. */
+  /** Parsed pose frame for JS consumers (swing detection). */
   latestPose: PoseFrame | null;
-  /** Whether the detector is actively running. */
-  isDetecting: boolean;
-  /** Frame processor callback to inject into VisionCameraRecorder's onFrame. */
-  processFrame: ((frame: Frame) => void) | null;
+  /** Raw 42-element pose array for overlay rendering. */
+  rawPoseData: number[] | null;
 };
 
-// Initialize the plugin once at module scope — cheap if never called.
-// Must be outside the hook so it's available in the worklet closure.
-const posePlugin = VisionCameraProxy.initFrameProcessorPlugin('detectPose', {});
-
 /**
- * Hook that manages pose detection via the native "detectPose" frame processor plugin.
+ * Hook that polls the native pose detection module for the latest results.
  *
- * Returns a shared value for the overlay (worklet-safe) and a parsed PoseFrame
- * for JS consumers (state machine, UI indicators).
+ * The native frame processor plugin stores its detection results in a
+ * thread-safe static variable. This hook reads that variable via a
+ * synchronous Expo module function at the configured polling rate.
  *
- * Excluded from hooks barrel — has native dependency.
+ * This approach bypasses the broken `runOnJS` serialization in
+ * VisionCamera's frame processor context (missing `_createSerializableNumber`
+ * globals in the legacy react-native-worklets serialization path).
+ *
  * Import directly: `import { usePoseDetection } from '@/src/hooks/use-pose-detection'`
  */
 export const usePoseDetection = ({
   enabled,
-  targetDetectionFps = 10,
+  pollingFps = 10,
 }: UsePoseDetectionOptions): UsePoseDetectionReturn => {
-  const poseSharedValue = useSharedValue<number[]>([]);
   const [latestPose, setLatestPose] = useState<PoseFrame | null>(null);
+  const [rawPoseData, setRawPoseData] = useState<number[] | null>(null);
 
-  // Bridge shared value changes to React state for JS consumers
-  const handlePoseUpdate = useCallback((data: number[]) => {
-    if (data.length === 42) {
-      const parsed = parsePoseArray(data, Date.now());
-      setLatestPose(parsed);
+  // Track previous raw data to avoid unnecessary state updates
+  const prevDataRef = useRef<number[] | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      setRawPoseData(null);
+      setLatestPose(null);
+      prevDataRef.current = null;
+      return;
     }
-  }, []);
 
-  useAnimatedReaction(
-    () => poseSharedValue.value,
-    (current) => {
-      if (current.length === 42) {
-        runOnJS(handlePoseUpdate)(current);
+    const interval = setInterval(() => {
+      try {
+        const data = VisionCameraPoseDetectionModule.getLatestPose();
+
+        if (!data || data.length !== POSE_ARRAY_LENGTH) {
+          if (prevDataRef.current !== null) {
+            prevDataRef.current = null;
+            setRawPoseData(null);
+            setLatestPose(null);
+          }
+          return;
+        }
+
+        // Skip update if data hasn't changed (same reference from native)
+        const prev = prevDataRef.current;
+        if (prev && prev.length === data.length && prev[0] === data[0] && prev[1] === data[1]) {
+          return;
+        }
+
+        prevDataRef.current = data;
+        setRawPoseData(data);
+        setLatestPose(parsePoseArray(data, Date.now()));
+      } catch {
+        // Ignore polling errors (module not loaded, etc.)
       }
-    },
-    [handlePoseUpdate]
-  );
+    }, Math.round(1000 / pollingFps));
 
-  // Frame processor callback — called from VisionCameraRecorder's onFrame.
-  // Uses runAtTargetFps from VisionCamera for worklet-safe throttling.
-  // posePlugin is captured from module scope (not a ref).
-  const processFrame = useCallback((frame: Frame) => {
-    'worklet';
-    if (!posePlugin) return;
+    return () => clearInterval(interval);
+  }, [enabled, pollingFps]);
 
-    runAtTargetFps(targetDetectionFps, () => {
-      'worklet';
-      const result = posePlugin.call(frame);
-      if (result && Array.isArray(result)) {
-        poseSharedValue.value = result as number[];
-      }
-    });
-  }, [targetDetectionFps]);
-
-  return {
-    poseSharedValue,
-    latestPose,
-    isDetecting: enabled && !!posePlugin,
-    processFrame: enabled ? processFrame : null,
-  };
+  return { latestPose, rawPoseData };
 };

@@ -21,10 +21,16 @@ class PoseDetectorPlugin : FrameProcessorPlugin() {
     val image = frame.image
     val rotationDegrees = orientationToDegrees(frame.orientation)
 
-    return detector.detectPose(image, rotationDegrees)
+    val result = detector.detectPose(image, rotationDegrees)
+    latestPoseData = result
+    return result
   }
 
   companion object {
+    /** Latest pose result. Written from frame processor thread, read from JS thread. */
+    @Volatile
+    var latestPoseData: List<Double>? = null
+
     /**
      * Convert VisionCamera Orientation enum to rotation degrees for ML Kit.
      * ML Kit needs to know the image rotation to detect poses correctly.
