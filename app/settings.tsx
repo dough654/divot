@@ -1,6 +1,7 @@
 import { View, Text, Switch, Pressable, Alert, Linking, ScrollView } from 'react-native';
 import { useState } from 'react';
 import Slider from '@react-native-community/slider';
+import { useFeatureFlag } from 'posthog-react-native';
 
 import { useTheme, useSettings } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
@@ -27,6 +28,9 @@ const FEEDBACK_EMAIL = 'feedback@swinglink.app';
 export default function SettingsScreen() {
   useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
+  const poseDetectionFlag = useFeatureFlag('pose-detection-enabled');
+  const autoDetectionFlag = useFeatureFlag('swing-auto-detection-enabled');
+  const showRecordingSection = !!poseDetectionFlag || !!autoDetectionFlag;
   const {
     settings,
     setHapticsEnabled,
@@ -214,7 +218,8 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* Recording Section */}
+      {/* Recording Section — only shown when PostHog flags are enabled */}
+      {showRecordingSection && (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>recording</Text>
 
@@ -281,7 +286,7 @@ export default function SettingsScreen() {
             />
           </>
         )}
-      </View>
+      </View>)}
 
       {/* Data Section */}
       <View style={styles.section}>

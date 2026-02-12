@@ -102,6 +102,15 @@ export default function CameraScreen() {
     toggleCamera,
   } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps });
 
+  // Debug: log PostHog flag values
+  useEffect(() => {
+    console.log('[PoseDetection] PostHog flags:', {
+      poseDetectionFlag,
+      autoDetectionFlag,
+      poseOverlaySetting: settings.poseOverlayEnabled,
+    });
+  }, [poseDetectionFlag, autoDetectionFlag, settings.poseOverlayEnabled]);
+
   // Pose detection — gated by feature flag + user setting
   const poseDetectionEnabled = !!poseDetectionFlag && settings.poseOverlayEnabled;
   const {
