@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Modal, Alert, Linking, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, Pressable, Modal, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -89,7 +89,6 @@ export default function CameraScreen() {
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingDurationRef = useRef(0);
   const recordingFpsRef = useRef(30);
-  const autoTriggeredRecordingRef = useRef(false);
 
   // VisionCamera is always active
   const {
@@ -97,8 +96,6 @@ export default function CameraScreen() {
     format: visionFormat,
     actualFps: recordingFps,
     hasCameraPermission,
-    hasMicrophonePermission,
-    isRequestingPermissions,
     error: visionCameraError,
     toggleCamera,
   } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps });
@@ -110,47 +107,15 @@ export default function CameraScreen() {
   // Swing auto-detection — gated by feature flag + user setting + pose detection active
   const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled;
   const { playSwingStart, playSwingEnd } = useSwingFeedback({ enabled: autoDetectEnabled });
-  const playSwingEndRef = useRef(playSwingEnd);
-  playSwingEndRef.current = playSwingEnd;
   const swingStartRef = useRef<(() => void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
   const { isArmed: isSwingArmed } = useSwingAutoDetection({
     enabled: autoDetectEnabled,
     latestPose,
     sensitivity: settings.swingDetectionSensitivity,
-    onSwingStarted: useCallback(() => { playSwingStart(); autoTriggeredRecordingRef.current = true; swingStartRef.current?.(); }, [playSwingStart]),
-    // Don't play end sound here — recording is still active and expo-av
-    // would conflict with VisionCamera's audio session. Sound plays in
-    // onRecordingFinished instead.
-    onSwingEnded: useCallback(() => { swingEndRef.current?.(); }, []),
+    onSwingStarted: useCallback(() => { playSwingStart(); swingStartRef.current?.(); }, [playSwingStart]),
+    onSwingEnded: useCallback(() => { playSwingEnd(); swingEndRef.current?.(); }, [playSwingEnd]),
   });
-
-  // Track if we've shown the microphone warning
-  const [hasShownMicWarning, setHasShownMicWarning] = useState(false);
-
-  // Prompt user to grant microphone permission if denied (after permission request completes)
-  useEffect(() => {
-    // Wait until permission request is complete before checking
-    if (isRequestingPermissions) return;
-
-    if (hasCameraPermission && !hasMicrophonePermission && !hasShownMicWarning) {
-      setHasShownMicWarning(true);
-      Alert.alert(
-        'Microphone Access Required',
-        'Microphone permission is needed for audio recording and swing detection. Without it, recordings will have no audio.',
-        [
-          {
-            text: 'Continue Without Audio',
-            style: 'cancel',
-          },
-          {
-            text: 'Open Settings',
-            onPress: () => Linking.openSettings(),
-          },
-        ]
-      );
-    }
-  }, [hasCameraPermission, hasMicrophonePermission, hasShownMicWarning, isRequestingPermissions]);
 
   // Keep recording fps ref in sync for async callbacks
   useEffect(() => {
@@ -474,14 +439,6 @@ export default function CameraScreen() {
     recorderRef.current.startRecording({
       onRecordingFinished: async (video: VideoFile) => {
         const duration = recordingDurationRef.current;
-        const wasAutoTriggered = autoTriggeredRecordingRef.current;
-        autoTriggeredRecordingRef.current = false;
-
-        // Play end sound after recording finishes — safe now that
-        // VisionCamera has released the audio session.
-        if (wasAutoTriggered) {
-          playSwingEndRef.current();
-        }
 
         try {
           const clip = await saveClip({
@@ -505,7 +462,6 @@ export default function CameraScreen() {
         }
       },
       onRecordingError: (error: unknown) => {
-        autoTriggeredRecordingRef.current = false;
         const errorMsg = error instanceof Error ? error.message : 'Recording failed';
         setRecordingError(errorMsg);
         setCameraState('previewing');
@@ -624,7 +580,7 @@ export default function CameraScreen() {
                 ref={recorderRef}
                 device={visionDevice}
                 isActive={true}
-                audio={hasMicrophonePermission}
+                audio={false}
                 format={visionFormat}
                 fps={recordingFps}
                 poseDetectionEnabled={poseDetectionEnabled}

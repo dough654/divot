@@ -3,7 +3,6 @@ import {
   useCameraDevice,
   useCameraFormat,
   useCameraPermission,
-  useMicrophonePermission,
   CameraDevice,
   CameraDeviceFormat,
   CameraPosition,
@@ -29,8 +28,6 @@ export type UseVisionCameraResult = {
   actualFps: number;
   /** Whether camera permission is granted. */
   hasCameraPermission: boolean;
-  /** Whether microphone permission is granted. */
-  hasMicrophonePermission: boolean;
   /** Current camera position. */
   position: CameraPosition;
   /** Whether the camera is the front-facing camera. */
@@ -84,8 +81,6 @@ export const useVisionCamera = (
   }, [device, setSupportedRecordingFps]);
   const { hasPermission: hasCameraPermission, requestPermission: requestCameraPermission } =
     useCameraPermission();
-  const { hasPermission: hasMicrophonePermission, requestPermission: requestMicrophonePermission } =
-    useMicrophonePermission();
 
   const requestPermissions = useCallback(async (): Promise<boolean> => {
     setIsRequestingPermissions(true);
@@ -94,16 +89,10 @@ export const useVisionCamera = (
 
     try {
       const cameraGranted = await requestCameraPermission();
-      const micGranted = await requestMicrophonePermission();
 
       if (!cameraGranted) {
         setError('Camera permission denied. Please enable it in settings.');
         return false;
-      }
-
-      if (!micGranted) {
-        // Don't set error here - camera.tsx handles the Alert for microphone
-        // Still return true - we can record without audio
       }
 
       return cameraGranted;
@@ -114,22 +103,22 @@ export const useVisionCamera = (
     } finally {
       setIsRequestingPermissions(false);
     }
-  }, [requestCameraPermission, requestMicrophonePermission]);
+  }, [requestCameraPermission]);
 
   const toggleCamera = useCallback(() => {
     setPosition((prev) => (prev === 'back' ? 'front' : 'back'));
   }, []);
 
-  // Auto-request permissions on mount if either is missing (only once per session)
+  // Auto-request permissions on mount if camera permission is missing (only once per session)
   useEffect(() => {
     if (
       autoRequestPermissions &&
       !hasRequestedPermissions &&
-      (!hasCameraPermission || !hasMicrophonePermission)
+      !hasCameraPermission
     ) {
       requestPermissions();
     }
-  }, [autoRequestPermissions, hasRequestedPermissions, hasCameraPermission, hasMicrophonePermission, requestPermissions]);
+  }, [autoRequestPermissions, hasRequestedPermissions, hasCameraPermission, requestPermissions]);
 
   // Check for device availability
   useEffect(() => {
@@ -145,7 +134,6 @@ export const useVisionCamera = (
     format,
     actualFps,
     hasCameraPermission,
-    hasMicrophonePermission,
     position,
     isFrontCamera: position === 'front',
     isRequestingPermissions,
