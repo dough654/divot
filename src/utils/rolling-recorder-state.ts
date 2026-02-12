@@ -4,6 +4,12 @@
  * State transitions are deterministic and side-effect-free, making them
  * easy to test. The hook (`useRollingRecorder`) drives this machine and
  * performs the actual recording API calls.
+ *
+ * Key platform behavior: cancelRecording() on iOS triggers
+ * onRecordingFinished (not onRecordingError). The new segment must only
+ * start from the finalization callback, never from cancelRecording()'s
+ * promise, to ensure VisionCamera has fully finalized the previous
+ * segment.
  */
 
 export type RollingRecorderState =
@@ -19,13 +25,12 @@ export type RollingRecorderAction =
   | { type: 'suspend' }
   | { type: 'resume' }
   | { type: 'cycleExpired' }
-  | { type: 'cancelComplete' }
+  | { type: 'cancelFinalized' }
   | { type: 'swingStarted' }
   | { type: 'swingEnded' }
   | { type: 'postRollExpired' }
   | { type: 'recordingSaved' }
-  | { type: 'recordingError' }
-  | { type: 'cancelError' };
+  | { type: 'recordingError' };
 
 export type RollingRecorderEffect =
   | 'startRecording'
@@ -76,7 +81,6 @@ export const nextRollingRecorderState = (
       if (currentState !== 'idle') {
         return { state: currentState, effects: [] };
       }
-      // Caller should check enabled flag before dispatching resume
       return { state: 'buffering', effects: ['startRecording', 'scheduleCycle'] };
     }
 
@@ -87,24 +91,21 @@ export const nextRollingRecorderState = (
       return { state: 'transitioning', effects: ['cancelRecording'] };
     }
 
-    case 'cancelComplete': {
-      if (currentState !== 'transitioning') {
-        return { state: currentState, effects: [] };
+    case 'cancelFinalized': {
+      // Fired when onRecordingFinished (iOS) or onRecordingError with
+      // capture/recording-canceled (Android) is called after cancelRecording.
+      if (currentState === 'transitioning') {
+        // Normal cycle — restart buffer
+        if (suspended) {
+          return { state: 'idle', effects: [] };
+        }
+        return { state: 'buffering', effects: ['startRecording', 'scheduleCycle'] };
       }
-      if (suspended) {
-        return { state: 'idle', effects: [] };
+      if (currentState === 'capturing') {
+        // Swing arrived during transition — cancel finished, now start capture
+        return { state: 'capturing', effects: ['startCaptureRecording'] };
       }
-      return { state: 'buffering', effects: ['startRecording', 'scheduleCycle'] };
-    }
-
-    case 'cancelError': {
-      if (currentState !== 'transitioning') {
-        return { state: currentState, effects: [] };
-      }
-      if (suspended) {
-        return { state: 'idle', effects: [] };
-      }
-      return { state: 'buffering', effects: ['startRecording', 'scheduleCycle'] };
+      return { state: currentState, effects: [] };
     }
 
     case 'swingStarted': {
@@ -112,7 +113,9 @@ export const nextRollingRecorderState = (
         return { state: 'capturing', effects: ['clearCycleTimer'] };
       }
       if (currentState === 'transitioning') {
-        return { state: 'capturing', effects: ['startCaptureRecording'] };
+        // Can't start recording yet — VisionCamera is still finalizing.
+        // Set state to capturing; cancelFinalized will start the capture.
+        return { state: 'capturing', effects: [] };
       }
       return { state: currentState, effects: [] };
     }

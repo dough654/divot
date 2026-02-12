@@ -112,20 +112,22 @@ export const useRollingRecorder = ({
   }, []);
 
   /**
-   * Start a new buffer segment. Handles the recording callbacks internally.
+   * Start a capture recording (swing detected, no cycling).
+   * Used when a swing arrives during the transition gap.
    */
-  const startBufferSegment = useCallback(() => {
+  const startCaptureSegment = useCallback(() => {
     const recorder = recorderRef.current;
     if (!recorder || !mountedRef.current) return;
 
     segmentStartTimeRef.current = Date.now();
-    stateRef.current = 'buffering';
+    // State is already 'capturing' — set by notifySwingStarted
+    if (__DEV__) console.log('[RollingRecorder] startCaptureSegment → recording in capture mode');
 
     recorder.startRecording({
       onRecordingFinished: async (video: VideoFile) => {
         if (!mountedRef.current) return;
+        if (__DEV__) console.log(`[RollingRecorder] capture onRecordingFinished state=${stateRef.current}`);
 
-        // Only save when we're in post-rolling → this is the keeper segment
         if (stateRef.current === 'post-rolling' || stateRef.current === 'capturing') {
           const duration = Math.round((Date.now() - segmentStartTimeRef.current) / 1000);
           try {
@@ -136,6 +138,79 @@ export const useRollingRecorder = ({
               sessionId: sessionIdRef.current ?? undefined,
             });
             stateRef.current = 'idle';
+            if (__DEV__) console.log(`[RollingRecorder] capture clip saved id=${clip.id}`);
+            onClipSavedRef.current(clip);
+          } catch (err) {
+            stateRef.current = 'idle';
+            const msg = err instanceof Error ? err.message : 'Failed to save clip';
+            onErrorRef.current?.(msg);
+          }
+        }
+      },
+      onRecordingError: (error: unknown) => {
+        if (!mountedRef.current) return;
+        const errorObj = error as { code?: string; message?: string };
+        if (errorObj?.code === 'capture/recording-canceled') return;
+        stateRef.current = 'idle';
+        onErrorRef.current?.(errorObj?.message ?? 'Recording failed');
+      },
+    });
+  }, [recorderRef]);
+
+  /**
+   * Start a new buffer segment. Handles the recording callbacks internally.
+   *
+   * IMPORTANT: cancelRecording() on iOS triggers onRecordingFinished (not
+   * onRecordingError). The new segment must only start from inside these
+   * callbacks — never from cancelRecording()'s promise — to ensure
+   * VisionCamera has fully finalized the previous segment.
+   */
+  const startBufferSegment = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (!recorder || !mountedRef.current) return;
+
+    segmentStartTimeRef.current = Date.now();
+    stateRef.current = 'buffering';
+
+    if (__DEV__) console.log('[RollingRecorder] startBufferSegment → buffering');
+
+    recorder.startRecording({
+      onRecordingFinished: async (video: VideoFile) => {
+        if (!mountedRef.current) return;
+
+        if (__DEV__) console.log(`[RollingRecorder] onRecordingFinished state=${stateRef.current} path=${video.path}`);
+
+        // Cancelled segment finalized (iOS fires onRecordingFinished for cancels)
+        if (stateRef.current === 'transitioning') {
+          if (__DEV__) console.log('[RollingRecorder] cancelled segment finalized → restarting buffer');
+          if (!suspendedRef.current) {
+            startBufferSegment();
+          } else {
+            stateRef.current = 'idle';
+          }
+          return;
+        }
+
+        // Swing started during transition — cancel finalized, now start capture
+        if (stateRef.current === 'capturing') {
+          if (__DEV__) console.log('[RollingRecorder] cancelled segment finalized → starting capture recording');
+          startCaptureSegment();
+          return;
+        }
+
+        // Keeper segment — save when post-roll stop triggered onRecordingFinished
+        if (stateRef.current === 'post-rolling') {
+          const duration = Math.round((Date.now() - segmentStartTimeRef.current) / 1000);
+          if (__DEV__) console.log(`[RollingRecorder] saving clip duration=${duration}s`);
+          try {
+            const clip = await saveClip({
+              path: video.path,
+              duration,
+              fps: recordingFpsRef.current,
+              sessionId: sessionIdRef.current ?? undefined,
+            });
+            stateRef.current = 'idle';
+            if (__DEV__) console.log(`[RollingRecorder] clip saved id=${clip.id} → calling onClipSaved`);
             onClipSavedRef.current(clip);
 
             // Re-arm buffering if still enabled and not suspended
@@ -145,23 +220,37 @@ export const useRollingRecorder = ({
           } catch (err) {
             stateRef.current = 'idle';
             const msg = err instanceof Error ? err.message : 'Failed to save clip';
+            if (__DEV__) console.log(`[RollingRecorder] save error: ${msg}`);
             onErrorRef.current?.(msg);
           }
+          return;
         }
-        // If state is 'transitioning', the segment was cycled — file is auto-discarded by cancel
+
+        if (__DEV__) console.log(`[RollingRecorder] onRecordingFinished ignored (state=${stateRef.current})`);
       },
       onRecordingError: (error: unknown) => {
         if (!mountedRef.current) return;
 
-        // cancelRecording() triggers onRecordingError with code 'capture/recording-canceled'
+        // cancelRecording() triggers onRecordingError on Android
         const errorObj = error as { code?: string; message?: string };
         if (errorObj?.code === 'capture/recording-canceled') {
-          // Expected during cycling — not a real error
+          if (__DEV__) console.log(`[RollingRecorder] cancel error confirmed state=${stateRef.current}`);
+          // Restart from here (Android path) — same logic as onRecordingFinished
+          if (stateRef.current === 'transitioning') {
+            if (!suspendedRef.current) {
+              startBufferSegment();
+            } else {
+              stateRef.current = 'idle';
+            }
+          } else if (stateRef.current === 'capturing') {
+            startCaptureSegment();
+          }
           return;
         }
 
         // Real error
         const msg = errorObj?.message ?? 'Recording failed';
+        if (__DEV__) console.log(`[RollingRecorder] recording error: ${msg} code=${errorObj?.code}`);
         stateRef.current = 'idle';
         clearCycleTimer();
         clearPostRollTimer();
@@ -174,15 +263,13 @@ export const useRollingRecorder = ({
     cycleTimerRef.current = setTimeout(() => {
       if (stateRef.current !== 'buffering' || !mountedRef.current) return;
 
+      if (__DEV__) console.log('[RollingRecorder] cycle timer → transitioning, cancelling segment');
       stateRef.current = 'transitioning';
-      recorder.cancelRecording().then(() => {
-        if (!mountedRef.current || suspendedRef.current) return;
-        if (stateRef.current === 'transitioning') {
-          startBufferSegment();
-        }
-      }).catch(() => {
-        // cancelRecording failed — try to restart
+      // Don't restart from the promise — wait for onRecordingFinished/onRecordingError
+      recorder.cancelRecording().catch(() => {
+        // If cancelRecording itself throws, fall back to restarting
         if (mountedRef.current && !suspendedRef.current && stateRef.current === 'transitioning') {
+          if (__DEV__) console.log('[RollingRecorder] cancelRecording threw → restarting');
           startBufferSegment();
         }
       });
@@ -191,10 +278,11 @@ export const useRollingRecorder = ({
 
   /** Stop all recording and clean up timers. */
   const stopAll = useCallback(() => {
+    const currentState = stateRef.current;
+    if (__DEV__) console.log(`[RollingRecorder] stopAll from state=${currentState}`);
     clearCycleTimer();
     clearPostRollTimer();
 
-    const currentState = stateRef.current;
     stateRef.current = 'idle';
 
     if (currentState === 'buffering' || currentState === 'capturing' || currentState === 'post-rolling') {
@@ -204,6 +292,7 @@ export const useRollingRecorder = ({
 
   // Enable/disable rolling recording based on `enabled` prop
   useEffect(() => {
+    if (__DEV__) console.log(`[RollingRecorder] enabled effect: enabled=${enabled} suspended=${suspendedRef.current} state=${stateRef.current}`);
     if (enabled && !suspendedRef.current) {
       if (stateRef.current === 'idle') {
         startBufferSegment();
@@ -231,68 +320,44 @@ export const useRollingRecorder = ({
 
   const notifySwingStarted = useCallback(() => {
     const currentState = stateRef.current;
+    if (__DEV__) console.log(`[RollingRecorder] notifySwingStarted state=${currentState}`);
 
     if (currentState === 'buffering') {
       // Stop cycling — keep current segment recording
       clearCycleTimer();
       stateRef.current = 'capturing';
+      if (__DEV__) console.log('[RollingRecorder] → capturing (kept current segment)');
     } else if (currentState === 'transitioning') {
-      // We're between segments — start a fresh capture segment
-      // (pre-roll is lost but the swing itself will be captured)
+      // VisionCamera is still finalizing the cancelled segment — we can't
+      // call startRecording yet. Set state to 'capturing' so the cancel
+      // finalization callback (onRecordingFinished/onRecordingError) knows
+      // to start a capture recording instead of a normal buffer segment.
       stateRef.current = 'capturing';
-      // The transitioning flow will call startBufferSegment which checks state;
-      // since we're now 'capturing', we need to start fresh
-      const recorder = recorderRef.current;
-      if (recorder) {
-        segmentStartTimeRef.current = Date.now();
-        recorder.startRecording({
-          onRecordingFinished: async (video: VideoFile) => {
-            if (!mountedRef.current) return;
-            const duration = Math.round((Date.now() - segmentStartTimeRef.current) / 1000);
-            try {
-              const clip = await saveClip({
-                path: video.path,
-                duration,
-                fps: recordingFpsRef.current,
-                sessionId: sessionIdRef.current ?? undefined,
-              });
-              stateRef.current = 'idle';
-              onClipSavedRef.current(clip);
-              if (enabled && !suspendedRef.current && mountedRef.current) {
-                startBufferSegment();
-              }
-            } catch (err) {
-              stateRef.current = 'idle';
-              const msg = err instanceof Error ? err.message : 'Failed to save clip';
-              onErrorRef.current?.(msg);
-            }
-          },
-          onRecordingError: (error: unknown) => {
-            if (!mountedRef.current) return;
-            const errorObj = error as { code?: string; message?: string };
-            if (errorObj?.code === 'capture/recording-canceled') return;
-            stateRef.current = 'idle';
-            onErrorRef.current?.(errorObj?.message ?? 'Recording failed');
-          },
-        });
-      }
+      if (__DEV__) console.log('[RollingRecorder] → capturing (during transition, waiting for cancel to finalize)');
     }
     // If idle or already capturing/post-rolling, ignore
   }, [recorderRef, enabled, clearCycleTimer, startBufferSegment]);
 
   const notifySwingEnded = useCallback(() => {
+    if (__DEV__) console.log(`[RollingRecorder] notifySwingEnded state=${stateRef.current}`);
     if (stateRef.current !== 'capturing') return;
 
     stateRef.current = 'post-rolling';
+    if (__DEV__) console.log(`[RollingRecorder] → post-rolling, scheduling stop in ${postRollMsRef.current}ms`);
 
     clearPostRollTimer();
     postRollTimerRef.current = setTimeout(() => {
       if (!mountedRef.current) return;
-      if (stateRef.current !== 'post-rolling') return;
+      if (stateRef.current !== 'post-rolling') {
+        if (__DEV__) console.log(`[RollingRecorder] post-roll timer fired but state=${stateRef.current}, skipping stop`);
+        return;
+      }
 
+      if (__DEV__) console.log('[RollingRecorder] post-roll expired → stopping recording');
       // Stop recording — onRecordingFinished will save the clip
       recorderRef.current?.stopRecording().catch((err) => {
         const msg = err instanceof Error ? err.message : 'Failed to stop recording';
+        if (__DEV__) console.log(`[RollingRecorder] stopRecording error: ${msg}`);
         stateRef.current = 'idle';
         onErrorRef.current?.(msg);
       });

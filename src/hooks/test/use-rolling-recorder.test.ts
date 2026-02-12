@@ -82,28 +82,17 @@ describe('nextRollingRecorderState', () => {
       expect(result.effects).toEqual([]);
     });
 
-    it('restarts buffering after cancel completes', () => {
-      const result = nextRollingRecorderState('transitioning', { type: 'cancelComplete' }, false);
+    it('restarts buffering after cancel finalized', () => {
+      const result = nextRollingRecorderState('transitioning', { type: 'cancelFinalized' }, false);
       expect(result.state).toBe('buffering');
       expect(result.effects).toContain('startRecording');
       expect(result.effects).toContain('scheduleCycle');
     });
 
-    it('goes idle after cancel completes when suspended', () => {
-      const result = nextRollingRecorderState('transitioning', { type: 'cancelComplete' }, true);
+    it('goes idle after cancel finalized when suspended', () => {
+      const result = nextRollingRecorderState('transitioning', { type: 'cancelFinalized' }, true);
       expect(result.state).toBe('idle');
       expect(result.effects).toEqual([]);
-    });
-
-    it('recovers from cancel errors by restarting', () => {
-      const result = nextRollingRecorderState('transitioning', { type: 'cancelError' }, false);
-      expect(result.state).toBe('buffering');
-      expect(result.effects).toContain('startRecording');
-    });
-
-    it('goes idle on cancel error when suspended', () => {
-      const result = nextRollingRecorderState('transitioning', { type: 'cancelError' }, true);
-      expect(result.state).toBe('idle');
     });
   });
 
@@ -114,8 +103,14 @@ describe('nextRollingRecorderState', () => {
       expect(result.effects).toContain('clearCycleTimer');
     });
 
-    it('starts fresh capture when swing starts during transitioning', () => {
+    it('sets capturing state when swing starts during transitioning (no immediate effects)', () => {
       const result = nextRollingRecorderState('transitioning', { type: 'swingStarted' }, false);
+      expect(result.state).toBe('capturing');
+      expect(result.effects).toEqual([]);
+    });
+
+    it('starts capture recording when cancel finalizes during capturing state', () => {
+      const result = nextRollingRecorderState('capturing', { type: 'cancelFinalized' }, false);
       expect(result.state).toBe('capturing');
       expect(result.effects).toContain('startCaptureRecording');
     });
@@ -238,22 +233,39 @@ describe('nextRollingRecorderState', () => {
       const { state } = applyActions('idle', [
         { action: { type: 'enable' } },
         { action: { type: 'cycleExpired' } },
-        { action: { type: 'cancelComplete' } },
+        { action: { type: 'cancelFinalized' } },
         { action: { type: 'swingStarted' } },
       ]);
 
       expect(state).toBe('capturing');
     });
 
-    it('handles swing during transition (pre-roll lost)', () => {
+    it('handles swing during transition — waits for cancel then starts capture', () => {
       const { state, allEffects } = applyActions('idle', [
         { action: { type: 'enable' } },
         { action: { type: 'cycleExpired' } },
-        { action: { type: 'swingStarted' } }, // during transitioning
+        { action: { type: 'swingStarted' } },       // during transitioning — no effects
+        { action: { type: 'cancelFinalized' } },     // now starts capture recording
       ]);
 
       expect(state).toBe('capturing');
       expect(allEffects).toContain('startCaptureRecording');
+    });
+
+    it('handles swing + end during transition — capture starts after cancel', () => {
+      const { state, allEffects } = applyActions('idle', [
+        { action: { type: 'enable' } },
+        { action: { type: 'cycleExpired' } },
+        { action: { type: 'swingStarted' } },       // sets capturing
+        { action: { type: 'cancelFinalized' } },     // starts capture recording
+        { action: { type: 'swingEnded' } },
+        { action: { type: 'postRollExpired' } },
+        { action: { type: 'recordingSaved' } },
+      ]);
+
+      expect(state).toBe('buffering');
+      expect(allEffects).toContain('startCaptureRecording');
+      expect(allEffects).toContain('stopRecording');
     });
   });
 });
