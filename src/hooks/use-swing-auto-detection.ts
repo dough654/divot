@@ -92,13 +92,26 @@ export const useSwingAutoDetection = ({
     if (!prevPose) return;
 
     const velocity = computeWristVelocity(prevPose, latestPose);
+    const prevState = stateRef.current;
     const transition = nextSwingState(
-      stateRef.current,
+      prevState,
       velocity,
       latestPose.timestamp,
       configRef.current,
       countersRef.current,
     );
+
+    // TODO: Remove debug logging after tuning is complete
+    if (__DEV__) {
+      const threshold = configRef.current.velocityThreshold;
+      const above = velocity >= threshold;
+      // Log every frame so we can see actual velocity values
+      console.log(
+        `[SwingDetect] v=${velocity.toFixed(3)} thresh=${threshold.toFixed(3)} ${above ? 'ABOVE' : 'below'} | ${prevState}→${transition.state}` +
+        (transition.event ? ` | EVENT: ${transition.event.type}` : '') +
+        ` | confirm=${transition.counters.confirmationCount} cool=${transition.counters.cooldownCount}`
+      );
+    }
 
     stateRef.current = transition.state;
     countersRef.current = transition.counters;

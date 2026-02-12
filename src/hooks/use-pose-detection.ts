@@ -40,11 +40,18 @@ export const usePoseDetection = ({
   // Track previous raw data to avoid unnecessary state updates
   const prevDataRef = useRef<number[] | null>(null);
 
+  // Grace period: keep the last valid pose for a few poll cycles before
+  // clearing. ML models intermittently miss frames, which causes the
+  // overlay to flicker if we clear immediately on the first null.
+  const consecutiveNullsRef = useRef(0);
+  const GRACE_POLLS = 3; // ~300ms at 10fps before clearing
+
   useEffect(() => {
     if (!enabled) {
       setRawPoseData(null);
       setLatestPose(null);
       prevDataRef.current = null;
+      consecutiveNullsRef.current = 0;
       return;
     }
 
@@ -53,13 +60,16 @@ export const usePoseDetection = ({
         const data = VisionCameraPoseDetectionModule.getLatestPose();
 
         if (!data || data.length !== POSE_ARRAY_LENGTH) {
-          if (prevDataRef.current !== null) {
+          consecutiveNullsRef.current++;
+          if (consecutiveNullsRef.current >= GRACE_POLLS && prevDataRef.current !== null) {
             prevDataRef.current = null;
             setRawPoseData(null);
             setLatestPose(null);
           }
           return;
         }
+
+        consecutiveNullsRef.current = 0;
 
         // Skip update if data hasn't changed
         const prev = prevDataRef.current;
