@@ -110,18 +110,14 @@ const ToastItem = ({ toast, index, onDismiss }: ToastItemProps) => {
   const opacity = useSharedValue(0);
   const dismissedRef = useRef(false);
 
-  // Get variant-specific styling
-  const variantColors = useMemo(() => {
+  // Variant accent color for icon and left border
+  const variantColor = useMemo(() => {
     switch (toast.variant) {
-      case 'success':
-        return { bg: theme.colors.successBackground, icon: theme.colors.success };
-      case 'error':
-        return { bg: theme.colors.errorBackground, icon: theme.colors.error };
-      case 'warning':
-        return { bg: theme.colors.warningBackground, icon: theme.colors.warning };
+      case 'success': return theme.colors.success;
+      case 'error': return theme.colors.error;
+      case 'warning': return theme.colors.warning;
       case 'info':
-      default:
-        return { bg: theme.colors.infoBackground, icon: theme.colors.info };
+      default: return theme.colors.info;
     }
   }, [toast.variant, theme]);
 
@@ -190,7 +186,7 @@ const ToastItem = ({ toast, index, onDismiss }: ToastItemProps) => {
       <Animated.View
         style={[
           styles.toast,
-          { top: insets.top + TOAST_MARGIN, backgroundColor: variantColors.bg },
+          { top: insets.top + TOAST_MARGIN, borderLeftColor: variantColor },
           animatedStyle,
         ]}
         accessibilityRole="alert"
@@ -200,7 +196,7 @@ const ToastItem = ({ toast, index, onDismiss }: ToastItemProps) => {
         <Ionicons
           name={VARIANT_ICONS[toast.variant]}
           size={24}
-          color={variantColors.icon}
+          color={variantColor}
           style={styles.icon}
         />
         <Text style={styles.message} numberOfLines={2}>
@@ -357,7 +353,9 @@ const createToastStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
-    ...theme.shadows.md,
+    backgroundColor: theme.colors.surface,
+    borderLeftWidth: 4,
+    ...theme.shadows.lg,
   },
   icon: {
     marginRight: theme.spacing.md,
