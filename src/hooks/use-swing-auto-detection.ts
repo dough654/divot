@@ -1,7 +1,4 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
-import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
-import { parsePoseArray } from '@/src/utils/pose-normalization';
 import {
   computeWristVelocity,
   nextSwingState,
@@ -15,8 +12,8 @@ import type { PoseFrame, SwingDetectionState, SwingDetectionConfig, SwingEvent }
 export type UseSwingAutoDetectionOptions = {
   /** Whether auto-detection is enabled (feature flag + user setting). */
   enabled: boolean;
-  /** Raw pose shared value from usePoseDetection. */
-  poseSharedValue: SharedValue<number[]>;
+  /** Latest parsed pose frame from usePoseDetection. */
+  latestPose: PoseFrame | null;
   /** Sensitivity from 0 (least) to 1 (most). Defaults to 0.5. */
   sensitivity?: number;
   /** Partial config overrides. */
@@ -44,12 +41,12 @@ export type UseSwingAutoDetectionReturn = {
  *
  * Uses the pure `nextSwingState` state machine internally.
  *
- * Excluded from hooks barrel — has native dependency (Reanimated shared values).
- * Import directly: `import { useSwingAutoDetection } from '@/src/hooks/use-swing-auto-detection'`
+ * Excluded from hooks barrel — import directly:
+ * `import { useSwingAutoDetection } from '@/src/hooks/use-swing-auto-detection'`
  */
 export const useSwingAutoDetection = ({
   enabled,
-  poseSharedValue,
+  latestPose,
   sensitivity = 0.5,
   config: configOverrides,
   onSwingStarted,
@@ -71,23 +68,34 @@ export const useSwingAutoDetection = ({
   const configRef = useRef(effectiveConfig);
   configRef.current = effectiveConfig;
 
-  // Process a new pose frame through the state machine
-  const handlePoseUpdate = useCallback((data: number[]) => {
-    if (data.length !== 42) return;
+  const handleSwingEvent = useCallback((event: SwingEvent) => {
+    switch (event.type) {
+      case 'swingStarted':
+        onSwingStarted();
+        break;
+      case 'swingEnded':
+        onSwingEnded();
+        break;
+      case 'swingCancelled':
+        onSwingEnded();
+        break;
+    }
+  }, [onSwingStarted, onSwingEnded]);
 
-    const currentPose = parsePoseArray(data, Date.now());
-    if (!currentPose) return;
+  // Process new pose frames through the state machine
+  useEffect(() => {
+    if (!latestPose || stateRef.current === 'idle') return;
 
     const prevPose = prevPoseRef.current;
-    prevPoseRef.current = currentPose;
+    prevPoseRef.current = latestPose;
 
     if (!prevPose) return;
 
-    const velocity = computeWristVelocity(prevPose, currentPose);
+    const velocity = computeWristVelocity(prevPose, latestPose);
     const transition = nextSwingState(
       stateRef.current,
       velocity,
-      currentPose.timestamp,
+      latestPose.timestamp,
       configRef.current,
       countersRef.current,
     );
@@ -99,33 +107,7 @@ export const useSwingAutoDetection = ({
     if (transition.event) {
       handleSwingEvent(transition.event);
     }
-  }, []);
-
-  const handleSwingEvent = useCallback((event: SwingEvent) => {
-    switch (event.type) {
-      case 'swingStarted':
-        onSwingStarted();
-        break;
-      case 'swingEnded':
-        onSwingEnded();
-        break;
-      case 'swingCancelled':
-        // Swing was too short — stop recording without saving
-        onSwingEnded();
-        break;
-    }
-  }, [onSwingStarted, onSwingEnded]);
-
-  // Bridge shared value changes to the state machine
-  useAnimatedReaction(
-    () => poseSharedValue.value,
-    (current) => {
-      if (current.length === 42 && stateRef.current !== 'idle') {
-        runOnJS(handlePoseUpdate)(current);
-      }
-    },
-    [handlePoseUpdate]
-  );
+  }, [latestPose, handleSwingEvent]);
 
   // Auto-arm when enabled, disarm when disabled
   useEffect(() => {
