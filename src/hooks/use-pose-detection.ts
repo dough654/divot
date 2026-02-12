@@ -6,7 +6,7 @@ import { parsePoseArray } from '@/src/utils/pose-normalization';
 import type { PoseFrame } from '@/src/types/pose';
 
 // Ensure the native module is loaded so the plugin is registered
-import 'vision-camera-pose-detection';
+import '../../modules/vision-camera-pose-detection/src';
 
 export type UsePoseDetectionOptions = {
   /** Whether pose detection is enabled (gated by feature flag + user setting). */
