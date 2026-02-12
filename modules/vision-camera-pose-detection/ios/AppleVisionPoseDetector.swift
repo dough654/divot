@@ -9,8 +9,9 @@ import UIKit
  * array of 42 values: [x, y, confidence] for each joint in the standard order.
  *
  * Coordinate system:
- *   - Apple Vision uses bottom-left origin (y increases upward)
- *   - We flip Y so output uses top-left origin (y increases downward)
+ *   - With the orientation hint, Apple Vision returns screen-space coordinates
+ *   - We flip X to correct the mirror effect
+ *   - Y is already in top-left origin (y increases downward)
  *   - Values are normalized 0-1 relative to the image dimensions
  */
 final class AppleVisionPoseDetector {
@@ -69,9 +70,10 @@ final class AppleVisionPoseDetector {
         continue
       }
 
-      result[offset] = point.location.x
-      // Flip Y: Vision uses bottom-left origin, we use top-left
-      result[offset + 1] = 1.0 - point.location.y
+      // With the orientation hint, Vision returns screen-space coordinates.
+      // Flip X to correct mirror, Y is already top-to-bottom.
+      result[offset] = 1.0 - point.location.x
+      result[offset + 1] = point.location.y
       result[offset + 2] = Double(point.confidence)
     }
 

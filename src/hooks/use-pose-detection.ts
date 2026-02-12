@@ -67,21 +67,9 @@ export const usePoseDetection = ({
           return;
         }
 
-        // Transform native coordinates to screen coordinates.
-        // Apple Vision returns bottom-left origin coords, and the native plugin
-        // flips y (1-y). But empirically, the orientation hint already puts
-        // coordinates in screen space — so the native y-flip inverts them, and
-        // x comes out mirrored. We correct both here until the next native rebuild.
-        const corrected = new Array<number>(data.length);
-        for (let i = 0; i < data.length; i += 3) {
-          corrected[i] = 1 - data[i];       // flip x (mirror correction)
-          corrected[i + 1] = 1 - data[i + 1]; // flip y (undo native flip)
-          corrected[i + 2] = data[i + 2];     // confidence unchanged
-        }
-
         prevDataRef.current = data;
-        setRawPoseData(corrected);
-        setLatestPose(parsePoseArray(corrected, Date.now()));
+        setRawPoseData(data);
+        setLatestPose(parsePoseArray(data, Date.now()));
       } catch {
         // Ignore polling errors (module not loaded, etc.)
       }
