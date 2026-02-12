@@ -1,10 +1,7 @@
 import { StyleSheet, View } from 'react-native';
-import { useState, useCallback } from 'react';
-import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
+import { useState, useMemo } from 'react';
 import Svg, { Circle, Line } from 'react-native-svg';
 import { JOINT_NAMES, SKELETON_CONNECTIONS, POSE_ARRAY_LENGTH } from '@/src/utils/pose-normalization';
-import type { JointName } from '@/src/types/pose';
 
 /** Minimum confidence threshold to display a joint. */
 const MIN_CONFIDENCE = 0.3;
@@ -15,16 +12,9 @@ const JOINT_RADIUS = 4;
 /** Skeleton line stroke width. */
 const LINE_WIDTH = 2;
 
-/** Joint colors by body region. */
+/** Joint and line colors. */
 const JOINT_COLOR = '#00FF88';
 const LINE_COLOR = 'rgba(0, 255, 136, 0.6)';
-
-type PoseOverlayProps = {
-  /** Raw 42-element shared value from pose detection. */
-  poseSharedValue: SharedValue<number[]>;
-  /** Whether the overlay should be rendered. */
-  visible: boolean;
-};
 
 type ParsedJoint = {
   x: number;
@@ -32,43 +22,38 @@ type ParsedJoint = {
   confidence: number;
 };
 
+type PoseOverlayProps = {
+  /** Raw 42-element pose array, or null if no pose detected. */
+  poseData: number[] | null;
+  /** Whether the overlay should be rendered. */
+  visible: boolean;
+};
+
 /**
  * SVG skeleton overlay rendered on top of the camera preview.
- * Reads joint positions from a Reanimated shared value and draws
- * 14 joint circles + skeleton connections.
+ * Draws 14 joint circles + skeleton connections from raw pose data.
  *
  * Coordinates are normalized (0-1) and scaled to the container dimensions.
  * Joints with confidence below MIN_CONFIDENCE are hidden.
  */
-export const PoseOverlay = ({ poseSharedValue, visible }: PoseOverlayProps) => {
-  const [joints, setJoints] = useState<Map<JointName, ParsedJoint>>(new Map());
+export const PoseOverlay = ({ poseData, visible }: PoseOverlayProps) => {
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
-  // Bridge shared value → React state
-  const handlePoseData = useCallback((data: number[]) => {
-    if (data.length !== POSE_ARRAY_LENGTH) return;
+  // Parse raw array into joint map
+  const joints = useMemo(() => {
+    if (!poseData || poseData.length !== POSE_ARRAY_LENGTH) return null;
 
-    const newJoints = new Map<JointName, ParsedJoint>();
+    const map = new Map<string, ParsedJoint>();
     for (let i = 0; i < JOINT_NAMES.length; i++) {
       const offset = i * 3;
-      newJoints.set(JOINT_NAMES[i], {
-        x: data[offset],
-        y: data[offset + 1],
-        confidence: data[offset + 2],
+      map.set(JOINT_NAMES[i], {
+        x: poseData[offset],
+        y: poseData[offset + 1],
+        confidence: poseData[offset + 2],
       });
     }
-    setJoints(newJoints);
-  }, []);
-
-  useAnimatedReaction(
-    () => poseSharedValue.value,
-    (current) => {
-      if (current.length === POSE_ARRAY_LENGTH) {
-        runOnJS(handlePoseData)(current);
-      }
-    },
-    [handlePoseData]
-  );
+    return map;
+  }, [poseData]);
 
   if (!visible || containerSize.width === 0 || containerSize.height === 0) {
     return (
@@ -96,7 +81,7 @@ export const PoseOverlay = ({ poseSharedValue, visible }: PoseOverlayProps) => {
     >
       <Svg style={StyleSheet.absoluteFill}>
         {/* Skeleton connections */}
-        {SKELETON_CONNECTIONS.map(([jointA, jointB], index) => {
+        {joints && SKELETON_CONNECTIONS.map(([jointA, jointB], index) => {
           const a = joints.get(jointA);
           const b = joints.get(jointB);
 
@@ -119,7 +104,7 @@ export const PoseOverlay = ({ poseSharedValue, visible }: PoseOverlayProps) => {
         })}
 
         {/* Joint circles */}
-        {JOINT_NAMES.map((jointName) => {
+        {joints && JOINT_NAMES.map((jointName) => {
           const joint = joints.get(jointName);
           if (!joint || joint.confidence < MIN_CONFIDENCE) return null;
 
