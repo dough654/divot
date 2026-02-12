@@ -10,3 +10,4 @@ export * from './network-transport';
 export * from './format';
 export * from './pose-normalization';
 export * from './swing-detection';
+export * from './rolling-recorder-state';

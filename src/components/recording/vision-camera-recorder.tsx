@@ -32,8 +32,10 @@ export type VisionCameraRecorderRef = {
     onRecordingFinished: (video: VideoFile) => void;
     onRecordingError: (error: unknown) => void;
   }) => void;
-  /** Stop recording video. */
+  /** Stop recording video and save the file. */
   stopRecording: () => Promise<void>;
+  /** Cancel recording and discard the file. Triggers onRecordingError with code 'capture/recording-canceled'. */
+  cancelRecording: () => Promise<void>;
   /** Capture a snapshot from the preview buffer and return it as a base64 JPEG string. */
   takeSnapshot: (options?: { quality?: number }) => Promise<string | null>;
 };
@@ -140,6 +142,11 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
       stopRecording: async () => {
         if (cameraRef.current) {
           await cameraRef.current.stopRecording();
+        }
+      },
+      cancelRecording: async () => {
+        if (cameraRef.current) {
+          await cameraRef.current.cancelRecording();
         }
       },
       takeSnapshot: async (options) => {

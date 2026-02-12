@@ -43,6 +43,7 @@ import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { useSessionLifecycle } from '@/src/hooks/use-session-lifecycle';
+import { useRollingRecorder } from '@/src/hooks/use-rolling-recorder';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { formatRoomCode, resolveNetworkTransport } from '@/src/utils';
 import type { ConnectionStep, ConnectionRequest } from '@/src/types';
@@ -183,6 +184,27 @@ export default function CameraScreen() {
   useEffect(() => {
     activeSessionIdRef.current = activeSession?.id ?? null;
   }, [activeSession]);
+
+  // Rolling buffer recorder for auto-detect mode
+  const rollingRecorderEnabled = autoDetectEnabled && cameraState === 'previewing';
+  const handleRollingClipSaved = useCallback((clip: Clip) => {
+    if (clip.sessionId) {
+      tagClip(clip.id);
+    }
+    setLastRecordedClip(clip);
+    setCameraState('reviewing');
+  }, [tagClip]);
+  const handleRollingError = useCallback((error: string) => {
+    showToast(`Recording Error: ${error}`, { variant: 'error' });
+  }, [showToast]);
+  const rollingRecorder = useRollingRecorder({
+    recorderRef,
+    enabled: rollingRecorderEnabled,
+    recordingFps,
+    sessionId: activeSession?.id ?? null,
+    onClipSaved: handleRollingClipSaved,
+    onError: handleRollingError,
+  });
 
   // Connection analytics (GOL-76) — camera doesn't know the discovery method
   useConnectionAnalytics({
@@ -425,12 +447,15 @@ export default function CameraScreen() {
     setShowHint(false);
   };
 
-  // Start recording
+  // Start manual recording
   const handleStartRecording = useCallback(() => {
     if (!recorderRef.current) {
       setRecordingError('Camera not ready');
       return;
     }
+
+    // Suspend rolling recorder so it doesn't fight with manual recording
+    rollingRecorder.suspend();
 
     setRecordingError(null);
     setLastRecordedClip(null);
@@ -468,7 +493,7 @@ export default function CameraScreen() {
         showToast(`Recording Error: ${errorMsg}`, { variant: 'error' });
       },
     });
-  }, []);
+  }, [rollingRecorder]);
 
   // Stop recording
   const handleStopRecording = useCallback(async () => {
@@ -481,9 +506,13 @@ export default function CameraScreen() {
     }
   }, []);
 
-  // Wire swing auto-detection refs to actual handlers
-  swingStartRef.current = handleStartRecording;
-  swingEndRef.current = handleStopRecording;
+  // Wire swing auto-detection refs to rolling recorder (auto-detect) or direct recording (fallback)
+  swingStartRef.current = rollingRecorderEnabled
+    ? rollingRecorder.notifySwingStarted
+    : handleStartRecording;
+  swingEndRef.current = rollingRecorderEnabled
+    ? rollingRecorder.notifySwingEnded
+    : handleStopRecording;
 
   const handleRecordPress = useCallback(() => {
     if (isRecording) {
@@ -518,15 +547,17 @@ export default function CameraScreen() {
     if (syncProgress.state === 'complete') {
       setLastRecordedClip(null);
       setCameraState('previewing');
+      rollingRecorder.resume();
     }
-  }, [syncProgress.state]);
+  }, [syncProgress.state, rollingRecorder]);
 
   // Record again from reviewing state
   const handleRecordAgain = useCallback(() => {
     setLastRecordedClip(null);
     setRecordingError(null);
     setCameraState('previewing');
-  }, []);
+    rollingRecorder.resume();
+  }, [rollingRecorder]);
 
   const showVisionCamera = visionDevice && hasCameraPermission;
   const currentError = visionCameraError || recordingError || streamError;
@@ -699,7 +730,7 @@ export default function CameraScreen() {
 
             <Pressable
               style={[styles.reviewPill, styles.reviewPillDismiss]}
-              onPress={() => { setLastRecordedClip(null); setCameraState('previewing'); }}
+              onPress={() => { setLastRecordedClip(null); setCameraState('previewing'); rollingRecorder.resume(); }}
               accessibilityRole="button"
               accessibilityLabel="Discard recording"
             >
