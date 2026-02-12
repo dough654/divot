@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { VisionCameraProxy, Frame } from 'react-native-vision-camera';
+import { useState, useCallback } from 'react';
+import { VisionCameraProxy, Frame, runAtTargetFps } from 'react-native-vision-camera';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { parsePoseArray } from '@/src/utils/pose-normalization';
@@ -26,6 +26,10 @@ export type UsePoseDetectionReturn = {
   processFrame: ((frame: Frame) => void) | null;
 };
 
+// Initialize the plugin once at module scope — cheap if never called.
+// Must be outside the hook so it's available in the worklet closure.
+const posePlugin = VisionCameraProxy.initFrameProcessorPlugin('detectPose', {});
+
 /**
  * Hook that manages pose detection via the native "detectPose" frame processor plugin.
  *
@@ -41,26 +45,6 @@ export const usePoseDetection = ({
 }: UsePoseDetectionOptions): UsePoseDetectionReturn => {
   const poseSharedValue = useSharedValue<number[]>([]);
   const [latestPose, setLatestPose] = useState<PoseFrame | null>(null);
-  const [isDetecting, setIsDetecting] = useState(false);
-
-  // Track frame timing for throttling
-  const lastDetectionTimeRef = useRef(0);
-  const frameIntervalMs = 1000 / targetDetectionFps;
-
-  // Initialize the plugin only when enabled
-  const pluginRef = useRef<ReturnType<typeof VisionCameraProxy.initFrameProcessorPlugin> | null>(null);
-
-  useEffect(() => {
-    if (enabled) {
-      pluginRef.current = VisionCameraProxy.initFrameProcessorPlugin('detectPose', {});
-      setIsDetecting(true);
-    } else {
-      pluginRef.current = null;
-      setIsDetecting(false);
-      setLatestPose(null);
-      poseSharedValue.value = [];
-    }
-  }, [enabled]);
 
   // Bridge shared value changes to React state for JS consumers
   const handlePoseUpdate = useCallback((data: number[]) => {
@@ -80,26 +64,26 @@ export const usePoseDetection = ({
     [handlePoseUpdate]
   );
 
-  // Frame processor callback — called from VisionCameraRecorder's onFrame
+  // Frame processor callback — called from VisionCameraRecorder's onFrame.
+  // Uses runAtTargetFps from VisionCamera for worklet-safe throttling.
+  // posePlugin is captured from module scope (not a ref).
   const processFrame = useCallback((frame: Frame) => {
     'worklet';
-    if (!pluginRef.current) return;
+    if (!posePlugin) return;
 
-    // Throttle to target fps
-    const now = Date.now();
-    if (now - lastDetectionTimeRef.current < frameIntervalMs) return;
-    lastDetectionTimeRef.current = now;
-
-    const result = pluginRef.current.call(frame);
-    if (result && Array.isArray(result)) {
-      poseSharedValue.value = result as number[];
-    }
-  }, [frameIntervalMs]);
+    runAtTargetFps(targetDetectionFps, () => {
+      'worklet';
+      const result = posePlugin.call(frame);
+      if (result && Array.isArray(result)) {
+        poseSharedValue.value = result as number[];
+      }
+    });
+  }, [targetDetectionFps]);
 
   return {
     poseSharedValue,
     latestPose,
-    isDetecting,
+    isDetecting: enabled && !!posePlugin,
     processFrame: enabled ? processFrame : null,
   };
 };
