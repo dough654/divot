@@ -28,6 +28,7 @@ import {
 } from '@/src/components/recording';
 import { usePoseDetection } from '@/src/hooks/use-pose-detection';
 import { useSwingAutoDetection } from '@/src/hooks/use-swing-auto-detection';
+import { useSwingFeedback } from '@/src/hooks/use-swing-feedback';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
@@ -107,14 +108,15 @@ export default function CameraScreen() {
 
   // Swing auto-detection — gated by feature flag + user setting + pose detection active
   const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled;
+  const { playSwingStart, playSwingEnd } = useSwingFeedback({ enabled: autoDetectEnabled });
   const swingStartRef = useRef<(() => void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
   const { isArmed: isSwingArmed } = useSwingAutoDetection({
     enabled: autoDetectEnabled,
     latestPose,
     sensitivity: settings.swingDetectionSensitivity,
-    onSwingStarted: useCallback(() => { swingStartRef.current?.(); }, []),
-    onSwingEnded: useCallback(() => { swingEndRef.current?.(); }, []),
+    onSwingStarted: useCallback(() => { playSwingStart(); swingStartRef.current?.(); }, [playSwingStart]),
+    onSwingEnded: useCallback(() => { playSwingEnd(); swingEndRef.current?.(); }, [playSwingEnd]),
   });
 
   // Track if we've shown the microphone warning
