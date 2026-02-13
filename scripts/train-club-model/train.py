@@ -2,15 +2,20 @@
 """
 Golf Club Keypoint Detection — YOLOv8-nano-pose Training Script
 
-Trains a YOLOv8-nano-pose model to detect 2 keypoints on a golf club:
-  - Keypoint 0: Grip end (top of the club)
-  - Keypoint 1: Club head (bottom / hitting surface)
+Trains a YOLOv8-nano-pose model to detect 3 keypoints on a golf club:
+  - Keypoint 0: Grip (where hands hold the club)
+  - Keypoint 1: Shaft midpoint (middle of the shaft)
+  - Keypoint 2: Club head (bottom / hitting surface)
+
+See docs/architecture/club-model-training.md for the full training guide
+including environment setup, export gotchas, and troubleshooting.
 
 Usage:
   1. Install dependencies:
        pip install ultralytics roboflow
 
-  2. Download and prepare dataset (see download_dataset() below)
+  2. Download dataset:
+       python train.py download
 
   3. Train:
        python train.py train
@@ -20,7 +25,7 @@ Usage:
 
 Output:
   - runs/pose/golf-club/weights/best.pt  (trained model)
-  - golf-club-pose.mlpackage              (iOS CoreML)
+  - golf-club-pose.mlpackage              (iOS CoreML — must export on macOS)
   - golf-club-pose.tflite                 (Android TFLite)
 """
 
@@ -53,29 +58,10 @@ def download_dataset():
     You'll need a Roboflow API key. Set it as an environment variable:
       export ROBOFLOW_API_KEY="your_key_here"
 
-    After downloading, create a data.yaml file in this directory:
+    Downloads to: datasets/golf_club_pose/
 
-    ```yaml
-    # data.yaml
-    path: ./datasets/golf-club-keypoints
-    train: train/images
-    val: valid/images
-    test: test/images
-
-    # Class names
-    names:
-      0: golf-club
-
-    # Keypoint shape: [num_keypoints, num_dims]
-    # 2 keypoints (grip, head), each with (x, y, visibility)
-    kpt_shape: [2, 3]
-    ```
-
-    Available Roboflow datasets to combine:
-    - "Golf-Keypoint" project
-    - "Golf Club Keypoints Project"
-
-    Search on https://universe.roboflow.com/ for golf club keypoint datasets.
+    The dataset includes data.yaml with kpt_shape: [3, 3] (3 keypoints, 3 dims).
+    Train command needs the ABSOLUTE path to this data.yaml.
     """
     try:
         from roboflow import Roboflow
@@ -85,17 +71,16 @@ def download_dataset():
         if not api_key:
             print("Error: Set ROBOFLOW_API_KEY environment variable")
             print("  export ROBOFLOW_API_KEY='your_key_here'")
+            print("  Get a key at https://app.roboflow.com/settings/api")
             sys.exit(1)
 
         rf = Roboflow(api_key=api_key)
-
-        # Example — replace with actual project/version after browsing Roboflow Universe
-        print("Browse https://universe.roboflow.com/ for golf club keypoint datasets")
-        print("Then update this script with the correct project/version")
-        print()
-        print("Example download code:")
-        print('  project = rf.workspace("your-workspace").project("golf-keypoint")')
-        print('  dataset = project.version(1).download("yolov8-pose")')
+        project = rf.workspace("golf-zsfiv").project("golf-club-pose")
+        dataset = project.version(1).download("yolov8-pose", location="datasets/golf_club_pose")
+        print(f"\nDataset downloaded to: {dataset.location}")
+        print(f"Data config: {dataset.location}/data.yaml")
+        print(f"\nTo train, use the absolute path:")
+        print(f"  yolo pose train ... data={Path(dataset.location).resolve()}/data.yaml")
 
     except ImportError:
         print("Install roboflow: pip install roboflow")
