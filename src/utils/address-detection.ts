@@ -8,17 +8,22 @@ import type {
 
 /** Default address detection configuration. */
 export const DEFAULT_ADDRESS_CONFIG: AddressDetectionConfig = {
-  wristProximityThreshold: 0.15,
-  stillnessThreshold: 0.02,
-  confirmationPolls: 8,
+  wristProximityThreshold: 0.25,
+  stillnessThreshold: 0.04,
+  confirmationPolls: 6,
   exitPolls: 5,
-  wristHipVerticalThreshold: 0.15,
+  wristHipVerticalThreshold: 0.20,
 };
+
+/** Maximum missed polls allowed during confirmation before resetting. */
+const MAX_CONFIRMATION_MISSES = 2;
 
 /** Internal counters for the address detection state machine. */
 export type AddressCounters = {
   /** Consecutive polls where address criteria are met. */
   confirmationCount: number;
+  /** Missed polls during confirmation (resets on good poll, cancels on exceeding max). */
+  missCount: number;
   /** Consecutive polls where address criteria are broken. */
   exitCount: number;
 };
@@ -26,6 +31,7 @@ export type AddressCounters = {
 /** Initial counters for the address detection state machine. */
 export const INITIAL_ADDRESS_COUNTERS: AddressCounters = {
   confirmationCount: 0,
+  missCount: 0,
   exitCount: 0,
 };
 
@@ -87,6 +93,44 @@ export const checkAddressGeometry = (
   }
 
   return true;
+};
+
+/** Debug info for understanding why address detection is or isn't triggering. */
+export type AddressDebugInfo = {
+  wristConfidence: { left: number; right: number };
+  hipConfidence: { left: number; right: number };
+  wristDistance: number;
+  wristHipVerticalOffset: number;
+  geometryOk: boolean;
+};
+
+/**
+ * Returns detailed debug info about why address geometry did or didn't pass.
+ * Only used for dev-mode logging.
+ */
+export const computeAddressDebugInfo = (
+  pose: PoseFrame,
+  config: AddressDetectionConfig,
+): AddressDebugInfo => {
+  const lw = pose.joints.leftWrist;
+  const rw = pose.joints.rightWrist;
+  const lh = pose.joints.leftHip;
+  const rh = pose.joints.rightHip;
+
+  const dx = lw.x - rw.x;
+  const dy = lw.y - rw.y;
+  const wristDistance = Math.sqrt(dx * dx + dy * dy);
+  const avgWristY = (lw.y + rw.y) / 2;
+  const avgHipY = (lh.y + rh.y) / 2;
+  const verticalOffset = Math.abs(avgWristY - avgHipY);
+
+  return {
+    wristConfidence: { left: lw.confidence, right: rw.confidence },
+    hipConfidence: { left: lh.confidence, right: rh.confidence },
+    wristDistance,
+    wristHipVerticalOffset: verticalOffset,
+    geometryOk: checkAddressGeometry(pose, config),
+  };
 };
 
 /** Joints used for computing body stillness. */
@@ -162,20 +206,20 @@ export const nextAddressState = (
           return {
             state: 'in-address',
             event: { type: 'addressEntered' },
-            counters: { confirmationCount: 0, exitCount: 0 },
+            counters: INITIAL_ADDRESS_COUNTERS,
           };
         }
         return {
           state: 'confirming',
           event: null,
-          counters: { ...counters, confirmationCount: newCount, exitCount: 0 },
+          counters: { ...counters, confirmationCount: newCount, missCount: 0, exitCount: 0 },
         };
       }
       // Criteria not met — reset confirmation
       return {
         state: 'watching',
         event: null,
-        counters: { ...counters, confirmationCount: 0 },
+        counters: { ...counters, confirmationCount: 0, missCount: 0 },
       };
     }
 
@@ -186,20 +230,28 @@ export const nextAddressState = (
           return {
             state: 'in-address',
             event: { type: 'addressEntered' },
-            counters: { confirmationCount: 0, exitCount: 0 },
+            counters: INITIAL_ADDRESS_COUNTERS,
           };
         }
         return {
           state: 'confirming',
           event: null,
-          counters: { ...counters, confirmationCount: newCount },
+          counters: { ...counters, confirmationCount: newCount, missCount: 0 },
         };
       }
-      // Criteria broken — back to watching
+      // Criteria missed — allow a few misses before resetting
+      const newMissCount = counters.missCount + 1;
+      if (newMissCount > MAX_CONFIRMATION_MISSES) {
+        return {
+          state: 'watching',
+          event: null,
+          counters: INITIAL_ADDRESS_COUNTERS,
+        };
+      }
       return {
-        state: 'watching',
+        state: 'confirming',
         event: null,
-        counters: { confirmationCount: 0, exitCount: 0 },
+        counters: { ...counters, missCount: newMissCount },
       };
     }
 

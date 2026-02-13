@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import {
   checkAddressGeometry,
   computeBodyStillness,
+  computeAddressDebugInfo,
   nextAddressState,
   DEFAULT_ADDRESS_CONFIG,
   INITIAL_ADDRESS_COUNTERS,
@@ -83,14 +84,19 @@ export const useAddressDetection = ({
 
     if (__DEV__) {
       const prev = stateRef.current;
-      if (prev !== transition.state || transition.event) {
-        console.log(
-          `[AddressDetect] ${prev}→${transition.state}` +
-          ` geo=${geometryOk} still=${isStill}` +
-          ` confirm=${transition.counters.confirmationCount} exit=${transition.counters.exitCount}` +
-          (transition.event ? ` | EVENT: ${transition.event.type}` : ''),
-        );
-      }
+      const debug = computeAddressDebugInfo(latestPose, config);
+      const displacementLabel = prevPose
+        ? (computeBodyStillness(prevPose, latestPose)?.toFixed(4) ?? 'null')
+        : 'no-prev';
+      console.log(
+        `[AddressDetect] ${prev}→${transition.state}` +
+        ` | wristDist=${debug.wristDistance.toFixed(3)}/${config.wristProximityThreshold}` +
+        ` vertOff=${debug.wristHipVerticalOffset.toFixed(3)}/${config.wristHipVerticalThreshold}` +
+        ` | disp=${displacementLabel}/${config.stillnessThreshold}` +
+        ` | geo=${geometryOk} still=${isStill}` +
+        ` | confirm=${transition.counters.confirmationCount} exit=${transition.counters.exitCount}` +
+        (transition.event ? ` | EVENT: ${transition.event.type}` : ''),
+      );
     }
 
     stateRef.current = transition.state;

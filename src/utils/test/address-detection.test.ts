@@ -175,11 +175,29 @@ describe('nextAddressState', () => {
     expect(r3.event).toEqual({ type: 'addressEntered' });
   });
 
-  it('resets to watching when criteria break during confirming', () => {
-    const counters = { confirmationCount: 2, exitCount: 0 };
-    const result = nextAddressState('confirming', false, true, counters, config);
-    expect(result.state).toBe('watching');
-    expect(result.counters.confirmationCount).toBe(0);
+  it('tolerates a few missed polls during confirming', () => {
+    const counters = { confirmationCount: 2, missCount: 0, exitCount: 0 };
+    // First miss — stays confirming
+    const r1 = nextAddressState('confirming', false, true, counters, config);
+    expect(r1.state).toBe('confirming');
+    expect(r1.counters.missCount).toBe(1);
+
+    // Second miss — still confirming
+    const r2 = nextAddressState(r1.state, false, false, r1.counters, config);
+    expect(r2.state).toBe('confirming');
+    expect(r2.counters.missCount).toBe(2);
+
+    // Third miss — resets to watching
+    const r3 = nextAddressState(r2.state, false, false, r2.counters, config);
+    expect(r3.state).toBe('watching');
+    expect(r3.counters.confirmationCount).toBe(0);
+  });
+
+  it('resets miss counter on good poll during confirming', () => {
+    const counters = { confirmationCount: 2, missCount: 1, exitCount: 0 };
+    const result = nextAddressState('confirming', true, true, counters, config);
+    expect(result.state).toBe('in-address'); // 3rd good poll hits threshold
+    expect(result.counters.missCount).toBe(0);
   });
 
   it('stays in-address when criteria remain met', () => {
@@ -196,14 +214,14 @@ describe('nextAddressState', () => {
   });
 
   it('exits address after enough broken polls', () => {
-    const counters = { confirmationCount: 0, exitCount: 1 };
+    const counters = { confirmationCount: 0, missCount: 0, exitCount: 1 };
     const result = nextAddressState('in-address', false, false, counters, config);
     expect(result.state).toBe('watching');
     expect(result.event).toEqual({ type: 'addressExited' });
   });
 
   it('resets exit counter when criteria are met again in in-address', () => {
-    const counters = { confirmationCount: 0, exitCount: 1 };
+    const counters = { confirmationCount: 0, missCount: 0, exitCount: 1 };
     const result = nextAddressState('in-address', true, true, counters, config);
     expect(result.state).toBe('in-address');
     expect(result.counters.exitCount).toBe(0);
