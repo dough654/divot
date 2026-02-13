@@ -7,6 +7,7 @@ import { useHaptics } from './use-haptics';
 /* eslint-disable @typescript-eslint/no-var-requires */
 const SWING_START_SOUND: AVPlaybackSource = require('@/assets/sounds/swing-start.wav');
 const SWING_END_SOUND: AVPlaybackSource = require('@/assets/sounds/swing-end.wav');
+const ADDRESS_READY_SOUND: AVPlaybackSource = require('@/assets/sounds/address-ready.wav');
 /* eslint-enable @typescript-eslint/no-var-requires */
 
 type UseSwingFeedbackOptions = {
@@ -19,6 +20,8 @@ type UseSwingFeedbackReturn = {
   playSwingStart: () => void;
   /** Play the "swing ended" audio cue + medium haptic. */
   playSwingEnd: () => void;
+  /** Play the "address ready" audio cue + light haptic. */
+  playAddressReady: () => void;
 };
 
 /**
@@ -36,6 +39,7 @@ type UseSwingFeedbackReturn = {
 export const useSwingFeedback = ({ enabled }: UseSwingFeedbackOptions): UseSwingFeedbackReturn => {
   const startSoundRef = useRef<Audio.Sound | null>(null);
   const endSoundRef = useRef<Audio.Sound | null>(null);
+  const addressReadySoundRef = useRef<Audio.Sound | null>(null);
   const haptics = useHaptics();
 
   // Preload sounds when enabled, unload on disable/unmount
@@ -51,19 +55,22 @@ export const useSwingFeedback = ({ enabled }: UseSwingFeedbackOptions): UseSwing
           shouldDuckAndroid: true,
         });
 
-        const [startResult, endResult] = await Promise.all([
+        const [startResult, endResult, addressReadyResult] = await Promise.all([
           Audio.Sound.createAsync(SWING_START_SOUND),
           Audio.Sound.createAsync(SWING_END_SOUND),
+          Audio.Sound.createAsync(ADDRESS_READY_SOUND),
         ]);
 
         if (cancelled) {
           startResult.sound.unloadAsync().catch(() => {});
           endResult.sound.unloadAsync().catch(() => {});
+          addressReadyResult.sound.unloadAsync().catch(() => {});
           return;
         }
 
         startSoundRef.current = startResult.sound;
         endSoundRef.current = endResult.sound;
+        addressReadySoundRef.current = addressReadyResult.sound;
       } catch {
         // Audio loading failed — haptics will still work
       }
@@ -75,8 +82,10 @@ export const useSwingFeedback = ({ enabled }: UseSwingFeedbackOptions): UseSwing
       cancelled = true;
       startSoundRef.current?.unloadAsync().catch(() => {});
       endSoundRef.current?.unloadAsync().catch(() => {});
+      addressReadySoundRef.current?.unloadAsync().catch(() => {});
       startSoundRef.current = null;
       endSoundRef.current = null;
+      addressReadySoundRef.current = null;
     };
   }, [enabled]);
 
@@ -96,5 +105,13 @@ export const useSwingFeedback = ({ enabled }: UseSwingFeedbackOptions): UseSwing
     sound.setPositionAsync(0).then(() => sound.playAsync()).catch(() => {});
   }, [enabled, haptics]);
 
-  return { playSwingStart, playSwingEnd };
+  const playAddressReady = useCallback(() => {
+    if (!enabled) return;
+    haptics.light();
+    const sound = addressReadySoundRef.current;
+    if (!sound) return;
+    sound.setPositionAsync(0).then(() => sound.playAsync()).catch(() => {});
+  }, [enabled, haptics]);
+
+  return { playSwingStart, playSwingEnd, playAddressReady };
 };

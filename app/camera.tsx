@@ -29,6 +29,7 @@ import {
 import { usePoseDetection } from '@/src/hooks/use-pose-detection';
 import { useSwingAutoDetection } from '@/src/hooks/use-swing-auto-detection';
 import { useSwingFeedback } from '@/src/hooks/use-swing-feedback';
+import { useAddressDetection } from '@/src/hooks/use-address-detection';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
@@ -105,14 +106,32 @@ export default function CameraScreen() {
   const poseDetectionEnabled = !!poseDetectionFlag && settings.poseOverlayEnabled;
   const { latestPose, rawPoseData } = usePoseDetection({ enabled: poseDetectionEnabled });
 
-  // Swing auto-detection — gated by feature flag + user setting + pose detection + camera previewing
+  // Auto-detection pipeline: address detection → swing detection → rolling recorder
   // Must be disabled during reviewing/recording to prevent beeps and accidental recordings
   const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled && cameraState === 'previewing';
-  const { playSwingStart, playSwingEnd } = useSwingFeedback({ enabled: autoDetectEnabled });
+  const { playSwingStart, playSwingEnd, playAddressReady } = useSwingFeedback({ enabled: autoDetectEnabled });
+
+  // Address detection — detects setup/address position before arming swing detector
+  const { isInAddress } = useAddressDetection({
+    enabled: autoDetectEnabled,
+    latestPose,
+  });
+
+  // Play "ready" cue when entering address position
+  const prevIsInAddressRef = useRef(false);
+  useEffect(() => {
+    if (isInAddress && !prevIsInAddressRef.current) {
+      playAddressReady();
+    }
+    prevIsInAddressRef.current = isInAddress;
+  }, [isInAddress, playAddressReady]);
+
+  // Swing detection — only armed when golfer is in address position
+  const swingDetectionEnabled = autoDetectEnabled && isInAddress;
   const swingStartRef = useRef<(() => boolean | void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
-  const { isArmed: isSwingArmed } = useSwingAutoDetection({
-    enabled: autoDetectEnabled,
+  useSwingAutoDetection({
+    enabled: swingDetectionEnabled,
     latestPose,
     sensitivity: settings.swingDetectionSensitivity,
     onSwingStarted: useCallback(() => {
@@ -190,8 +209,8 @@ export default function CameraScreen() {
     activeSessionIdRef.current = activeSession?.id ?? null;
   }, [activeSession]);
 
-  // Rolling buffer recorder for auto-detect mode
-  const rollingRecorderEnabled = autoDetectEnabled && cameraState === 'previewing';
+  // Rolling buffer recorder for auto-detect mode — only active when in address position
+  const rollingRecorderEnabled = autoDetectEnabled && isInAddress && cameraState === 'previewing';
   const handleRollingClipSaved = useCallback((clip: Clip) => {
     if (clip.sessionId) {
       tagClip(clip.id);
@@ -595,10 +614,16 @@ export default function CameraScreen() {
             <Text style={styles.discoverableText}>Discoverable</Text>
           </View>
         )}
-        {isSwingArmed && !isRecording && (
+        {autoDetectEnabled && !isRecording && (
           <View style={styles.autoBadge}>
-            <Ionicons name="body" size={12} color={theme.colors.accent} />
-            <Text style={styles.autoBadgeText}>Auto</Text>
+            <Ionicons
+              name={isInAddress ? 'fitness' : 'body'}
+              size={12}
+              color={isInAddress ? theme.colors.success : theme.colors.accent}
+            />
+            <Text style={[styles.autoBadgeText, isInAddress && styles.autoBadgeTextReady]}>
+              {isInAddress ? 'Ready' : 'Watching'}
+            </Text>
           </View>
         )}
         {isConnected && (() => {
@@ -861,6 +886,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontSize: theme.fontSize.xs,
     fontFamily: theme.fontFamily.body,
     color: theme.colors.accent,
+  },
+  autoBadgeTextReady: {
+    color: theme.colors.success,
   },
   videoContainer: {
     flex: 1,
