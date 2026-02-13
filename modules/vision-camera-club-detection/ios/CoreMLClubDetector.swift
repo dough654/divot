@@ -58,6 +58,8 @@ final class CoreMLClubDetector {
       return
     }
 
+    NSLog("[ClubDetector] Found model at: \(modelURL.path)")
+
     do {
       let config = MLModelConfiguration()
       config.computeUnits = .all
@@ -134,19 +136,24 @@ final class CoreMLClubDetector {
     }
 
     let numDetections = shape[2]
-    let pointer = multiArray.dataPointer.bindMemory(to: Float.self, capacity: valuesPerDetection * numDetections)
+    let pointer = multiArray.dataPointer.bindMemory(to: Float.self, capacity: shape[0] * shape[1] * shape[2])
 
-    // Transpose: raw layout is [1, 11, N] contiguous, so element [0, row, col] = pointer[row * N + col]
+    // Use actual strides from MLMultiArray — CoreML does NOT guarantee C-contiguous layout.
+    let strides = multiArray.strides.map { $0.intValue }
+    let stride1 = strides[1]  // stride along the 14-value dimension
+    let stride2 = strides[2]  // stride along the N-detection dimension
+
+    // element [0, row, col] = pointer[row * stride1 + col * stride2]
     var candidates: [(box: [Float], confidence: Float, keypoints: [Float])] = []
 
     for col in 0..<numDetections {
-      let confidence = pointer[4 * numDetections + col]
+      let confidence = pointer[4 * stride1 + col * stride2]
       guard confidence >= confidenceThreshold else { continue }
 
-      let cx = pointer[0 * numDetections + col]
-      let cy = pointer[1 * numDetections + col]
-      let w  = pointer[2 * numDetections + col]
-      let h  = pointer[3 * numDetections + col]
+      let cx = pointer[0 * stride1 + col * stride2]
+      let cy = pointer[1 * stride1 + col * stride2]
+      let w  = pointer[2 * stride1 + col * stride2]
+      let h  = pointer[3 * stride1 + col * stride2]
 
       // Convert center format to corner format for NMS
       let x1 = cx - w / 2
@@ -158,9 +165,9 @@ final class CoreMLClubDetector {
       var keypoints = [Float](repeating: 0, count: numKeypoints * 3)
       for kp in 0..<numKeypoints {
         let baseIdx = (5 + kp * 3)
-        keypoints[kp * 3]     = pointer[baseIdx * numDetections + col]       // x
-        keypoints[kp * 3 + 1] = pointer[(baseIdx + 1) * numDetections + col] // y
-        keypoints[kp * 3 + 2] = pointer[(baseIdx + 2) * numDetections + col] // conf
+        keypoints[kp * 3]     = pointer[baseIdx * stride1 + col * stride2]       // x
+        keypoints[kp * 3 + 1] = pointer[(baseIdx + 1) * stride1 + col * stride2] // y
+        keypoints[kp * 3 + 2] = pointer[(baseIdx + 2) * stride1 + col * stride2] // conf
       }
 
       candidates.append((
@@ -190,8 +197,9 @@ final class CoreMLClubDetector {
       let normalizedY = Double(best.keypoints[offset + 1]) / Double(inputSize)
       let conf = Double(best.keypoints[offset + 2])
 
-      // Flip X to correct mirror effect (same as pose detector)
-      result[offset] = 1.0 - normalizedX
+      // No x-flip needed — unlike Apple Vision's pose detector, the YOLO
+      // CoreML model outputs coordinates directly in image space.
+      result[offset] = normalizedX
       result[offset + 1] = normalizedY
       result[offset + 2] = conf
     }

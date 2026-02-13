@@ -7,8 +7,8 @@ import VisionCamera
  * Registered as "detectClub" — called from JS via:
  *   `VisionCameraProxy.initFrameProcessorPlugin('detectClub')`
  *
- * Returns a flat array of 6 Doubles (2 keypoints × [x, y, confidence]):
- *   [grip_x, grip_y, grip_conf, head_x, head_y, head_conf]
+ * Returns a flat array of 9 Doubles (3 keypoints × [x, y, confidence]):
+ *   [grip_x, grip_y, grip_conf, shaftMid_x, shaftMid_y, shaftMid_conf, head_x, head_y, head_conf]
  * or nil if no club was detected.
  *
  * Stores the latest result in a thread-safe static property so the

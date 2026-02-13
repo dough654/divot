@@ -48,10 +48,15 @@ export const ClubPlaneLineOverlay = ({ clubKeypoints, visible }: ClubPlaneLineOv
     );
   }
 
-  const { grip, head } = clubKeypoints;
+  const { grip, shaftMid, head } = clubKeypoints;
 
-  // Only draw if both keypoints have sufficient confidence
-  if (grip.confidence < MIN_CONFIDENCE || head.confidence < MIN_CONFIDENCE) {
+  // Pick the two best keypoints for the plane line.
+  // ShaftMid + head are most reliable (grip is often occluded by hands).
+  // Fall back to grip + head if shaftMid confidence is low.
+  const pointA = shaftMid.confidence >= MIN_CONFIDENCE ? shaftMid : grip;
+  const pointB = head;
+
+  if (pointA.confidence < MIN_CONFIDENCE || pointB.confidence < MIN_CONFIDENCE) {
     return (
       <View
         style={styles.overlay}
@@ -65,8 +70,8 @@ export const ClubPlaneLineOverlay = ({ clubKeypoints, visible }: ClubPlaneLineOv
   }
 
   const lineEndpoints = extendLineToBounds(
-    { x: grip.x, y: grip.y },
-    { x: head.x, y: head.y },
+    { x: pointA.x, y: pointA.y },
+    { x: pointB.x, y: pointB.y },
   );
 
   if (!lineEndpoints) {
