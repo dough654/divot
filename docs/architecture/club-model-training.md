@@ -21,9 +21,13 @@ How we trained the YOLOv8-nano-pose model for golf club keypoint detection, and 
 
 | Index | Name | Description |
 |-------|------|-------------|
-| 0 | Grip | Where hands hold the club |
+| 0 | Clubhead | Bottom / hitting surface |
 | 1 | Shaft midpoint | Middle of the shaft |
-| 2 | Clubhead | Bottom / hitting surface |
+| 2 | Grip | Where hands hold the club |
+
+> **Note**: The keypoint order was confirmed via on-device testing. The Roboflow
+> dataset labels index 0 as the clubhead (bottom of club) and index 2 as the grip
+> (top, near hands). The JS hook swaps these to semantic field names.
 
 ### Label format (YOLO pose)
 

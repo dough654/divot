@@ -6,16 +6,19 @@ import UIKit
 /**
  * Wrapper around a custom YOLOv8-nano-pose CoreML model for golf club detection.
  *
- * Detects 3 keypoints (grip end, shaft midpoint, club head) from a CMSampleBuffer
+ * Detects 3 keypoints (clubhead, shaft midpoint, grip) from a CMSampleBuffer
  * and returns a flat [Double] array of 9 values:
- * [grip_x, grip_y, grip_conf, shaftMid_x, shaftMid_y, shaftMid_conf, head_x, head_y, head_conf].
+ * [head_x, head_y, head_conf, shaftMid_x, shaftMid_y, shaftMid_conf, grip_x, grip_y, grip_conf].
+ *
+ * Keypoint indices from the model: 0=clubhead, 1=shaft midpoint, 2=grip.
+ * The JS hook remaps these to semantic field names.
  *
  * The model outputs raw YOLO predictions that require transpose + NMS post-processing
  * since CoreML pose model exports do NOT bake in NMS.
  *
- * Coordinate system matches the pose detector:
+ * Coordinate system:
  *   - With orientation hint, coordinates are screen-space
- *   - X is flipped to correct mirror effect
+ *   - No x-flip needed (YOLO outputs in image space, unlike Apple Vision)
  *   - Y is already in top-left origin (y increases downward)
  *   - Values are normalized 0-1 relative to the image dimensions
  */
@@ -85,6 +88,17 @@ final class CoreMLClubDetector {
       return nil
     }
 
+    // Get frame dimensions for letterbox correction.
+    // Vision applies orientation before scaling, so swap dims for 90°/270° rotations.
+    guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return nil }
+    let rawWidth = CGFloat(CVPixelBufferGetWidth(pixelBuffer))
+    let rawHeight = CGFloat(CVPixelBufferGetHeight(pixelBuffer))
+
+    let isRotated = orientation == .left || orientation == .right
+                 || orientation == .leftMirrored || orientation == .rightMirrored
+    let frameWidth = isRotated ? rawHeight : rawWidth
+    let frameHeight = isRotated ? rawWidth : rawHeight
+
     let handler = VNImageRequestHandler(
       cmSampleBuffer: sampleBuffer,
       orientation: cgImageOrientation(from: orientation),
@@ -100,10 +114,17 @@ final class CoreMLClubDetector {
         return
       }
 
-      detectionResult = self.postProcess(multiArray: multiArray)
+      detectionResult = self.postProcess(
+        multiArray: multiArray,
+        frameWidth: frameWidth,
+        frameHeight: frameHeight
+      )
     }
 
-    request.imageCropAndScaleOption = .scaleFill
+    // scaleFit matches YOLO's letterbox training preprocessing — the image is
+    // scaled to fit within inputSize×inputSize with padding bars, rather than
+    // scaleFill which crops the excess (losing top/bottom of portrait frames).
+    request.imageCropAndScaleOption = .scaleFit
 
     do {
       try handler.perform([request])
@@ -126,7 +147,7 @@ final class CoreMLClubDetector {
    * 3. Apply greedy NMS
    * 4. Extract keypoints from top detection
    */
-  private func postProcess(multiArray: MLMultiArray) -> [Double]? {
+  private func postProcess(multiArray: MLMultiArray, frameWidth: CGFloat, frameHeight: CGFloat) -> [Double]? {
     let shape = multiArray.shape.map { $0.intValue }
 
     // Expected shape: [1, 14, N]
@@ -187,22 +208,32 @@ final class CoreMLClubDetector {
 
     guard let best = kept.first else { return nil }
 
-    // Convert keypoints from pixel coords (0-inputSize) to normalized (0-1)
-    // and apply coordinate corrections matching the pose detector
-    var result = [Double](repeating: 0.0, count: 9)
+    // Reverse the .scaleFit letterbox to get coordinates in the original frame.
+    // Vision scales the image to fit within inputSize×inputSize, maintaining
+    // aspect ratio, with padding bars filling the remainder.
+    let scale = min(inputSize / frameWidth, inputSize / frameHeight)
+    let scaledWidth = frameWidth * scale
+    let scaledHeight = frameHeight * scale
+    let padX = (inputSize - scaledWidth) / 2
+    let padY = (inputSize - scaledHeight) / 2
+
+    // 9 keypoint values + 2 frame dimensions (for preview cover-crop correction in JS)
+    var result = [Double](repeating: 0.0, count: 11)
     for kp in 0..<numKeypoints {
       let offset = kp * 3
-      // Normalize to 0-1 from model input space
-      let normalizedX = Double(best.keypoints[offset]) / Double(inputSize)
-      let normalizedY = Double(best.keypoints[offset + 1]) / Double(inputSize)
+      let pixelX = CGFloat(best.keypoints[offset])
+      let pixelY = CGFloat(best.keypoints[offset + 1])
       let conf = Double(best.keypoints[offset + 2])
 
-      // No x-flip needed — unlike Apple Vision's pose detector, the YOLO
-      // CoreML model outputs coordinates directly in image space.
-      result[offset] = normalizedX
-      result[offset + 1] = normalizedY
+      // Remove letterbox padding and normalize to 0-1 relative to actual frame
+      result[offset] = Double((pixelX - padX) / scaledWidth)
+      result[offset + 1] = Double((pixelY - padY) / scaledHeight)
       result[offset + 2] = conf
     }
+
+    // Frame dimensions so JS can correct for the preview's cover-mode crop
+    result[9] = Double(frameWidth)
+    result[10] = Double(frameHeight)
 
     return result
   }

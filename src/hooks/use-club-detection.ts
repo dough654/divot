@@ -21,6 +21,8 @@ export type UseClubDetectionOptions = {
 export type UseClubDetectionReturn = {
   /** Parsed club keypoints, or null if no club detected. */
   clubKeypoints: ClubKeypoints | null;
+  /** Camera frame aspect ratio (width/height), used for preview cover-crop correction. */
+  cameraAspectRatio: number | null;
 };
 
 /**
@@ -37,6 +39,7 @@ export const useClubDetection = ({
   pollingFps = 3,
 }: UseClubDetectionOptions): UseClubDetectionReturn => {
   const [clubKeypoints, setClubKeypoints] = useState<ClubKeypoints | null>(null);
+  const [cameraAspectRatio, setCameraAspectRatio] = useState<number | null>(null);
 
   // Track previous raw data to avoid unnecessary state updates
   const prevDataRef = useRef<number[] | null>(null);
@@ -59,7 +62,7 @@ export const useClubDetection = ({
       try {
         const data = VisionCameraClubDetectionModule.getLatestClub();
 
-        if (!data || data.length !== CLUB_ARRAY_LENGTH) {
+        if (!data || data.length < CLUB_ARRAY_LENGTH) {
           consecutiveNullsRef.current++;
           if (consecutiveNullsRef.current >= GRACE_POLLS && prevDataRef.current !== null) {
             prevDataRef.current = null;
@@ -77,10 +80,19 @@ export const useClubDetection = ({
         }
 
         prevDataRef.current = data;
+
+        // Extract frame aspect ratio from native (positions 9-10: frameWidth, frameHeight)
+        if (data.length >= 11 && data[10] > 0) {
+          setCameraAspectRatio(data[9] / data[10]);
+        }
+
+        // Model keypoint indices: 0=head, 1=shaftMid, 2=grip
+        // (confirmed via on-device testing — index 0 is at the bottom
+        // near the ground, index 2 is at the top near the hands)
         setClubKeypoints({
-          grip: { x: data[0], y: data[1], confidence: data[2] },
+          grip: { x: data[6], y: data[7], confidence: data[8] },
           shaftMid: { x: data[3], y: data[4], confidence: data[5] },
-          head: { x: data[6], y: data[7], confidence: data[8] },
+          head: { x: data[0], y: data[1], confidence: data[2] },
         });
       } catch {
         // Ignore polling errors (module not loaded, etc.)
@@ -90,5 +102,5 @@ export const useClubDetection = ({
     return () => clearInterval(interval);
   }, [enabled, pollingFps]);
 
-  return { clubKeypoints };
+  return { clubKeypoints, cameraAspectRatio };
 };

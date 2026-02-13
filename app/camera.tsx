@@ -121,7 +121,7 @@ export default function CameraScreen() {
   });
 
   // Club detection — runs only during confirmed address, at low fps
-  const { clubKeypoints } = useClubDetection({ enabled: autoDetectEnabled && isInAddress });
+  const { clubKeypoints, cameraAspectRatio } = useClubDetection({ enabled: autoDetectEnabled && isInAddress });
 
   // Persist the last detected club keypoints so the plane line stays
   // visible after address exits (during takeaway). Clear on new address cycle
@@ -689,6 +689,7 @@ export default function CameraScreen() {
               <ClubPlaneLineOverlay
                 clubKeypoints={displayClubKeypoints}
                 visible={true}
+                cameraAspectRatio={cameraAspectRatio}
               />
             )}
             {currentError && (
