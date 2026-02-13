@@ -92,10 +92,9 @@ export const useAddressDetection = ({
         `[AddressDetect] ${prev}→${transition.state}` +
         ` | wConf=${debug.wristConfidence.left.toFixed(2)}/${debug.wristConfidence.right.toFixed(2)}` +
         ` wDist=${debug.wristDistance.toFixed(3)}/${config.wristProximityThreshold}` +
-        ` vOff=${debug.wristHipVerticalOffset.toFixed(3)}/${config.wristHipVerticalThreshold}` +
         ` | disp=${displacementLabel}/${config.stillnessThreshold}` +
         ` | geo=${geometryOk} still=${isStill}` +
-        ` | confirm=${transition.counters.confirmationCount} exit=${transition.counters.exitCount}` +
+        ` | confirm=${transition.counters.confirmationCount} miss=${transition.counters.missCount} exit=${transition.counters.exitCount}` +
         (transition.event ? ` | EVENT: ${transition.event.type}` : ''),
       );
     }

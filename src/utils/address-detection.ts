@@ -11,12 +11,12 @@ export const DEFAULT_ADDRESS_CONFIG: AddressDetectionConfig = {
   wristProximityThreshold: 0.25,
   stillnessThreshold: 0.04,
   confirmationPolls: 6,
-  exitPolls: 5,
-  wristHipVerticalThreshold: 0.20,
+  exitPolls: 12,
+  wristHipVerticalThreshold: 0.50,
 };
 
 /** Maximum missed polls allowed during confirmation before resetting. */
-const MAX_CONFIRMATION_MISSES = 2;
+const MAX_CONFIRMATION_MISSES = 4;
 
 /** Internal counters for the address detection state machine. */
 export type AddressCounters = {
@@ -42,16 +42,21 @@ export type AddressStateTransition = {
   counters: AddressCounters;
 };
 
-/** Minimum joint confidence to consider a joint visible. */
-const MIN_CONFIDENCE = 0.2;
+/**
+ * Minimum joint confidence to consider a joint visible.
+ * Set low (0.1) because the pose model frequently reports valid positions
+ * at confidence 0.11-0.19. The 0.0 cases genuinely have garbage positions
+ * (distance jumps to 0.65+) so they naturally fail the distance check.
+ */
+const MIN_CONFIDENCE = 0.1;
 
 /**
  * Checks whether the current pose matches golf address geometry.
  *
- * Primary signal: both wrists close together (gripping club).
- * Secondary (soft) signal: if hips are visible with good confidence,
- * check that wrists are in the same vertical region. This is NOT
- * required — hip Y is too noisy on many pose models to be a hard gate.
+ * The only hard signal is wrist proximity — both wrists close together,
+ * meaning the golfer is gripping the club. Hip-relative checks have been
+ * removed because hip Y coordinates are too noisy frame-to-frame on the
+ * current pose model to be useful.
  *
  * @param pose - Current pose frame
  * @param config - Address detection config
@@ -64,7 +69,7 @@ export const checkAddressGeometry = (
   const leftWrist = pose.joints.leftWrist;
   const rightWrist = pose.joints.rightWrist;
 
-  // Both wrists must be visible — this is the hard requirement
+  // Both wrists must be minimally visible
   if (
     leftWrist.confidence < MIN_CONFIDENCE ||
     rightWrist.confidence < MIN_CONFIDENCE
@@ -77,26 +82,7 @@ export const checkAddressGeometry = (
   const wristDy = leftWrist.y - rightWrist.y;
   const wristDistance = Math.sqrt(wristDx * wristDx + wristDy * wristDy);
 
-  if (wristDistance > config.wristProximityThreshold) {
-    return false;
-  }
-
-  // Soft hip check — only applied when both hips are confidently visible
-  const leftHip = pose.joints.leftHip;
-  const rightHip = pose.joints.rightHip;
-  const hipsVisible = leftHip.confidence >= MIN_CONFIDENCE && rightHip.confidence >= MIN_CONFIDENCE;
-
-  if (hipsVisible) {
-    const avgWristY = (leftWrist.y + rightWrist.y) / 2;
-    const avgHipY = (leftHip.y + rightHip.y) / 2;
-    const verticalOffset = Math.abs(avgWristY - avgHipY);
-
-    if (verticalOffset > config.wristHipVerticalThreshold) {
-      return false;
-    }
-  }
-
-  return true;
+  return wristDistance <= config.wristProximityThreshold;
 };
 
 /** Debug info for understanding why address detection is or isn't triggering. */

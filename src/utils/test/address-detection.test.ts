@@ -53,48 +53,32 @@ describe('checkAddressGeometry', () => {
     expect(checkAddressGeometry(pose, config)).toBe(false);
   });
 
-  it('returns false when wrists are too high above hips', () => {
+  it('returns false when a wrist has very low confidence (0.05)', () => {
     const pose = makeAddressPose();
-    // Move wrists way above hip level
-    pose.joints.leftWrist = { x: 0.48, y: 0.2, confidence: 0.9 };
-    pose.joints.rightWrist = { x: 0.52, y: 0.2, confidence: 0.9 };
+    pose.joints.leftWrist = { x: 0.48, y: 0.55, confidence: 0.05 };
     expect(checkAddressGeometry(pose, config)).toBe(false);
   });
 
-  it('returns false when wrists are too far below hips', () => {
+  it('passes with low but non-zero wrist confidence (0.15)', () => {
     const pose = makeAddressPose();
-    pose.joints.leftWrist = { x: 0.48, y: 0.85, confidence: 0.9 };
-    pose.joints.rightWrist = { x: 0.52, y: 0.85, confidence: 0.9 };
-    expect(checkAddressGeometry(pose, config)).toBe(false);
-  });
-
-  it('returns false when a wrist has low confidence', () => {
-    const pose = makeAddressPose();
-    pose.joints.leftWrist = { x: 0.48, y: 0.55, confidence: 0.1 };
-    expect(checkAddressGeometry(pose, config)).toBe(false);
-  });
-
-  it('passes when hips have low confidence (soft hip check skipped)', () => {
-    const pose = makeAddressPose();
-    pose.joints.leftHip = { x: 0.45, y: 0.58, confidence: 0.1 };
-    pose.joints.rightHip = { x: 0.55, y: 0.58, confidence: 0.1 };
-    // Wrists are close together so geometry still passes without hip check
+    pose.joints.leftWrist = { x: 0.48, y: 0.55, confidence: 0.15 };
+    pose.joints.rightWrist = { x: 0.52, y: 0.55, confidence: 0.15 };
     expect(checkAddressGeometry(pose, config)).toBe(true);
   });
 
-  it('fails hip check when hips visible but wrists too far from hip level', () => {
+  it('passes regardless of hip confidence or position', () => {
     const pose = makeAddressPose();
-    // Good hip confidence + wrists way above hips
-    pose.joints.leftWrist = { x: 0.48, y: 0.1, confidence: 0.9 };
-    pose.joints.rightWrist = { x: 0.52, y: 0.1, confidence: 0.9 };
-    expect(checkAddressGeometry(pose, config)).toBe(false);
+    // Hips at crazy positions — geometry only cares about wrists
+    pose.joints.leftHip = { x: 0.0, y: 0.0, confidence: 0.0 };
+    pose.joints.rightHip = { x: 1.0, y: 1.0, confidence: 0.0 };
+    expect(checkAddressGeometry(pose, config)).toBe(true);
   });
 
-  it('accepts wrists slightly above hips (within threshold)', () => {
+  it('passes with wrists at any Y position as long as they are close', () => {
     const pose = makeAddressPose();
-    // Wrists just slightly above — within threshold of hip Y
-    pose.joints.leftWrist = { x: 0.48, y: 0.44, confidence: 0.9 };
-    pose.joints.rightWrist = { x: 0.52, y: 0.44, confidence: 0.9 };
+    // Wrists way above hips — still passes (no hip check)
+    pose.joints.leftWrist = { x: 0.48, y: 0.1, confidence: 0.9 };
+    pose.joints.rightWrist = { x: 0.52, y: 0.1, confidence: 0.9 };
     expect(checkAddressGeometry(pose, config)).toBe(true);
   });
 });
@@ -115,9 +99,9 @@ describe('computeBodyStillness', () => {
   });
 
   it('returns null when fewer than 2 joints are visible', () => {
-    // All joints at confidence 0.1 — below the 0.2 threshold
-    const prev = makeUniformPose(0.5, 0.5, 0.1, 0);
-    const curr = makeUniformPose(0.5, 0.5, 0.1, 100);
+    // All joints at confidence 0.05 — below the 0.1 threshold
+    const prev = makeUniformPose(0.5, 0.5, 0.05, 0);
+    const curr = makeUniformPose(0.5, 0.5, 0.05, 100);
     const result = computeBodyStillness(prev, curr);
     expect(result).toBeNull();
   });
@@ -126,8 +110,8 @@ describe('computeBodyStillness', () => {
     const prev = makeAddressPose(0);
     const curr = makeAddressPose(100);
 
-    // Make nose low confidence in current frame
-    curr.joints.nose = { x: 0.9, y: 0.9, confidence: 0.1 };
+    // Make nose very low confidence in current frame so it's excluded
+    curr.joints.nose = { x: 0.9, y: 0.9, confidence: 0.05 };
 
     // Should still work (enough visible joints) but nose movement is excluded
     const result = computeBodyStillness(prev, curr);
@@ -186,22 +170,29 @@ describe('nextAddressState', () => {
     expect(r3.event).toEqual({ type: 'addressEntered' });
   });
 
-  it('tolerates a few missed polls during confirming', () => {
+  it('tolerates up to 4 missed polls during confirming', () => {
     const counters = { confirmationCount: 2, missCount: 0, exitCount: 0 };
-    // First miss — stays confirming
-    const r1 = nextAddressState('confirming', false, true, counters, config);
-    expect(r1.state).toBe('confirming');
-    expect(r1.counters.missCount).toBe(1);
+    // Misses 1-4 — stays confirming
+    let state = nextAddressState('confirming', false, true, counters, config);
+    expect(state.state).toBe('confirming');
+    expect(state.counters.missCount).toBe(1);
 
-    // Second miss — still confirming
-    const r2 = nextAddressState(r1.state, false, false, r1.counters, config);
-    expect(r2.state).toBe('confirming');
-    expect(r2.counters.missCount).toBe(2);
+    state = nextAddressState(state.state, false, false, state.counters, config);
+    expect(state.state).toBe('confirming');
+    expect(state.counters.missCount).toBe(2);
 
-    // Third miss — resets to watching
-    const r3 = nextAddressState(r2.state, false, false, r2.counters, config);
-    expect(r3.state).toBe('watching');
-    expect(r3.counters.confirmationCount).toBe(0);
+    state = nextAddressState(state.state, false, false, state.counters, config);
+    expect(state.state).toBe('confirming');
+    expect(state.counters.missCount).toBe(3);
+
+    state = nextAddressState(state.state, false, false, state.counters, config);
+    expect(state.state).toBe('confirming');
+    expect(state.counters.missCount).toBe(4);
+
+    // 5th miss — resets to watching
+    state = nextAddressState(state.state, false, false, state.counters, config);
+    expect(state.state).toBe('watching');
+    expect(state.counters.confirmationCount).toBe(0);
   });
 
   it('resets miss counter on good poll during confirming', () => {
