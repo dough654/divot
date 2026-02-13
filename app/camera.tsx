@@ -25,8 +25,11 @@ import {
   RecordingIndicator,
   VisionCameraRecorder,
   VisionCameraRecorderRef,
+  ClubPlaneLineOverlay,
 } from '@/src/components/recording';
 import { usePoseDetection } from '@/src/hooks/use-pose-detection';
+import { useClubDetection } from '@/src/hooks/use-club-detection';
+import type { ClubKeypoints } from '@/src/hooks/use-club-detection';
 import { useSwingAutoDetection } from '@/src/hooks/use-swing-auto-detection';
 import { useSwingFeedback } from '@/src/hooks/use-swing-feedback';
 import { useAddressDetection } from '@/src/hooks/use-address-detection';
@@ -117,14 +120,39 @@ export default function CameraScreen() {
     latestPose,
   });
 
+  // Club detection — runs only during confirmed address, at low fps
+  const { clubKeypoints } = useClubDetection({ enabled: autoDetectEnabled && isInAddress });
+
+  // Persist the last detected club keypoints so the plane line stays
+  // visible after address exits (during takeaway). Clear on new address cycle
+  // or when auto-detect is toggled off.
+  const lastClubKeypointsRef = useRef<ClubKeypoints | null>(null);
+  useEffect(() => {
+    if (clubKeypoints) {
+      lastClubKeypointsRef.current = clubKeypoints;
+    }
+  }, [clubKeypoints]);
+
+  // Clear persisted club keypoints when auto-detect is disabled
+  useEffect(() => {
+    if (!autoDetectEnabled) {
+      lastClubKeypointsRef.current = null;
+    }
+  }, [autoDetectEnabled]);
+
   // Play "ready" cue when entering address position
   const prevIsInAddressRef = useRef(false);
   useEffect(() => {
     if (isInAddress && !prevIsInAddressRef.current) {
       playAddressReady();
+      // New address cycle — clear old plane line so a fresh detection replaces it
+      lastClubKeypointsRef.current = null;
     }
     prevIsInAddressRef.current = isInAddress;
   }, [isInAddress, playAddressReady]);
+
+  // The club keypoints to render: live during address, persisted after
+  const displayClubKeypoints = clubKeypoints ?? lastClubKeypointsRef.current;
 
   // Swing detection — only armed when golfer is in address position
   const swingDetectionEnabled = autoDetectEnabled && isInAddress;
@@ -648,6 +676,7 @@ export default function CameraScreen() {
                 poseDetectionEnabled={poseDetectionEnabled}
                 poseOverlayVisible={poseDetectionEnabled}
                 poseData={rawPoseData}
+                clubDetectionEnabled={autoDetectEnabled && isInAddress}
               />
             ) : (
               <View style={styles.cameraPlaceholder}>
@@ -655,6 +684,12 @@ export default function CameraScreen() {
                   {hasCameraPermission ? 'No camera device found' : 'Camera permission required'}
                 </Text>
               </View>
+            )}
+            {autoDetectEnabled && displayClubKeypoints && (
+              <ClubPlaneLineOverlay
+                clubKeypoints={displayClubKeypoints}
+                visible={true}
+              />
             )}
             {currentError && (
               <View style={styles.errorOverlay}>

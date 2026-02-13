@@ -24,6 +24,10 @@ export type VisionCameraRecorderProps = {
   poseOverlayVisible?: boolean;
   /** Raw 42-element pose array for overlay rendering (polled from native by parent). */
   poseData?: number[] | null;
+  /** Whether club detection should run on frames. */
+  clubDetectionEnabled?: boolean;
+  /** Target fps for club detection. Defaults to 3. */
+  clubDetectionFps?: number;
 };
 
 export type VisionCameraRecorderRef = {
@@ -46,6 +50,7 @@ const IS_ANDROID = Platform.OS === 'android';
 // available in the worklet closure without going through React refs.
 const forwardPlugin = VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC', {});
 const posePlugin = VisionCameraProxy.initFrameProcessorPlugin('detectPose', {});
+const clubPlugin = VisionCameraProxy.initFrameProcessorPlugin('detectClub', {});
 
 /**
  * VisionCamera-based recording view with camera preview and internal
@@ -66,6 +71,7 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
     device, isActive, audio = true, format, fps,
     poseDetectionEnabled = false, poseDetectionFps = 10,
     poseOverlayVisible = false, poseData,
+    clubDetectionEnabled = false, clubDetectionFps = 3,
   }, ref) => {
     const cameraRef = useRef<Camera>(null);
 
@@ -91,7 +97,15 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           posePlugin.call(frame);
         });
       }
-    }, [poseDetectionEnabled, poseDetectionFps]);
+
+      // Club detection — runs at lower fps (~3), gated by address state
+      if (clubDetectionEnabled && clubPlugin) {
+        runAtTargetFps(clubDetectionFps, () => {
+          'worklet';
+          clubPlugin.call(frame);
+        });
+      }
+    }, [poseDetectionEnabled, poseDetectionFps, clubDetectionEnabled, clubDetectionFps]);
 
     // Counter-rotation style for Android preview correction.
     const cameraWrapperStyle = useAnimatedStyle(() => {

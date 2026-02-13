@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["VisionCameraClubDetectionModule"]
+  },
+  "android": {
+    "modules": ["com.swinglink.clubdetection.VisionCameraClubDetectionModule"]
+  }
+}

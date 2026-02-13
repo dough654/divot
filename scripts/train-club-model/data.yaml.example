@@ -1,0 +1,20 @@
+# data.yaml — YOLOv8-pose dataset configuration for golf club keypoints
+#
+# Copy this file to data.yaml and update the path to your downloaded dataset.
+# Download datasets from Roboflow Universe: https://universe.roboflow.com/
+#
+# Search for "golf club keypoints" or "golf club pose" datasets.
+# Export in YOLOv8-Pose format.
+
+path: ./datasets/golf-club-keypoints
+train: train/images
+val: valid/images
+test: test/images
+
+# Single class
+names:
+  0: golf-club
+
+# Keypoint shape: [num_keypoints, num_dims]
+# 2 keypoints (grip end, club head), each with (x, y, visibility)
+kpt_shape: [2, 3]
