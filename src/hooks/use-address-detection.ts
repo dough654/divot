@@ -90,8 +90,9 @@ export const useAddressDetection = ({
         : 'no-prev';
       console.log(
         `[AddressDetect] ${prev}→${transition.state}` +
-        ` | wristDist=${debug.wristDistance.toFixed(3)}/${config.wristProximityThreshold}` +
-        ` vertOff=${debug.wristHipVerticalOffset.toFixed(3)}/${config.wristHipVerticalThreshold}` +
+        ` | wConf=${debug.wristConfidence.left.toFixed(2)}/${debug.wristConfidence.right.toFixed(2)}` +
+        ` wDist=${debug.wristDistance.toFixed(3)}/${config.wristProximityThreshold}` +
+        ` vOff=${debug.wristHipVerticalOffset.toFixed(3)}/${config.wristHipVerticalThreshold}` +
         ` | disp=${displacementLabel}/${config.stillnessThreshold}` +
         ` | geo=${geometryOk} still=${isStill}` +
         ` | confirm=${transition.counters.confirmationCount} exit=${transition.counters.exitCount}` +

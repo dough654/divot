@@ -74,15 +74,25 @@ describe('checkAddressGeometry', () => {
     expect(checkAddressGeometry(pose, config)).toBe(false);
   });
 
-  it('returns false when a hip has low confidence', () => {
+  it('passes when hips have low confidence (soft hip check skipped)', () => {
     const pose = makeAddressPose();
     pose.joints.leftHip = { x: 0.45, y: 0.58, confidence: 0.1 };
+    pose.joints.rightHip = { x: 0.55, y: 0.58, confidence: 0.1 };
+    // Wrists are close together so geometry still passes without hip check
+    expect(checkAddressGeometry(pose, config)).toBe(true);
+  });
+
+  it('fails hip check when hips visible but wrists too far from hip level', () => {
+    const pose = makeAddressPose();
+    // Good hip confidence + wrists way above hips
+    pose.joints.leftWrist = { x: 0.48, y: 0.1, confidence: 0.9 };
+    pose.joints.rightWrist = { x: 0.52, y: 0.1, confidence: 0.9 };
     expect(checkAddressGeometry(pose, config)).toBe(false);
   });
 
   it('accepts wrists slightly above hips (within threshold)', () => {
     const pose = makeAddressPose();
-    // Wrists just slightly above — within 0.15 of hip Y
+    // Wrists just slightly above — within threshold of hip Y
     pose.joints.leftWrist = { x: 0.48, y: 0.44, confidence: 0.9 };
     pose.joints.rightWrist = { x: 0.52, y: 0.44, confidence: 0.9 };
     expect(checkAddressGeometry(pose, config)).toBe(true);
@@ -104,7 +114,8 @@ describe('computeBodyStillness', () => {
     expect(result!).toBeGreaterThan(0);
   });
 
-  it('returns null when fewer than 4 joints are visible', () => {
+  it('returns null when fewer than 2 joints are visible', () => {
+    // All joints at confidence 0.1 — below the 0.2 threshold
     const prev = makeUniformPose(0.5, 0.5, 0.1, 0);
     const curr = makeUniformPose(0.5, 0.5, 0.1, 100);
     const result = computeBodyStillness(prev, curr);

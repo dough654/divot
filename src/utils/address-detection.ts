@@ -43,13 +43,15 @@ export type AddressStateTransition = {
 };
 
 /** Minimum joint confidence to consider a joint visible. */
-const MIN_CONFIDENCE = 0.3;
+const MIN_CONFIDENCE = 0.2;
 
 /**
- * Checks whether the current pose matches golf address geometry:
- * - Both wrists visible and close together (gripping club)
- * - Both hips visible
- * - Wrists vertically near hip level (hands at waist, not overhead)
+ * Checks whether the current pose matches golf address geometry.
+ *
+ * Primary signal: both wrists close together (gripping club).
+ * Secondary (soft) signal: if hips are visible with good confidence,
+ * check that wrists are in the same vertical region. This is NOT
+ * required — hip Y is too noisy on many pose models to be a hard gate.
  *
  * @param pose - Current pose frame
  * @param config - Address detection config
@@ -61,15 +63,11 @@ export const checkAddressGeometry = (
 ): boolean => {
   const leftWrist = pose.joints.leftWrist;
   const rightWrist = pose.joints.rightWrist;
-  const leftHip = pose.joints.leftHip;
-  const rightHip = pose.joints.rightHip;
 
-  // All four joints must be visible
+  // Both wrists must be visible — this is the hard requirement
   if (
     leftWrist.confidence < MIN_CONFIDENCE ||
-    rightWrist.confidence < MIN_CONFIDENCE ||
-    leftHip.confidence < MIN_CONFIDENCE ||
-    rightHip.confidence < MIN_CONFIDENCE
+    rightWrist.confidence < MIN_CONFIDENCE
   ) {
     return false;
   }
@@ -83,13 +81,19 @@ export const checkAddressGeometry = (
     return false;
   }
 
-  // Hands must be near waist level
-  const avgWristY = (leftWrist.y + rightWrist.y) / 2;
-  const avgHipY = (leftHip.y + rightHip.y) / 2;
-  const verticalOffset = Math.abs(avgWristY - avgHipY);
+  // Soft hip check — only applied when both hips are confidently visible
+  const leftHip = pose.joints.leftHip;
+  const rightHip = pose.joints.rightHip;
+  const hipsVisible = leftHip.confidence >= MIN_CONFIDENCE && rightHip.confidence >= MIN_CONFIDENCE;
 
-  if (verticalOffset > config.wristHipVerticalThreshold) {
-    return false;
+  if (hipsVisible) {
+    const avgWristY = (leftWrist.y + rightWrist.y) / 2;
+    const avgHipY = (leftHip.y + rightHip.y) / 2;
+    const verticalOffset = Math.abs(avgWristY - avgHipY);
+
+    if (verticalOffset > config.wristHipVerticalThreshold) {
+      return false;
+    }
   }
 
   return true;
@@ -172,7 +176,7 @@ export const computeBodyStillness = (
     }
   }
 
-  if (count < 4) return null;
+  if (count < 2) return null;
 
   return totalDisplacement / count;
 };
