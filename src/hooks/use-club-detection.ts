@@ -4,11 +4,12 @@ import { VisionCameraClubDetectionModule } from '../../modules/vision-camera-clu
 /** Parsed club keypoints with named fields. */
 export type ClubKeypoints = {
   grip: { x: number; y: number; confidence: number };
+  shaftMid: { x: number; y: number; confidence: number };
   head: { x: number; y: number; confidence: number };
 };
 
-/** Expected length of the raw club detection array (2 keypoints × 3 values). */
-const CLUB_ARRAY_LENGTH = 6;
+/** Expected length of the raw club detection array (3 keypoints × 3 values). */
+const CLUB_ARRAY_LENGTH = 9;
 
 export type UseClubDetectionOptions = {
   /** Whether club detection polling is active. Only true when isInAddress. */
@@ -78,7 +79,8 @@ export const useClubDetection = ({
         prevDataRef.current = data;
         setClubKeypoints({
           grip: { x: data[0], y: data[1], confidence: data[2] },
-          head: { x: data[3], y: data[4], confidence: data[5] },
+          shaftMid: { x: data[3], y: data[4], confidence: data[5] },
+          head: { x: data[6], y: data[7], confidence: data[8] },
         });
       } catch {
         // Ignore polling errors (module not loaded, etc.)

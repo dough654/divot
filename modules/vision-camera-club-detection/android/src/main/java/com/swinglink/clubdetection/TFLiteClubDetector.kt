@@ -16,8 +16,9 @@ import java.nio.channels.FileChannel
 /**
  * Wrapper around a custom YOLOv8-nano-pose TFLite model for golf club detection.
  *
- * Detects 2 keypoints (grip end + club head) from an Android Image and returns
- * a flat list of 6 Doubles: [grip_x, grip_y, grip_conf, head_x, head_y, head_conf].
+ * Detects 3 keypoints (grip end, shaft midpoint, club head) from an Android Image
+ * and returns a flat list of 9 Doubles:
+ * [grip_x, grip_y, grip_conf, shaftMid_x, shaftMid_y, shaftMid_conf, head_x, head_y, head_conf].
  *
  * Coordinate system:
  *   - TFLite outputs coordinates in the model's input space (0-320)
@@ -36,14 +37,14 @@ class TFLiteClubDetector(private val context: Context) {
   /** IoU threshold for non-maximum suppression. */
   private val iouThreshold = 0.45f
 
-  /** Number of keypoints the model outputs (grip + head). */
-  private val numKeypoints = 2
+  /** Number of keypoints the model outputs (grip + shaft midpoint + head). */
+  private val numKeypoints = 3
 
   /**
-   * Total values per detection: 4 (bbox) + 1 (obj_conf) + 6 (2 keypoints × 3).
-   * Output shape from YOLOv8-pose with 2 keypoints: (1, 11, N)
+   * Total values per detection: 4 (bbox) + 1 (obj_conf) + 9 (3 keypoints × 3).
+   * Output shape from YOLOv8-pose with 3 keypoints: (1, 14, N)
    */
-  private val valuesPerDetection = 11
+  private val valuesPerDetection = 14
 
   private var interpreter: Interpreter? = null
   private var modelLoadFailed = false
@@ -226,7 +227,7 @@ class TFLiteClubDetector(private val context: Context) {
 
     // Convert keypoints from pixel coords (0-inputSize) to normalized (0-1)
     // No X flip needed on Android (unlike iOS Vision)
-    val result = MutableList(6) { 0.0 }
+    val result = MutableList(9) { 0.0 }
     for (kp in 0 until numKeypoints) {
       val offset = kp * 3
       result[offset]     = (best.keypoints[offset] / inputSize).toDouble()

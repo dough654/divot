@@ -6,8 +6,9 @@ import UIKit
 /**
  * Wrapper around a custom YOLOv8-nano-pose CoreML model for golf club detection.
  *
- * Detects 2 keypoints (grip end + club head) from a CMSampleBuffer and returns
- * a flat [Double] array of 6 values: [grip_x, grip_y, grip_conf, head_x, head_y, head_conf].
+ * Detects 3 keypoints (grip end, shaft midpoint, club head) from a CMSampleBuffer
+ * and returns a flat [Double] array of 9 values:
+ * [grip_x, grip_y, grip_conf, shaftMid_x, shaftMid_y, shaftMid_conf, head_x, head_y, head_conf].
  *
  * The model outputs raw YOLO predictions that require transpose + NMS post-processing
  * since CoreML pose model exports do NOT bake in NMS.
@@ -29,12 +30,12 @@ final class CoreMLClubDetector {
   /// IoU threshold for non-maximum suppression.
   private let iouThreshold: Float = 0.45
 
-  /// Number of keypoints the model outputs (grip + head).
-  private let numKeypoints = 2
+  /// Number of keypoints the model outputs (grip + shaft midpoint + head).
+  private let numKeypoints = 3
 
-  /// Total values per detection: 4 (bbox) + 1 (obj_conf) + 6 (2 keypoints × 3).
-  /// Output shape from YOLOv8-pose with 2 keypoints: (1, 11, N)
-  private let valuesPerDetection = 11
+  /// Total values per detection: 4 (bbox) + 1 (obj_conf) + 9 (3 keypoints × 3).
+  /// Output shape from YOLOv8-pose with 3 keypoints: (1, 14, N)
+  private let valuesPerDetection = 14
 
   private var coreMLModel: VNCoreMLModel?
   private var modelLoadFailed = false
@@ -69,7 +70,7 @@ final class CoreMLClubDetector {
    *
    * @param sampleBuffer The camera frame to analyze
    * @param orientation The UIImage.Orientation of the frame (from VisionCamera CoreMotion)
-   * @returns Flat array of 6 Doubles [grip_x, grip_y, grip_conf, head_x, head_y, head_conf],
+   * @returns Flat array of 9 Doubles [grip_x, grip_y, grip_conf, shaftMid_x, shaftMid_y, shaftMid_conf, head_x, head_y, head_conf],
    *          or nil if no club detected or model unavailable
    */
   func detectClub(sampleBuffer: CMSampleBuffer, orientation: UIImage.Orientation) -> [Double]? {
@@ -109,11 +110,11 @@ final class CoreMLClubDetector {
   /**
    * Post-processes raw YOLOv8-pose model output.
    *
-   * Raw output shape: (1, 11, N) where N = number of prediction anchors.
-   * Each column: [cx, cy, w, h, obj_conf, kp0_x, kp0_y, kp0_conf, kp1_x, kp1_y, kp1_conf]
+   * Raw output shape: (1, 14, N) where N = number of prediction anchors.
+   * Each column: [cx, cy, w, h, obj_conf, kp0_x, kp0_y, kp0_conf, kp1_x, kp1_y, kp1_conf, kp2_x, kp2_y, kp2_conf]
    *
    * Steps:
-   * 1. Transpose (1, 11, N) → array of N detections with 11 values each
+   * 1. Transpose (1, 14, N) → array of N detections with 14 values each
    * 2. Filter by confidence threshold
    * 3. Apply greedy NMS
    * 4. Extract keypoints from top detection
@@ -121,7 +122,7 @@ final class CoreMLClubDetector {
   private func postProcess(multiArray: MLMultiArray) -> [Double]? {
     let shape = multiArray.shape.map { $0.intValue }
 
-    // Expected shape: [1, 11, N]
+    // Expected shape: [1, 14, N]
     guard shape.count == 3, shape[0] == 1, shape[1] == valuesPerDetection else {
       NSLog("[ClubDetector] Unexpected output shape: \(shape)")
       return nil
@@ -148,7 +149,7 @@ final class CoreMLClubDetector {
       let x2 = cx + w / 2
       let y2 = cy + h / 2
 
-      // Extract keypoint data: 2 keypoints × 3 values (x, y, conf)
+      // Extract keypoint data: 3 keypoints × 3 values (x, y, conf)
       var keypoints = [Float](repeating: 0, count: numKeypoints * 3)
       for kp in 0..<numKeypoints {
         let baseIdx = (5 + kp * 3)
@@ -176,7 +177,7 @@ final class CoreMLClubDetector {
 
     // Convert keypoints from pixel coords (0-inputSize) to normalized (0-1)
     // and apply coordinate corrections matching the pose detector
-    var result = [Double](repeating: 0.0, count: 6)
+    var result = [Double](repeating: 0.0, count: 9)
     for kp in 0..<numKeypoints {
       let offset = kp * 3
       // Normalize to 0-1 from model input space
