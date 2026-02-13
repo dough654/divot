@@ -167,9 +167,14 @@ python3.12 -m venv /tmp/coreml-export
 
 # Copy best.pt to the Mac, then:
 yolo export model=best.pt format=coreml imgsz=320 half
+
+# IMPORTANT: Compile .mlpackage → .mlmodelc for CocoaPods bundling
+xcrun coremlcompiler compile best.mlpackage ./
 ```
 
 **numpy version gotcha**: torch 2.2.2 (last x86_64 macOS version) needs numpy <2. Pin to `numpy==1.26.4`.
+
+**Why .mlmodelc?** CocoaPods bundles `.mlmodelc` directories directly as resources. `.mlpackage` files require Xcode compilation at build time, which doesn't happen reliably for pod resources. Always pre-compile with `xcrun coremlcompiler compile`.
 
 #### Option B: SSH to Mac (how we did it)
 
@@ -186,8 +191,11 @@ ssh mac "/tmp/coreml-export/bin/pip install torch torchvision coremltools ultral
 # Run export
 ssh mac "cd ~/dev/swing-app && /tmp/coreml-export/bin/yolo export model=runs/pose/runs/pose/golf-club/weights/best.pt format=coreml imgsz=320 half"
 
+# Compile to .mlmodelc on the Mac
+ssh mac "xcrun coremlcompiler compile ~/dev/swing-app/runs/pose/runs/pose/golf-club/weights/best.mlpackage ~/dev/swing-app/modules/vision-camera-club-detection/ios/"
+
 # Pull result back
-scp -r mac:~/dev/swing-app/runs/pose/runs/pose/golf-club/weights/best.mlpackage ./golf-club-pose.mlpackage
+scp -r mac:~/dev/swing-app/modules/vision-camera-club-detection/ios/golf-club-pose.mlmodelc ./modules/vision-camera-club-detection/ios/
 ```
 
 ### Where models go
@@ -195,7 +203,7 @@ scp -r mac:~/dev/swing-app/runs/pose/runs/pose/golf-club/weights/best.mlpackage 
 ```
 modules/vision-camera-club-detection/
 ├── ios/
-│   └── golf-club-pose.mlpackage/        ← CoreML model
+│   └── golf-club-pose.mlmodelc/         ← Pre-compiled CoreML model
 └── android/
     └── src/main/assets/
         └── golf-club-pose.tflite        ← TFLite model
@@ -238,7 +246,8 @@ See:
 4. Export ONNX: `yolo export model=best.pt format=onnx imgsz=320 half`
 5. Convert ONNX → TFLite: `onnx2tf -i best.onnx -o tflite_output` (use `best_float16.tflite`)
 6. Export CoreML on Mac: `yolo export model=best.pt format=coreml imgsz=320 half`
-7. Copy models to native module directories
+7. Compile CoreML on Mac: `xcrun coremlcompiler compile best.mlpackage <output-dir>` (must be `.mlmodelc`)
+8. Copy models to native module directories (`.mlmodelc` for iOS, `.tflite` for Android)
 8. Verify output shapes match `(1, 14, 2100)` or `(1, 14, N)` for different `imgsz`
 9. Dev build and test on device
 
@@ -256,3 +265,5 @@ See:
 | TensorFlow has no Python 3.14 wheels | Use Python 3.12 venv or onnx2tf route |
 | `polars` module missing during training save | `pip install polars` |
 | `data.yaml` path must be absolute with `yolo` CLI | Always use full path |
+| `.mlpackage` not found by CocoaPods at runtime | Pre-compile to `.mlmodelc` with `xcrun coremlcompiler compile` |
+| `Bundle.main` doesn't find pod resources | Use `Bundle(for: YourClass.self)` with fallback to `Bundle.main` |

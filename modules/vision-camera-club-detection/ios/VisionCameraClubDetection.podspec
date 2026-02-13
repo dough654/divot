@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   s.platform       = :ios, '15.1'
   s.swift_version  = '5.9'
   s.source_files   = '**/*.swift'
-  s.resources      = ['*.mlpackage', '*.mlmodelc']
+  s.resources      = ['golf-club-pose.mlmodelc']
 
   s.dependency 'ExpoModulesCore'
   s.dependency 'VisionCamera'

@@ -45,10 +45,15 @@ final class CoreMLClubDetector {
   }
 
   private func loadModel() {
-    // Look for the compiled model in the main bundle.
-    // The .mlpackage is compiled to .mlmodelc at build time by Xcode.
-    guard let modelURL = Bundle.main.url(forResource: "golf-club-pose", withExtension: "mlmodelc") else {
+    // Look for the compiled model in the pod's resource bundle first,
+    // then fall back to the main bundle. CocoaPods bundles resources
+    // alongside the pod's compiled code, NOT in Bundle.main.
+    let podBundle = Bundle(for: CoreMLClubDetector.self)
+    guard let modelURL = podBundle.url(forResource: "golf-club-pose", withExtension: "mlmodelc")
+            ?? Bundle.main.url(forResource: "golf-club-pose", withExtension: "mlmodelc") else {
       NSLog("[ClubDetector] golf-club-pose.mlmodelc not found in bundle — club detection disabled")
+      NSLog("[ClubDetector] Searched pod bundle: \(podBundle.bundlePath)")
+      NSLog("[ClubDetector] Searched main bundle: \(Bundle.main.bundlePath)")
       modelLoadFailed = true
       return
     }
