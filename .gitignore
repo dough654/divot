@@ -42,3 +42,11 @@ yarn-error.*
 
 # local build artifacts
 /builds
+
+# ML training artifacts
+runs/
+scripts/train-club-model/.venv/
+scripts/train-club-model/.venv-export/
+scripts/train-club-model/datasets/
+*.pt
+yolov8n-pose.pt
