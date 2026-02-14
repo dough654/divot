@@ -45,8 +45,10 @@ export type SwingDetectionState =
 export type SwingDetectionConfig = {
   /** Wrist velocity threshold in normalized units/sec to trigger detection. */
   velocityThreshold: number;
-  /** Number of consecutive frames above threshold to confirm swing start. */
-  confirmationFrames: number;
+  /** Size of the sliding confirmation window. */
+  confirmationWindow: number;
+  /** Minimum hits in window to confirm swing start. */
+  confirmationHitsRequired: number;
   /** Number of consecutive frames below threshold to confirm swing end. */
   cooldownFrames: number;
   /** Pre-roll duration in milliseconds (for Phase C ring buffer). */
@@ -55,6 +57,10 @@ export type SwingDetectionConfig = {
   postRollDurationMs: number;
   /** Minimum swing duration in milliseconds to avoid false positives. */
   minSwingDurationMs: number;
+  /** Velocity multiplier for the initial trigger (armed → detecting). */
+  initialTriggerMultiplier: number;
+  /** Minimum upward (negative dy) fraction of total displacement during detection. */
+  minUpwardFraction: number;
 };
 
 /** Events emitted by the swing detection state machine. */

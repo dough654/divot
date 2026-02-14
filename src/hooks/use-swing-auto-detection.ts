@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import {
-  computeWristVelocity,
+  computeBodyRelativeWristVelocity,
   nextSwingState,
   sensitivityToThreshold,
   DEFAULT_SWING_DETECTION_CONFIG,
@@ -18,6 +18,8 @@ export type UseSwingAutoDetectionOptions = {
   sensitivity?: number;
   /** Partial config overrides. */
   config?: Partial<SwingDetectionConfig>;
+  /** Delay in ms after address confirmed before arming. Defaults to 500. */
+  armingDelayMs?: number;
   /** Called when a swing is detected — triggers startRecording. */
   onSwingStarted: () => void;
   /** Called when a swing ends — triggers stopRecording. */
@@ -37,7 +39,7 @@ export type UseSwingAutoDetectionReturn = {
 
 /**
  * Hook that watches pose data and automatically triggers recording
- * when a golf swing is detected via wrist velocity analysis.
+ * when a golf swing is detected via body-relative wrist velocity analysis.
  *
  * Uses the pure `nextSwingState` state machine internally.
  *
@@ -49,6 +51,7 @@ export const useSwingAutoDetection = ({
   latestPose,
   sensitivity = 0.5,
   config: configOverrides,
+  armingDelayMs = 500,
   onSwingStarted,
   onSwingEnded,
 }: UseSwingAutoDetectionOptions): UseSwingAutoDetectionReturn => {
@@ -91,11 +94,11 @@ export const useSwingAutoDetection = ({
 
     if (!prevPose) return;
 
-    const velocity = computeWristVelocity(prevPose, latestPose);
+    const motion = computeBodyRelativeWristVelocity(prevPose, latestPose);
     const prevState = stateRef.current;
     const transition = nextSwingState(
       prevState,
-      velocity,
+      motion,
       latestPose.timestamp,
       configRef.current,
       countersRef.current,
@@ -104,13 +107,13 @@ export const useSwingAutoDetection = ({
     // TODO: Remove debug logging after tuning is complete
     if (__DEV__) {
       const threshold = configRef.current.velocityThreshold;
-      const velocityLabel = velocity === null
-        ? 'v=null (wrists lost)'
-        : `v=${velocity.toFixed(3)} ${velocity >= threshold ? 'ABOVE' : 'below'}`;
+      const velocityLabel = motion === null
+        ? 'v=null (wrists/anchor lost)'
+        : `v=${motion.velocity.toFixed(3)} up=${motion.upwardFraction.toFixed(2)} ${motion.velocity >= threshold ? 'ABOVE' : 'below'}`;
       console.log(
         `[SwingDetect] ${velocityLabel} thresh=${threshold.toFixed(3)} | ${prevState}→${transition.state}` +
         (transition.event ? ` | EVENT: ${transition.event.type}` : '') +
-        ` | confirm=${transition.counters.confirmationCount} cool=${transition.counters.cooldownCount}`
+        ` | hits=${transition.counters.recentHits.filter(Boolean).length}/${transition.counters.recentHits.length} cool=${transition.counters.cooldownCount}`
       );
     }
 
@@ -123,20 +126,27 @@ export const useSwingAutoDetection = ({
     }
   }, [latestPose, handleSwingEvent]);
 
-  // Auto-arm when enabled, disarm when disabled
+  // Auto-arm when enabled (with delay), disarm when disabled
   useEffect(() => {
     if (enabled) {
-      stateRef.current = 'armed';
-      countersRef.current = INITIAL_SWING_COUNTERS;
-      prevPoseRef.current = null;
-      setDetectionState('armed');
+      const timer = setTimeout(() => {
+        stateRef.current = 'armed';
+        countersRef.current = INITIAL_SWING_COUNTERS;
+        prevPoseRef.current = null;
+        setDetectionState('armed');
+      }, armingDelayMs);
+      return () => clearTimeout(timer);
     } else {
+      // Don't interrupt active recording — it will end via cooldown
+      if (stateRef.current === 'recording' || stateRef.current === 'cooldown') {
+        return;
+      }
       stateRef.current = 'idle';
       countersRef.current = INITIAL_SWING_COUNTERS;
       prevPoseRef.current = null;
       setDetectionState('idle');
     }
-  }, [enabled]);
+  }, [enabled, armingDelayMs]);
 
   const arm = useCallback(() => {
     stateRef.current = 'armed';
