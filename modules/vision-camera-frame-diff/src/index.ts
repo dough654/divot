@@ -1,0 +1,1 @@
+export { getLatestMotion } from './VisionCameraFrameDiffModule';

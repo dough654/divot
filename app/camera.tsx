@@ -26,13 +26,15 @@ import {
   VisionCameraRecorder,
   VisionCameraRecorderRef,
   ClubPlaneLineOverlay,
+  DetectionDebugOverlay,
 } from '@/src/components/recording';
 import { usePoseDetection } from '@/src/hooks/use-pose-detection';
 import { useClubDetection } from '@/src/hooks/use-club-detection';
 import type { ClubKeypoints } from '@/src/hooks/use-club-detection';
-import { useSwingAutoDetection } from '@/src/hooks/use-swing-auto-detection';
 import { useSwingFeedback } from '@/src/hooks/use-swing-feedback';
-import { useAddressDetection } from '@/src/hooks/use-address-detection';
+import { useMotionDetection } from '@/src/hooks/use-motion-detection';
+import { useAudioMetering } from '@/src/hooks/use-audio-metering';
+import { useMotionSwingDetection } from '@/src/hooks/use-motion-swing-detection';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
@@ -105,26 +107,56 @@ export default function CameraScreen() {
     toggleCamera,
   } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps });
 
-  // Pose detection — gated by feature flag + user setting
+  // Pose detection — gated by feature flag + user setting (for overlay only, not swing detection)
   const poseDetectionEnabled = !!poseDetectionFlag && settings.poseOverlayEnabled;
-  const { latestPose, rawPoseData } = usePoseDetection({ enabled: poseDetectionEnabled });
+  const { rawPoseData } = usePoseDetection({ enabled: poseDetectionEnabled });
 
-  // Auto-detection pipeline: address detection → swing detection → rolling recorder
-  // Must be disabled during reviewing/recording to prevent beeps and accidental recordings
-  const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && poseDetectionEnabled && cameraState === 'previewing';
+  // Auto-detection pipeline: motion + audio → swing detection → rolling recorder
+  // Decoupled from pose detection — uses frame differencing instead
+  const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && cameraState === 'previewing';
   const { playSwingStart, playSwingEnd, playAddressReady } = useSwingFeedback({ enabled: autoDetectEnabled });
 
-  // Address detection — detects setup/address position before arming swing detector
-  const { isInAddress } = useAddressDetection({
+  // Motion detection — polls native frame diff module
+  const { motionMagnitude } = useMotionDetection({ enabled: autoDetectEnabled });
+
+  // Audio metering — expo-av recording with metering for impact detection
+  const { audioLevel } = useAudioMetering({ enabled: autoDetectEnabled });
+
+  // Motion-based swing detection state machine
+  const swingStartRef = useRef<(() => boolean | void) | null>(null);
+  const swingEndRef = useRef<(() => void) | null>(null);
+  const { isStill, detectionState, debugInfo } = useMotionSwingDetection({
     enabled: autoDetectEnabled,
-    latestPose,
+    motionMagnitude,
+    audioLevel,
+    sensitivity: settings.swingDetectionSensitivity,
+    onSwingStarted: useCallback(() => {
+      const accepted = swingStartRef.current?.();
+      if (accepted !== false) playSwingStart();
+    }, [playSwingStart]),
+    onSwingEnded: useCallback((audioConfirmed: boolean) => {
+      playSwingEnd();
+      swingEndRef.current?.();
+      if (__DEV__) {
+        console.log('[Camera] Swing ended, audio confirmed:', audioConfirmed);
+      }
+    }, [playSwingEnd]),
   });
 
-  // Club detection — runs only during confirmed address, at low fps
-  const { clubKeypoints, cameraAspectRatio } = useClubDetection({ enabled: autoDetectEnabled && isInAddress });
+  // Play "ready" cue when entering armed state (equivalent of old address position)
+  const prevIsStillRef = useRef(false);
+  useEffect(() => {
+    if (isStill && !prevIsStillRef.current) {
+      playAddressReady();
+    }
+    prevIsStillRef.current = isStill;
+  }, [isStill, playAddressReady]);
+
+  // Club detection — runs only during confirmed stillness, at low fps
+  const { clubKeypoints, cameraAspectRatio } = useClubDetection({ enabled: autoDetectEnabled && isStill });
 
   // Persist the last detected club keypoints so the plane line stays
-  // visible after address exits (during takeaway). Clear on new address cycle
+  // visible after stillness exits (during takeaway). Clear on new stillness cycle
   // or when auto-detect is toggled off.
   const lastClubKeypointsRef = useRef<ClubKeypoints | null>(null);
   useEffect(() => {
@@ -140,35 +172,8 @@ export default function CameraScreen() {
     }
   }, [autoDetectEnabled]);
 
-  // Play "ready" cue when entering address position
-  const prevIsInAddressRef = useRef(false);
-  useEffect(() => {
-    if (isInAddress && !prevIsInAddressRef.current) {
-      playAddressReady();
-      // New address cycle — clear old plane line so a fresh detection replaces it
-      lastClubKeypointsRef.current = null;
-    }
-    prevIsInAddressRef.current = isInAddress;
-  }, [isInAddress, playAddressReady]);
-
-  // The club keypoints to render: live during address, persisted after
+  // The club keypoints to render: live during stillness, persisted after
   const displayClubKeypoints = clubKeypoints ?? lastClubKeypointsRef.current;
-
-  // Swing detection — only armed when golfer is in address position
-  const swingDetectionEnabled = autoDetectEnabled && isInAddress;
-  const swingStartRef = useRef<(() => boolean | void) | null>(null);
-  const swingEndRef = useRef<(() => void) | null>(null);
-  useSwingAutoDetection({
-    enabled: swingDetectionEnabled,
-    latestPose,
-    sensitivity: settings.swingDetectionSensitivity,
-    onSwingStarted: useCallback(() => {
-      const accepted = swingStartRef.current?.();
-      // Only play beep if the recorder accepted (buffer was old enough)
-      if (accepted !== false) playSwingStart();
-    }, [playSwingStart]),
-    onSwingEnded: useCallback(() => { playSwingEnd(); swingEndRef.current?.(); }, [playSwingEnd]),
-  });
 
   // Keep recording fps ref in sync for async callbacks
   useEffect(() => {
@@ -238,7 +243,7 @@ export default function CameraScreen() {
   }, [activeSession]);
 
   // Rolling buffer recorder for auto-detect mode — only active when in address position
-  const rollingRecorderEnabled = autoDetectEnabled && isInAddress && cameraState === 'previewing';
+  const rollingRecorderEnabled = autoDetectEnabled && isStill && cameraState === 'previewing';
   const handleRollingClipSaved = useCallback((clip: Clip) => {
     if (clip.sessionId) {
       tagClip(clip.id);
@@ -645,12 +650,12 @@ export default function CameraScreen() {
         {autoDetectEnabled && !isRecording && (
           <View style={styles.autoBadge}>
             <Ionicons
-              name={isInAddress ? 'fitness' : 'body'}
+              name={isStill ? 'fitness' : 'body'}
               size={12}
-              color={isInAddress ? theme.colors.success : theme.colors.accent}
+              color={isStill ? theme.colors.success : theme.colors.accent}
             />
-            <Text style={[styles.autoBadgeText, isInAddress && styles.autoBadgeTextReady]}>
-              {isInAddress ? 'Ready' : 'Watching'}
+            <Text style={[styles.autoBadgeText, isStill && styles.autoBadgeTextReady]}>
+              {isStill ? 'Armed' : detectionState === 'swing' ? 'Swing!' : 'Watching'}
             </Text>
           </View>
         )}
@@ -676,7 +681,8 @@ export default function CameraScreen() {
                 poseDetectionEnabled={poseDetectionEnabled}
                 poseOverlayVisible={poseDetectionEnabled}
                 poseData={rawPoseData}
-                clubDetectionEnabled={autoDetectEnabled && isInAddress}
+                clubDetectionEnabled={autoDetectEnabled && isStill}
+                frameDiffEnabled={autoDetectEnabled}
               />
             ) : (
               <View style={styles.cameraPlaceholder}>
@@ -689,7 +695,12 @@ export default function CameraScreen() {
               <ClubPlaneLineOverlay
                 clubKeypoints={displayClubKeypoints}
                 visible={true}
-                cameraAspectRatio={cameraAspectRatio}
+              />
+            )}
+            {autoDetectEnabled && settings.debugOverlayEnabled && (
+              <DetectionDebugOverlay
+                visible={true}
+                debugInfo={debugInfo}
               />
             )}
             {currentError && (

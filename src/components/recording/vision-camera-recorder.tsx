@@ -28,6 +28,10 @@ export type VisionCameraRecorderProps = {
   clubDetectionEnabled?: boolean;
   /** Target fps for club detection. Defaults to 3. */
   clubDetectionFps?: number;
+  /** Whether frame differencing should run on frames. */
+  frameDiffEnabled?: boolean;
+  /** Target fps for frame differencing. Defaults to 15. */
+  frameDiffFps?: number;
 };
 
 export type VisionCameraRecorderRef = {
@@ -51,6 +55,7 @@ const IS_ANDROID = Platform.OS === 'android';
 const forwardPlugin = VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC', {});
 const posePlugin = VisionCameraProxy.initFrameProcessorPlugin('detectPose', {});
 const clubPlugin = VisionCameraProxy.initFrameProcessorPlugin('detectClub', {});
+const frameDiffPlugin = VisionCameraProxy.initFrameProcessorPlugin('frameDiff', {});
 
 /**
  * VisionCamera-based recording view with camera preview and internal
@@ -72,6 +77,7 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
     poseDetectionEnabled = false, poseDetectionFps = 10,
     poseOverlayVisible = false, poseData,
     clubDetectionEnabled = false, clubDetectionFps = 3,
+    frameDiffEnabled = false, frameDiffFps = 15,
   }, ref) => {
     const cameraRef = useRef<Camera>(null);
 
@@ -105,7 +111,15 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           clubPlugin.call(frame);
         });
       }
-    }, [poseDetectionEnabled, poseDetectionFps, clubDetectionEnabled, clubDetectionFps]);
+
+      // Frame differencing — runs at ~15fps for motion detection
+      if (frameDiffEnabled && frameDiffPlugin) {
+        runAtTargetFps(frameDiffFps, () => {
+          'worklet';
+          frameDiffPlugin.call(frame);
+        });
+      }
+    }, [poseDetectionEnabled, poseDetectionFps, clubDetectionEnabled, clubDetectionFps, frameDiffEnabled, frameDiffFps]);
 
     // Counter-rotation style for Android preview correction.
     const cameraWrapperStyle = useAnimatedStyle(() => {

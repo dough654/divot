@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["VisionCameraFrameDiffModule"]
+  },
+  "android": {
+    "modules": ["com.swinglink.framediff.VisionCameraFrameDiffModule"]
+  }
+}

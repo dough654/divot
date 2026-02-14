@@ -39,6 +39,7 @@ export default function SettingsScreen() {
     setPoseOverlayEnabled,
     setSwingAutoDetectionEnabled,
     setSwingDetectionSensitivity,
+    setDebugOverlayEnabled,
   } = useSettings();
   const styles = useThemedStyles(createStyles);
   const haptics = useHaptics();
@@ -75,6 +76,11 @@ export default function SettingsScreen() {
 
   const handleSensitivityChange = (value: number) => {
     setSwingDetectionSensitivity(value);
+  };
+
+  const handleDebugOverlayToggle = (value: boolean) => {
+    haptics.selection();
+    setDebugOverlayEnabled(value);
   };
 
   const handleClearClips = async () => {
@@ -284,6 +290,24 @@ export default function SettingsScreen() {
               maximumTrackTintColor={theme.colors.border}
               thumbTintColor={theme.colors.accent}
             />
+
+            <View style={styles.divider} />
+
+            {/* Debug Overlay Toggle */}
+            <View style={styles.settingRow}>
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>DEBUG OVERLAY</Text>
+                <Text style={styles.settingDescription}>show detection state on camera</Text>
+              </View>
+              <Switch
+                value={settings.debugOverlayEnabled}
+                onValueChange={handleDebugOverlayToggle}
+                trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
+                thumbColor={theme.palette.white}
+                accessibilityLabel="Toggle debug overlay"
+                accessibilityHint={settings.debugOverlayEnabled ? 'Disable debug overlay' : 'Enable debug overlay'}
+              />
+            </View>
           </>
         )}
       </View>)}

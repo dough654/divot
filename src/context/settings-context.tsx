@@ -40,6 +40,8 @@ export type Settings = {
   swingAutoDetectionEnabled: boolean;
   /** Swing detection sensitivity, 0-1. Higher = more sensitive. Defaults to 0.5. */
   swingDetectionSensitivity: number;
+  /** Whether the detection debug overlay is shown on camera preview. Defaults to false. */
+  debugOverlayEnabled: boolean;
 };
 
 type SettingsContextValue = {
@@ -52,6 +54,7 @@ type SettingsContextValue = {
   setPoseOverlayEnabled: (enabled: boolean) => void;
   setSwingAutoDetectionEnabled: (enabled: boolean) => void;
   setSwingDetectionSensitivity: (sensitivity: number) => void;
+  setDebugOverlayEnabled: (enabled: boolean) => void;
 };
 
 // ============================================
@@ -68,6 +71,7 @@ const DEFAULT_SETTINGS: Settings = {
   poseOverlayEnabled: false,
   swingAutoDetectionEnabled: false,
   swingDetectionSensitivity: 0.5,
+  debugOverlayEnabled: false,
 };
 
 // ============================================
@@ -193,6 +197,17 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     [persistSettings]
   );
 
+  const setDebugOverlayEnabled = useCallback(
+    (enabled: boolean) => {
+      setSettings((prev) => {
+        const updated = { ...prev, debugOverlayEnabled: enabled };
+        persistSettings(updated);
+        return updated;
+      });
+    },
+    [persistSettings]
+  );
+
   const value = useMemo<SettingsContextValue>(
     () => ({
       settings,
@@ -204,8 +219,9 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
       setPoseOverlayEnabled,
       setSwingAutoDetectionEnabled,
       setSwingDetectionSensitivity,
+      setDebugOverlayEnabled,
     }),
-    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps, setPoseOverlayEnabled, setSwingAutoDetectionEnabled, setSwingDetectionSensitivity]
+    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps, setPoseOverlayEnabled, setSwingAutoDetectionEnabled, setSwingDetectionSensitivity, setDebugOverlayEnabled]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
