@@ -1,18 +1,21 @@
 import type {
   PoseFrame,
+  JointPosition,
   AddressDetectionState,
   AddressDetectionConfig,
   AddressEvent,
   JointName,
 } from '@/src/types/pose';
+import { JOINT_NAMES } from './pose-normalization';
+import { computeTorsoAnchor } from './swing-detection';
 
 /** Default address detection configuration. */
 export const DEFAULT_ADDRESS_CONFIG: AddressDetectionConfig = {
-  wristProximityThreshold: 0.25,
+  wristProximityThreshold: 0.15,
   stillnessThreshold: 0.04,
   confirmationPolls: 6,
   exitPolls: 12,
-  wristHipVerticalThreshold: 0.50,
+  wristHipVerticalThreshold: 0.25,
 };
 
 /** Maximum missed polls allowed during confirmation before resetting. */
@@ -44,19 +47,20 @@ export type AddressStateTransition = {
 
 /**
  * Minimum joint confidence to consider a joint visible.
- * Set low (0.1) because the pose model frequently reports valid positions
- * at confidence 0.11-0.19. The 0.0 cases genuinely have garbage positions
- * (distance jumps to 0.65+) so they naturally fail the distance check.
+ * Matches swing detection's threshold. The pose model reports 0.0 for garbage
+ * positions and 0.1-0.2 for noisy ones — 0.3 filters those out while keeping
+ * real detections. EMA smoothing bridges brief confidence dips.
  */
-const MIN_CONFIDENCE = 0.1;
+const MIN_CONFIDENCE = 0.3;
 
 /**
  * Checks whether the current pose matches golf address geometry.
  *
- * The only hard signal is wrist proximity — both wrists close together,
- * meaning the golfer is gripping the club. Hip-relative checks have been
- * removed because hip Y coordinates are too noisy frame-to-frame on the
- * current pose model to be useful.
+ * Two signals:
+ * 1. Wrist proximity — both wrists close together (gripping the club).
+ * 2. Wrist-hip vertical alignment — wrists near hip height (arms extended
+ *    down to the club). Only checked when both hips are visible; when hips
+ *    are low confidence we degrade to wrist-proximity-only.
  *
  * @param pose - Current pose frame
  * @param config - Address detection config
@@ -69,7 +73,7 @@ export const checkAddressGeometry = (
   const leftWrist = pose.joints.leftWrist;
   const rightWrist = pose.joints.rightWrist;
 
-  // Both wrists must be minimally visible
+  // Both wrists must be visible
   if (
     leftWrist.confidence < MIN_CONFIDENCE ||
     rightWrist.confidence < MIN_CONFIDENCE
@@ -82,7 +86,24 @@ export const checkAddressGeometry = (
   const wristDy = leftWrist.y - rightWrist.y;
   const wristDistance = Math.sqrt(wristDx * wristDx + wristDy * wristDy);
 
-  return wristDistance <= config.wristProximityThreshold;
+  if (wristDistance > config.wristProximityThreshold) {
+    return false;
+  }
+
+  // When hips are visible, wrists must be near hip height
+  const lh = pose.joints.leftHip;
+  const rh = pose.joints.rightHip;
+  const hipsVisible = lh.confidence >= MIN_CONFIDENCE && rh.confidence >= MIN_CONFIDENCE;
+
+  if (hipsVisible) {
+    const avgWristY = (leftWrist.y + rightWrist.y) / 2;
+    const avgHipY = (lh.y + rh.y) / 2;
+    if (Math.abs(avgWristY - avgHipY) > config.wristHipVerticalThreshold) {
+      return false;
+    }
+  }
+
+  return true;
 };
 
 /** Debug info for understanding why address detection is or isn't triggering. */
@@ -134,19 +155,27 @@ const STILLNESS_JOINTS: JointName[] = [
 
 /**
  * Computes average body displacement between two consecutive pose frames.
- * Uses Euclidean distance across all high-confidence joints.
+ * Uses Euclidean distance across all high-confidence joints, relative to a
+ * torso anchor so that camera panning is cancelled out.
  *
- * Returns the average displacement in normalized units (not velocity —
- * callers compare directly to the stillness threshold which is tuned per-poll).
+ * Falls back to raw screen-space displacement when no torso anchor is available
+ * in either frame (partial pose — not enough data to worry about camera motion).
  *
  * @param prevPose - Previous pose frame
  * @param currentPose - Current pose frame
- * @returns Average displacement, or null if fewer than 4 joints are visible in both frames
+ * @returns Average displacement, or null if fewer than 2 joints are visible in both frames
  */
 export const computeBodyStillness = (
   prevPose: PoseFrame,
   currentPose: PoseFrame,
 ): number | null => {
+  // Compute torso anchor shift to subtract camera motion
+  const prevAnchor = computeTorsoAnchor(prevPose);
+  const currAnchor = computeTorsoAnchor(currentPose);
+  const hasAnchors = prevAnchor !== null && currAnchor !== null;
+  const anchorDx = hasAnchors ? currAnchor.x - prevAnchor.x : 0;
+  const anchorDy = hasAnchors ? currAnchor.y - prevAnchor.y : 0;
+
   let totalDisplacement = 0;
   let count = 0;
 
@@ -155,8 +184,8 @@ export const computeBodyStillness = (
     const curr = currentPose.joints[jointName];
 
     if (prev.confidence >= MIN_CONFIDENCE && curr.confidence >= MIN_CONFIDENCE) {
-      const dx = curr.x - prev.x;
-      const dy = curr.y - prev.y;
+      const dx = (curr.x - prev.x) - anchorDx;
+      const dy = (curr.y - prev.y) - anchorDy;
       totalDisplacement += Math.sqrt(dx * dx + dy * dy);
       count++;
     }
@@ -272,4 +301,64 @@ export const nextAddressState = (
     default:
       return { state: 'watching', event: null, counters };
   }
+};
+
+/**
+ * Confidence below this threshold indicates garbage position data.
+ * Values of 0.0 always have garbage positions (wrist distance jumps to 0.65+).
+ * Values of 0.05+ may still be noisy but are at least spatially plausible.
+ */
+const SMOOTH_CARRY_THRESHOLD = 0.05;
+
+/** Per-frame confidence decay multiplier when carrying forward a stale joint. */
+const CONFIDENCE_DECAY = 0.85;
+
+/** Default EMA alpha for detection pipeline smoothing. */
+const DETECTION_SMOOTH_ALPHA = 0.4;
+
+/**
+ * Applies EMA smoothing to a PoseFrame for more stable address detection input.
+ *
+ * Handles two problematic patterns from Apple Vision / ML Kit:
+ * 1. Confidence bouncing 0.0→0.6→0.0: garbage frames are replaced with
+ *    carried-forward positions at decaying confidence.
+ * 2. Position jitter between frames: EMA-blended for stability.
+ *
+ * @param current - Current raw pose frame
+ * @param previous - Previous smoothed pose frame, or null on first frame
+ * @param alpha - EMA weight for new data (default 0.4)
+ * @returns New smoothed PoseFrame
+ */
+export const smoothPoseFrame = (
+  current: PoseFrame,
+  previous: PoseFrame | null,
+  alpha: number = DETECTION_SMOOTH_ALPHA,
+): PoseFrame => {
+  const joints = {} as Record<JointName, JointPosition>;
+
+  for (const name of JOINT_NAMES) {
+    const curr = current.joints[name];
+    const prev = previous?.joints[name];
+
+    if (!prev || prev.confidence < SMOOTH_CARRY_THRESHOLD) {
+      // No usable previous — use current raw (even if bad, it's all we have)
+      joints[name] = { x: curr.x, y: curr.y, confidence: curr.confidence };
+    } else if (curr.confidence < SMOOTH_CARRY_THRESHOLD) {
+      // Current is garbage — carry forward previous with decayed confidence
+      joints[name] = {
+        x: prev.x,
+        y: prev.y,
+        confidence: prev.confidence * CONFIDENCE_DECAY,
+      };
+    } else {
+      // Both usable — EMA blend position and confidence
+      joints[name] = {
+        x: prev.x + alpha * (curr.x - prev.x),
+        y: prev.y + alpha * (curr.y - prev.y),
+        confidence: prev.confidence + alpha * (curr.confidence - prev.confidence),
+      };
+    }
+  }
+
+  return { timestamp: current.timestamp, joints };
 };
