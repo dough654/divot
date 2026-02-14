@@ -84,6 +84,10 @@ export type AddressDetectionConfig = {
   exitPolls: number;
   /** Max vertical distance between avg wrist Y and avg hip Y (normalized). */
   wristHipVerticalThreshold: number;
+  /** Minimum horizontal/vertical offset ratio between shoulder and hip midpoints. */
+  minBendRatio: number;
+  /** Minimum joints at confidence >= threshold to attempt detection. */
+  minVisibleJoints: number;
 };
 
 /** Events emitted by the address detection state machine. */

@@ -16,7 +16,12 @@ export const DEFAULT_ADDRESS_CONFIG: AddressDetectionConfig = {
   confirmationPolls: 6,
   exitPolls: 12,
   wristHipVerticalThreshold: 0.25,
+  minBendRatio: 0.15,
+  minVisibleJoints: 6,
 };
+
+/** Multiplier to relax thresholds when holding address (hysteresis). */
+export const HOLD_RELAXATION = 1.6;
 
 /** Maximum missed polls allowed during confirmation before resetting. */
 const MAX_CONFIRMATION_MISSES = 4;
@@ -54,53 +59,105 @@ export type AddressStateTransition = {
 const MIN_CONFIDENCE = 0.3;
 
 /**
+ * Counts joints with confidence at or above the given threshold.
+ */
+const countVisibleJoints = (pose: PoseFrame, minConfidence: number): number =>
+  JOINT_NAMES.filter(name => pose.joints[name].confidence >= minConfidence).length;
+
+/**
+ * Computes the forward bend ratio: horizontal offset between shoulder and
+ * hip midpoints divided by their vertical span. Higher values = more bend.
+ * Uses abs() on both axes so direction the golfer faces doesn't matter.
+ */
+const computeForwardBendRatio = (pose: PoseFrame): number => {
+  const ls = pose.joints.leftShoulder;
+  const rs = pose.joints.rightShoulder;
+  const lh = pose.joints.leftHip;
+  const rh = pose.joints.rightHip;
+  const avgShoulderX = (ls.x + rs.x) / 2;
+  const avgShoulderY = (ls.y + rs.y) / 2;
+  const avgHipX = (lh.x + rh.x) / 2;
+  const avgHipY = (lh.y + rh.y) / 2;
+  const verticalSpan = Math.abs(avgShoulderY - avgHipY);
+  if (verticalSpan < 0.01) return 0;
+  return Math.abs(avgShoulderX - avgHipX) / verticalSpan;
+};
+
+/**
  * Checks whether the current pose matches golf address geometry.
  *
- * Two signals:
- * 1. Wrist proximity — both wrists close together (gripping the club).
- * 2. Wrist-hip vertical alignment — wrists near hip height (arms extended
- *    down to the club). Only checked when both hips are visible; when hips
- *    are low confidence we degrade to wrist-proximity-only.
+ * Five structural checks (in order):
+ * 1. Minimum visible joints — reject if pose data is too sparse.
+ * 2. Both shoulders + both hips visible — required, no degradation.
+ * 3. Forward bend — shoulders offset horizontally from hips.
+ * 4. Wrist proximity — both wrists close together (gripping the club).
+ * 5. Wrist-hip vertical alignment — wrists near hip height.
+ *
+ * When `holdMode` is true (already in address), thresholds are relaxed by
+ * `HOLD_RELAXATION` to prevent flicker from brief pose noise.
  *
  * @param pose - Current pose frame
  * @param config - Address detection config
+ * @param holdMode - Whether we're already in address (relaxed thresholds)
  * @returns Whether the pose matches address geometry
  */
 export const checkAddressGeometry = (
   pose: PoseFrame,
   config: AddressDetectionConfig,
+  holdMode = false,
 ): boolean => {
+  const relaxation = holdMode ? HOLD_RELAXATION : 1;
+
+  // 1. Minimum visible joints
+  const minJoints = holdMode
+    ? Math.max(3, config.minVisibleJoints - 2)
+    : config.minVisibleJoints;
+  if (countVisibleJoints(pose, MIN_CONFIDENCE) < minJoints) {
+    return false;
+  }
+
+  // 2. Both shoulders + both hips must be visible
+  const ls = pose.joints.leftShoulder;
+  const rs = pose.joints.rightShoulder;
+  const lh = pose.joints.leftHip;
+  const rh = pose.joints.rightHip;
+  if (
+    ls.confidence < MIN_CONFIDENCE ||
+    rs.confidence < MIN_CONFIDENCE ||
+    lh.confidence < MIN_CONFIDENCE ||
+    rh.confidence < MIN_CONFIDENCE
+  ) {
+    return false;
+  }
+
+  // 3. Forward bend check
+  const bendRatio = computeForwardBendRatio(pose);
+  const effectiveBendRatio = config.minBendRatio / relaxation;
+  if (bendRatio < effectiveBendRatio) {
+    return false;
+  }
+
+  // 4. Both wrists visible + close together
   const leftWrist = pose.joints.leftWrist;
   const rightWrist = pose.joints.rightWrist;
-
-  // Both wrists must be visible
   if (
     leftWrist.confidence < MIN_CONFIDENCE ||
     rightWrist.confidence < MIN_CONFIDENCE
   ) {
     return false;
   }
-
-  // Wrists must be close together (gripping the club)
   const wristDx = leftWrist.x - rightWrist.x;
   const wristDy = leftWrist.y - rightWrist.y;
   const wristDistance = Math.sqrt(wristDx * wristDx + wristDy * wristDy);
-
-  if (wristDistance > config.wristProximityThreshold) {
+  if (wristDistance > config.wristProximityThreshold * relaxation) {
     return false;
   }
 
-  // When hips are visible, wrists must be near hip height
-  const lh = pose.joints.leftHip;
-  const rh = pose.joints.rightHip;
-  const hipsVisible = lh.confidence >= MIN_CONFIDENCE && rh.confidence >= MIN_CONFIDENCE;
-
-  if (hipsVisible) {
-    const avgWristY = (leftWrist.y + rightWrist.y) / 2;
-    const avgHipY = (lh.y + rh.y) / 2;
-    if (Math.abs(avgWristY - avgHipY) > config.wristHipVerticalThreshold) {
-      return false;
-    }
+  // 5. Wrists near hip height
+  const avgWristY = (leftWrist.y + rightWrist.y) / 2;
+  const avgHipY = (lh.y + rh.y) / 2;
+  if (Math.abs(avgWristY - avgHipY) > config.wristHipVerticalThreshold * relaxation) {
+    return false;
   }
 
   return true;
@@ -112,6 +169,8 @@ export type AddressDebugInfo = {
   hipConfidence: { left: number; right: number };
   wristDistance: number;
   wristHipVerticalOffset: number;
+  bendRatio: number;
+  visibleJoints: number;
   geometryOk: boolean;
 };
 
@@ -140,7 +199,9 @@ export const computeAddressDebugInfo = (
     hipConfidence: { left: lh.confidence, right: rh.confidence },
     wristDistance,
     wristHipVerticalOffset: verticalOffset,
-    geometryOk: checkAddressGeometry(pose, config),
+    bendRatio: computeForwardBendRatio(pose),
+    visibleJoints: countVisibleJoints(pose, MIN_CONFIDENCE),
+    geometryOk: checkAddressGeometry(pose, config, false),
   };
 };
 

@@ -4,8 +4,10 @@ import {
   computeBodyStillness,
   computeAddressDebugInfo,
   nextAddressState,
+  smoothPoseFrame,
   DEFAULT_ADDRESS_CONFIG,
   INITIAL_ADDRESS_COUNTERS,
+  HOLD_RELAXATION,
 } from '@/src/utils/address-detection';
 import type { AddressCounters } from '@/src/utils/address-detection';
 import type { PoseFrame, AddressDetectionState, AddressDetectionConfig } from '@/src/types/pose';
@@ -45,7 +47,7 @@ export const useAddressDetection = ({
 
   const stateRef = useRef<AddressDetectionState>('watching');
   const countersRef = useRef<AddressCounters>(INITIAL_ADDRESS_COUNTERS);
-  const prevPoseRef = useRef<PoseFrame | null>(null);
+  const smoothedPoseRef = useRef<PoseFrame | null>(null);
 
   const effectiveConfig: AddressDetectionConfig = {
     ...DEFAULT_ADDRESS_CONFIG,
@@ -54,23 +56,33 @@ export const useAddressDetection = ({
   const configRef = useRef(effectiveConfig);
   configRef.current = effectiveConfig;
 
-  // Process new pose frames through the address state machine
+  // Process new pose frames through the address state machine.
+  // Raw poses are EMA-smoothed first to dampen the confidence bouncing
+  // (0.0→0.6→0.0) and position jitter from Apple Vision / ML Kit.
   useEffect(() => {
     if (!enabled || !latestPose) return;
 
     const config = configRef.current;
-    const prevPose = prevPoseRef.current;
-    prevPoseRef.current = latestPose;
+    const prevSmoothed = smoothedPoseRef.current;
 
-    // Check geometry on current frame
-    const geometryOk = checkAddressGeometry(latestPose, config);
+    // Smooth the raw pose using previous smoothed frame
+    const smoothedPose = smoothPoseFrame(latestPose, prevSmoothed);
+    smoothedPoseRef.current = smoothedPose;
 
-    // Check stillness between consecutive frames
+    // Check geometry on smoothed frame (relax thresholds when already in address)
+    const isHolding = stateRef.current === 'in-address';
+    const geometryOk = checkAddressGeometry(smoothedPose, config, isHolding);
+
+    // Check stillness between consecutive smoothed frames
+    // Relax stillness threshold in hold mode to prevent flicker
+    const stillnessThreshold = isHolding
+      ? config.stillnessThreshold * HOLD_RELAXATION
+      : config.stillnessThreshold;
     let isStill: boolean | null = null;
-    if (prevPose) {
-      const displacement = computeBodyStillness(prevPose, latestPose);
+    if (prevSmoothed) {
+      const displacement = computeBodyStillness(prevSmoothed, smoothedPose);
       if (displacement !== null) {
-        isStill = displacement <= config.stillnessThreshold;
+        isStill = displacement <= stillnessThreshold;
       }
     }
 
@@ -84,9 +96,9 @@ export const useAddressDetection = ({
 
     if (__DEV__) {
       const prev = stateRef.current;
-      const debug = computeAddressDebugInfo(latestPose, config);
-      const displacementLabel = prevPose
-        ? (computeBodyStillness(prevPose, latestPose)?.toFixed(4) ?? 'null')
+      const debug = computeAddressDebugInfo(smoothedPose, config);
+      const displacementLabel = prevSmoothed
+        ? (computeBodyStillness(prevSmoothed, smoothedPose)?.toFixed(4) ?? 'null')
         : 'no-prev';
       console.log(
         `[AddressDetect] ${prev}→${transition.state}` +
@@ -109,7 +121,7 @@ export const useAddressDetection = ({
     if (!enabled) {
       stateRef.current = 'watching';
       countersRef.current = INITIAL_ADDRESS_COUNTERS;
-      prevPoseRef.current = null;
+      smoothedPoseRef.current = null;
       setAddressState('watching');
     }
   }, [enabled]);

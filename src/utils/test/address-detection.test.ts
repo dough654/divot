@@ -26,15 +26,25 @@ const makeUniformPose = (x: number, y: number, confidence: number, timestamp = 0
   return { timestamp, joints };
 };
 
-/** Creates a valid address pose: wrists close together, near hip level. */
+/**
+ * Creates a valid address pose with realistic forward bend.
+ * Shoulder mid: (0.44, 0.38), Hip mid: (0.51, 0.58)
+ * bendRatio = 0.07 / 0.20 = 0.35 (~19°) — passes 0.15 threshold
+ * wristDistance = 0.04 — passes 0.15 threshold
+ * wristHipVertical = |0.56 - 0.58| = 0.02 — passes 0.25 threshold
+ */
 const makeAddressPose = (timestamp = 0): PoseFrame => {
   const base = makeUniformPose(0.5, 0.5, 0.9, timestamp);
 
-  // Position wrists close together, near hips
-  base.joints.leftWrist = { x: 0.48, y: 0.55, confidence: 0.9 };
-  base.joints.rightWrist = { x: 0.52, y: 0.55, confidence: 0.9 };
-  base.joints.leftHip = { x: 0.45, y: 0.58, confidence: 0.9 };
+  // Side view: shoulders forward of hips (forward bend)
+  base.joints.leftShoulder = { x: 0.40, y: 0.38, confidence: 0.9 };
+  base.joints.rightShoulder = { x: 0.48, y: 0.38, confidence: 0.9 };
+  // Hips at body center
+  base.joints.leftHip = { x: 0.47, y: 0.58, confidence: 0.9 };
   base.joints.rightHip = { x: 0.55, y: 0.58, confidence: 0.9 };
+  // Wrists together near hip height
+  base.joints.leftWrist = { x: 0.46, y: 0.56, confidence: 0.9 };
+  base.joints.rightWrist = { x: 0.50, y: 0.56, confidence: 0.9 };
 
   return base;
 };
@@ -49,65 +59,176 @@ describe('checkAddressGeometry', () => {
 
   it('returns false when wrists are too far apart', () => {
     const pose = makeAddressPose();
-    pose.joints.leftWrist = { x: 0.2, y: 0.55, confidence: 0.9 };
-    pose.joints.rightWrist = { x: 0.8, y: 0.55, confidence: 0.9 };
+    pose.joints.leftWrist = { x: 0.2, y: 0.56, confidence: 0.9 };
+    pose.joints.rightWrist = { x: 0.8, y: 0.56, confidence: 0.9 };
     expect(checkAddressGeometry(pose, config)).toBe(false);
   });
 
   it('returns false when a wrist has very low confidence (0.05)', () => {
     const pose = makeAddressPose();
-    pose.joints.leftWrist = { x: 0.48, y: 0.55, confidence: 0.05 };
+    pose.joints.leftWrist = { x: 0.46, y: 0.56, confidence: 0.05 };
     expect(checkAddressGeometry(pose, config)).toBe(false);
   });
 
   it('returns false when wrist confidence is below 0.3 threshold', () => {
     const pose = makeAddressPose();
-    pose.joints.leftWrist = { x: 0.48, y: 0.55, confidence: 0.29 };
-    pose.joints.rightWrist = { x: 0.52, y: 0.55, confidence: 0.29 };
+    pose.joints.leftWrist = { x: 0.46, y: 0.56, confidence: 0.29 };
+    pose.joints.rightWrist = { x: 0.50, y: 0.56, confidence: 0.29 };
     expect(checkAddressGeometry(pose, config)).toBe(false);
   });
 
   it('passes when wrist confidence meets 0.3 threshold', () => {
     const pose = makeAddressPose();
-    pose.joints.leftWrist = { x: 0.48, y: 0.55, confidence: 0.3 };
-    pose.joints.rightWrist = { x: 0.52, y: 0.55, confidence: 0.3 };
-    expect(checkAddressGeometry(pose, config)).toBe(true);
-  });
-
-  it('degrades gracefully when hips are not visible', () => {
-    const pose = makeAddressPose();
-    // Hips invisible — skip hip check, pass on wrist proximity alone
-    pose.joints.leftHip = { x: 0.0, y: 0.0, confidence: 0.0 };
-    pose.joints.rightHip = { x: 1.0, y: 1.0, confidence: 0.0 };
+    pose.joints.leftWrist = { x: 0.46, y: 0.56, confidence: 0.3 };
+    pose.joints.rightWrist = { x: 0.50, y: 0.56, confidence: 0.3 };
     expect(checkAddressGeometry(pose, config)).toBe(true);
   });
 
   it('fails when hips are visible and wrists are far above hip height', () => {
     const pose = makeAddressPose();
-    // Wrists way above hips — fails the vertical check
-    pose.joints.leftWrist = { x: 0.48, y: 0.1, confidence: 0.9 };
-    pose.joints.rightWrist = { x: 0.52, y: 0.1, confidence: 0.9 };
-    // Hips at normal height — visible
-    pose.joints.leftHip = { x: 0.45, y: 0.58, confidence: 0.9 };
-    pose.joints.rightHip = { x: 0.55, y: 0.58, confidence: 0.9 };
+    pose.joints.leftWrist = { x: 0.46, y: 0.1, confidence: 0.9 };
+    pose.joints.rightWrist = { x: 0.50, y: 0.1, confidence: 0.9 };
     expect(checkAddressGeometry(pose, config)).toBe(false);
-  });
-
-  it('passes when wrists are above hips but hips are invisible', () => {
-    const pose = makeAddressPose();
-    // Wrists way above where hips would be
-    pose.joints.leftWrist = { x: 0.48, y: 0.1, confidence: 0.9 };
-    pose.joints.rightWrist = { x: 0.52, y: 0.1, confidence: 0.9 };
-    // Hips invisible — hip check skipped
-    pose.joints.leftHip = { x: 0.45, y: 0.58, confidence: 0.1 };
-    pose.joints.rightHip = { x: 0.55, y: 0.58, confidence: 0.1 };
-    expect(checkAddressGeometry(pose, config)).toBe(true);
   });
 
   it('passes when wrists are within vertical threshold of hips', () => {
     const pose = makeAddressPose();
-    // Wrists at 0.55, hips at 0.58 — delta 0.03, within 0.25 threshold
+    // wrists at 0.56, hips at 0.58 — delta 0.02, within 0.25 threshold
     expect(checkAddressGeometry(pose, config)).toBe(true);
+  });
+
+  // --- Structural checks: visible joints ---
+
+  it('fails with too few visible joints', () => {
+    const pose = makeAddressPose();
+    // Set most joints to confidence 0 — only keep shoulders, hips, wrists (6)
+    // but we need to drop below minVisibleJoints (6)
+    pose.joints.nose = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.neck = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.leftElbow = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.rightElbow = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.leftKnee = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.rightKnee = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.leftAnkle = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.rightAnkle = { x: 0.5, y: 0.5, confidence: 0 };
+    // 6 visible joints (2 shoulders + 2 hips + 2 wrists) — passes at minVisibleJoints=6
+    expect(checkAddressGeometry(pose, config)).toBe(true);
+
+    // Drop one more to 5 — should fail
+    pose.joints.leftWrist = { x: 0.46, y: 0.56, confidence: 0 };
+    expect(checkAddressGeometry(pose, config)).toBe(false);
+  });
+
+  // --- Structural checks: required shoulders ---
+
+  it('fails when a shoulder is invisible', () => {
+    const pose = makeAddressPose();
+    pose.joints.leftShoulder = { x: 0.40, y: 0.38, confidence: 0.1 };
+    expect(checkAddressGeometry(pose, config)).toBe(false);
+  });
+
+  // --- Structural checks: required hips (no degradation) ---
+
+  it('fails when hips are not visible', () => {
+    const pose = makeAddressPose();
+    pose.joints.leftHip = { x: 0.0, y: 0.0, confidence: 0.0 };
+    pose.joints.rightHip = { x: 1.0, y: 1.0, confidence: 0.0 };
+    expect(checkAddressGeometry(pose, config)).toBe(false);
+  });
+
+  it('fails when one hip is invisible', () => {
+    const pose = makeAddressPose();
+    pose.joints.rightHip = { x: 0.55, y: 0.58, confidence: 0.1 };
+    expect(checkAddressGeometry(pose, config)).toBe(false);
+  });
+
+  // --- Structural checks: forward bend ---
+
+  it('fails when shoulders are directly above hips (no bend)', () => {
+    const pose = makeAddressPose();
+    // Put shoulders directly above hips — zero horizontal offset
+    pose.joints.leftShoulder = { x: 0.47, y: 0.38, confidence: 0.9 };
+    pose.joints.rightShoulder = { x: 0.55, y: 0.38, confidence: 0.9 };
+    // Hips stay at (0.47, 0.58) and (0.55, 0.58)
+    // bendRatio = 0 / 0.20 = 0 — fails 0.15 threshold
+    expect(checkAddressGeometry(pose, config)).toBe(false);
+  });
+
+  it('fails when bend ratio is below threshold', () => {
+    const pose = makeAddressPose();
+    // Minimal offset: shoulder mid ~(0.505, 0.38), hip mid ~(0.51, 0.58)
+    // bendRatio = 0.005 / 0.20 = 0.025 — below 0.15
+    pose.joints.leftShoulder = { x: 0.46, y: 0.38, confidence: 0.9 };
+    pose.joints.rightShoulder = { x: 0.55, y: 0.38, confidence: 0.9 };
+    expect(checkAddressGeometry(pose, config)).toBe(false);
+  });
+
+  // --- Hold mode (hysteresis) ---
+
+  it('hold mode: passes with relaxed thresholds that would fail entry', () => {
+    const pose = makeAddressPose();
+    // Wrists further apart — just over entry threshold but within hold threshold
+    // Entry threshold: 0.15, Hold threshold: 0.15 * 1.6 = 0.24
+    pose.joints.leftWrist = { x: 0.38, y: 0.56, confidence: 0.9 };
+    pose.joints.rightWrist = { x: 0.56, y: 0.56, confidence: 0.9 };
+    // wristDistance = 0.18 — fails entry (> 0.15), passes hold (< 0.24)
+    expect(checkAddressGeometry(pose, config, false)).toBe(false);
+    expect(checkAddressGeometry(pose, config, true)).toBe(true);
+  });
+
+  it('hold mode: passes with relaxed bend ratio', () => {
+    const pose = makeAddressPose();
+    // Reduce forward bend — just under entry threshold but passes hold
+    // Entry: 0.15, Hold: 0.15 / 1.6 = 0.09375
+    // Shoulder mid: (0.495, 0.38), Hip mid: (0.51, 0.58)
+    // bendRatio = 0.015 / 0.20 = 0.075 — fails entry, fails hold too
+    // Let's pick values that land between entry and hold thresholds
+    // bendRatio needs to be >= 0.09375 and < 0.15
+    // With vertical span 0.20, horizontal offset needs to be >= 0.01875 and < 0.03
+    // Shoulder mid X = 0.485, Hip mid X = 0.51 → offset = 0.025 → ratio = 0.125
+    pose.joints.leftShoulder = { x: 0.44, y: 0.38, confidence: 0.9 };
+    pose.joints.rightShoulder = { x: 0.53, y: 0.38, confidence: 0.9 };
+    // Shoulder mid: (0.485, 0.38), Hip mid: (0.51, 0.58)
+    // bendRatio = 0.025 / 0.20 = 0.125 — fails entry (< 0.15), passes hold (> 0.09375)
+    expect(checkAddressGeometry(pose, config, false)).toBe(false);
+    expect(checkAddressGeometry(pose, config, true)).toBe(true);
+  });
+
+  it('hold mode: passes with fewer visible joints than entry requires', () => {
+    const pose = makeAddressPose();
+    // Keep shoulders, hips, wrists visible (6), drop the rest to 0
+    pose.joints.nose = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.neck = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.leftElbow = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.rightElbow = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.leftKnee = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.rightKnee = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.leftAnkle = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.rightAnkle = { x: 0.5, y: 0.5, confidence: 0 };
+    // 6 visible — passes entry (minVisibleJoints=6)
+    expect(checkAddressGeometry(pose, config, false)).toBe(true);
+
+    // Drop to 5 visible — fails entry, but hold allows minVisibleJoints-2 = 4
+    pose.joints.leftWrist = { x: 0.46, y: 0.56, confidence: 0 };
+    expect(checkAddressGeometry(pose, config, false)).toBe(false);
+    // But hold mode needs wrists visible, so this still fails (wrist check).
+    // Instead, drop a non-essential joint:
+    const pose2 = makeAddressPose();
+    pose2.joints.nose = { x: 0.5, y: 0.5, confidence: 0 };
+    pose2.joints.neck = { x: 0.5, y: 0.5, confidence: 0 };
+    pose2.joints.leftElbow = { x: 0.5, y: 0.5, confidence: 0 };
+    pose2.joints.rightElbow = { x: 0.5, y: 0.5, confidence: 0 };
+    pose2.joints.leftKnee = { x: 0.5, y: 0.5, confidence: 0 };
+    pose2.joints.rightKnee = { x: 0.5, y: 0.5, confidence: 0 };
+    pose2.joints.leftAnkle = { x: 0.5, y: 0.5, confidence: 0 };
+    pose2.joints.rightAnkle = { x: 0.5, y: 0.5, confidence: 0 };
+    // 6 visible: 2 shoulders + 2 hips + 2 wrists — passes both modes at minVisibleJoints=6
+
+    // Use a config with higher minVisibleJoints to demonstrate the difference
+    const strictConfig: AddressDetectionConfig = { ...config, minVisibleJoints: 8 };
+    // 6 visible fails entry (needs 8), but hold needs max(3, 8-2) = 6 — passes
+    expect(checkAddressGeometry(pose2, strictConfig, false)).toBe(false);
+    expect(checkAddressGeometry(pose2, strictConfig, true)).toBe(true);
   });
 });
 
