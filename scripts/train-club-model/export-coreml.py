@@ -28,7 +28,7 @@ import subprocess
 import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-WEIGHTS_DIR = os.path.join(SCRIPT_DIR, "../../runs/pose/runs/pose/golf-club/weights")
+WEIGHTS_DIR = os.path.join(SCRIPT_DIR, "../../runs/pose/runs/pose/golf-club6/weights")
 BEST_PT = os.path.join(WEIGHTS_DIR, "best.pt")
 OUTPUT_DIR = os.path.join(
     SCRIPT_DIR,
