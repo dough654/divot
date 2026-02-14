@@ -8,8 +8,9 @@ How we trained the YOLOv8-nano-pose model for golf club keypoint detection, and 
 - **Task**: Detect golf club + 3 keypoints (grip, shaft midpoint, clubhead)
 - **Input**: 320×320 RGB image
 - **Output**: `(1, 14, 2100)` — 2100 candidate detections, each with 4 bbox + 1 confidence + 9 keypoint values (3 keypoints × [x, y, conf])
-- **Final metrics**: Pose mAP50 = 0.995, Pose mAP50-95 = 0.994
+- **Final metrics**: Pose mAP50 = 0.995, Pose mAP50-95 = 0.994 (golf-club6 run)
 - **Model size**: ~6MB per format (CoreML, TFLite, ONNX)
+- **Current run**: `golf-club6` — retrained with `translate=0.5` to fix center bias from earlier runs
 
 ## Dataset
 
@@ -107,6 +108,7 @@ yolo pose train \
   project=runs/pose \
   name=golf-club \
   patience=30 \
+  translate=0.5 \
   device=cpu
 ```
 
@@ -114,6 +116,7 @@ yolo pose train \
 - `imgsz=320`: Club is a large object in frame; 320px sufficient, 2-3x faster than 640
 - `patience=30`: Early stopping if no improvement for 30 epochs
 - `model=yolov8n-pose.pt`: Transfer learning from COCO pose pretrained weights
+- `translate=0.5`: Random translation augmentation — **critical** to prevent center bias. Without this, the model only detects clubs near the center of frame. Default is 0.1 which is too low for our use case.
 - `device=cpu`: See GPU notes above
 
 ### Expected training behavior
@@ -126,7 +129,7 @@ yolo pose train \
 ### Output
 
 ```
-runs/pose/runs/pose/golf-club/
+runs/pose/runs/pose/golf-club6/
 ├── weights/
 │   ├── best.pt       # Best checkpoint (use this)
 │   └── last.pt       # Final epoch checkpoint
@@ -136,71 +139,102 @@ runs/pose/runs/pose/golf-club/
 └── train_batch*.jpg  # Training sample visualizations
 ```
 
+The run name increments (`golf-club`, `golf-club2`, ... `golf-club6`). Always use the latest run's `best.pt`.
+
 ## Export
 
 The model needs to be exported to platform-specific formats:
-- **iOS**: CoreML `.mlpackage` (FP16)
+- **iOS**: CoreML `.mlpackage` → `.mlmodelc` (FP16)
 - **Android**: TFLite `.tflite` (FP16)
 
-### TFLite export (works on Linux)
+Both exports require macOS with Python 3.12. TFLite export technically works on Linux but the dependency chain (TensorFlow, onnx2tf) has no Python 3.13+ wheels. Just do both on the Mac.
 
-Direct `yolo export format=tflite` requires TensorFlow, which may not have wheels for your Python version. Use the ONNX → TFLite route instead:
+### Mac venv setup (one-time, both formats)
+
+The dependency chain is fragile. This exact sequence is tested and works:
 
 ```bash
-# 1. Export to ONNX (works everywhere)
-yolo export model=best.pt format=onnx imgsz=320 half
+# On Mac (ssh mac), Python 3.12 via Homebrew
+python3.12 -m venv /tmp/coreml-export
+/tmp/coreml-export/bin/pip install \
+  'ultralytics==8.4.14' \
+  'numpy==1.26.4' \
+  'onnx<1.20' \
+  'ml_dtypes>=0.5.0' \
+  torch torchvision coremltools \
+  onnx onnxslim onnxruntime \
+  tf_keras tensorflow
 
-# 2. Convert ONNX to TFLite via onnx2tf (needs Python 3.12 venv if on 3.14)
-pip install onnx2tf
-onnx2tf -i best.onnx -o tflite_output
-# Use: tflite_output/best_float16.tflite
+# onnx2tf must be installed separately with --no-deps to avoid pulling in
+# onnxsim (won't compile on macOS) and ai-edge-litert (no macOS wheels)
+/tmp/coreml-export/bin/pip install --no-deps 'onnx2tf==1.25.9' sng4onnx
+
+# onnx_graphsurgeon from NVIDIA index (transitive dep of onnx2tf)
+/tmp/coreml-export/bin/pip install onnx_graphsurgeon \
+  --extra-index-url https://pypi.ngc.nvidia.com
+```
+
+**Why these exact versions?**
+
+| Pin | Reason |
+|-----|--------|
+| `ultralytics==8.4.14` | Newer versions rename `YOLO` to `YOLOE`, breaking imports. `tf_keras` can pull in a newer ultralytics as a transitive dep. |
+| `numpy==1.26.4` | torch 2.2.2 (last x86_64 macOS) needs numpy <2 |
+| `onnx<1.20` | onnx 1.20 requires `ml_dtypes.float4_e2m1fn` which doesn't exist yet |
+| `ml_dtypes>=0.5.0` | Needed by onnx/onnxruntime but older versions conflict |
+| `onnx2tf==1.25.9` | Newer versions require `ai-edge-litert` which has no macOS wheels |
+| `--no-deps` on onnx2tf | Avoids `onnxsim` (C++ build fails on macOS) |
+
+### CoreML export (iOS)
+
+CoreML export uses native macOS libraries (`libcoremlpython`, `libmilstoragepython`) that don't exist on Linux.
+
+```bash
+# Copy weights to Mac
+WEIGHTS=runs/pose/runs/pose/golf-club6/weights/best.pt
+scp $WEIGHTS mac:~/best.pt
+
+# Export on Mac
+ssh mac "/tmp/coreml-export/bin/yolo export model=~/best.pt format=coreml imgsz=320 half"
+
+# Compile .mlpackage → .mlmodelc (REQUIRED for CocoaPods bundling)
+ssh mac "xcrun coremlcompiler compile ~/best.mlpackage ~/coreml-out/"
+
+# Pull compiled model back
+scp -r mac:~/coreml-out/golf-club-poseModel.mlmodelc \
+  modules/vision-camera-club-detection/ios/golf-club-pose.mlmodelc
+```
+
+**Why .mlmodelc?** CocoaPods bundles `.mlmodelc` directories directly as resources. `.mlpackage` files require Xcode compilation at build time, which doesn't happen reliably for pod resources. Always pre-compile with `xcrun coremlcompiler compile`.
+
+> **Note**: The compiled directory name may vary (e.g. `golf-club-poseModel.mlmodelc` vs `bestModel.mlmodelc`) depending on the input filename. Check the output of `xcrun coremlcompiler compile` to see what it actually produced.
+
+### TFLite export (Android)
+
+Uses the ONNX → SavedModel → TFLite FP16 pipeline:
+
+```bash
+# Export ONNX on Mac (or Linux — ONNX export works everywhere)
+ssh mac "/tmp/coreml-export/bin/yolo export model=~/best.pt format=onnx imgsz=320 half"
+
+# Convert ONNX → TFLite via onnx2tf
+# This step takes 5-10 minutes — use nohup if running over SSH to avoid timeout
+ssh mac "cd ~ && nohup /tmp/coreml-export/bin/onnx2tf -i best.onnx -o tflite_output > onnx2tf.log 2>&1 &"
+
+# Poll for completion
+ssh mac "ps aux | grep onnx2tf"   # wait until gone
+ssh mac "tail -5 ~/onnx2tf.log"   # check result
+
+# Pull the FP16 model back
+scp mac:~/tflite_output/best_float16.tflite \
+  modules/vision-camera-club-detection/android/src/main/assets/golf-club-pose.tflite
 ```
 
 `onnx2tf` produces multiple variants. **Use `best_float16.tflite`** — do NOT use INT8 quantized variants, they break keypoint coordinates ([ultralytics#5889](https://github.com/ultralytics/ultralytics/issues/5889)).
 
-### CoreML export (requires macOS)
+### SSH timeout note
 
-CoreML export uses native macOS libraries (`libcoremlpython`, `libmilstoragepython`) that don't exist on Linux. Two options:
-
-#### Option A: yolo export on Mac (recommended)
-
-```bash
-# On a Mac with Python 3.12 (torch has no macOS x86_64 wheels for 3.13+)
-python3.12 -m venv /tmp/coreml-export
-/tmp/coreml-export/bin/pip install torch torchvision coremltools ultralytics 'numpy==1.26.4'
-
-# Copy best.pt to the Mac, then:
-yolo export model=best.pt format=coreml imgsz=320 half
-
-# IMPORTANT: Compile .mlpackage → .mlmodelc for CocoaPods bundling
-xcrun coremlcompiler compile best.mlpackage ./
-```
-
-**numpy version gotcha**: torch 2.2.2 (last x86_64 macOS version) needs numpy <2. Pin to `numpy==1.26.4`.
-
-**Why .mlmodelc?** CocoaPods bundles `.mlmodelc` directories directly as resources. `.mlpackage` files require Xcode compilation at build time, which doesn't happen reliably for pod resources. Always pre-compile with `xcrun coremlcompiler compile`.
-
-#### Option B: SSH to Mac (how we did it)
-
-We used the build Mac available via `ssh mac` — same machine used for `scripts/local-build.sh`:
-
-```bash
-# Copy model to Mac
-scp best.pt mac:~/dev/swing-app/runs/pose/runs/pose/golf-club/weights/
-
-# Create venv and install deps on Mac
-ssh mac "python3.12 -m venv /tmp/coreml-export"
-ssh mac "/tmp/coreml-export/bin/pip install torch torchvision coremltools ultralytics 'numpy==1.26.4'"
-
-# Run export
-ssh mac "cd ~/dev/swing-app && /tmp/coreml-export/bin/yolo export model=runs/pose/runs/pose/golf-club/weights/best.pt format=coreml imgsz=320 half"
-
-# Compile to .mlmodelc on the Mac
-ssh mac "xcrun coremlcompiler compile ~/dev/swing-app/runs/pose/runs/pose/golf-club/weights/best.mlpackage ~/dev/swing-app/modules/vision-camera-club-detection/ios/"
-
-# Pull result back
-scp -r mac:~/dev/swing-app/modules/vision-camera-club-detection/ios/golf-club-pose.mlmodelc ./modules/vision-camera-club-detection/ios/
-```
+The TFLite conversion (onnx2tf) can take 5-10 minutes. SSH connections may timeout during this period, killing the process. Always use `nohup ... &` for long-running exports and poll with `ps` / `tail` instead of waiting interactively.
 
 ### Where models go
 
@@ -246,14 +280,14 @@ See:
 
 1. Download or augment dataset (Roboflow)
 2. Verify `data.yaml` has correct paths and `kpt_shape: [3, 3]`
-3. Train: `yolo pose train model=yolov8n-pose.pt data=data.yaml epochs=200 imgsz=320 batch=16 patience=30 device=cpu`
-4. Export ONNX: `yolo export model=best.pt format=onnx imgsz=320 half`
-5. Convert ONNX → TFLite: `onnx2tf -i best.onnx -o tflite_output` (use `best_float16.tflite`)
-6. Export CoreML on Mac: `yolo export model=best.pt format=coreml imgsz=320 half`
-7. Compile CoreML on Mac: `xcrun coremlcompiler compile best.mlpackage <output-dir>` (must be `.mlmodelc`)
+3. Train: `yolo pose train model=yolov8n-pose.pt data=data.yaml epochs=200 imgsz=320 batch=16 patience=30 translate=0.5 device=cpu`
+4. Set up Mac venv if needed (see "Mac venv setup" above)
+5. `scp` the `best.pt` to Mac
+6. CoreML: `yolo export format=coreml imgsz=320 half` → `xcrun coremlcompiler compile` → `scp` `.mlmodelc` back
+7. TFLite: `yolo export format=onnx imgsz=320 half` → `nohup onnx2tf -i best.onnx -o tflite_output &` → `scp` `best_float16.tflite` back
 8. Copy models to native module directories (`.mlmodelc` for iOS, `.tflite` for Android)
-8. Verify output shapes match `(1, 14, 2100)` or `(1, 14, N)` for different `imgsz`
-9. Dev build and test on device
+9. Verify output shapes match `(1, 14, 2100)` or `(1, 14, N)` for different `imgsz`
+10. Dev build and test on device
 
 ## Known Issues & Gotchas
 
@@ -266,8 +300,15 @@ See:
 | `coremltools` can't detect ONNX source without torch | Install torch in same venv, or use `yolo export` |
 | numpy 2.x incompatible with torch 2.2.x | Pin `numpy==1.26.4` |
 | PyTorch has no macOS x86_64 wheels for Python 3.13+ | Use Python 3.12 venv on Mac |
-| TensorFlow has no Python 3.14 wheels | Use Python 3.12 venv or onnx2tf route |
+| TensorFlow has no Python 3.14 wheels | Use Python 3.12 venv on Mac |
 | `polars` module missing during training save | `pip install polars` |
 | `data.yaml` path must be absolute with `yolo` CLI | Always use full path |
 | `.mlpackage` not found by CocoaPods at runtime | Pre-compile to `.mlmodelc` with `xcrun coremlcompiler compile` |
 | `Bundle.main` doesn't find pod resources | Use `Bundle(for: YourClass.self)` with fallback to `Bundle.main` |
+| `onnxsim` won't compile on macOS | Install `onnx2tf` with `--no-deps` to skip it |
+| `ai-edge-litert` has no macOS wheels | Pin `onnx2tf==1.25.9` which uses older TF Lite converter |
+| `onnx>=1.20` requires `ml_dtypes.float4_e2m1fn` | Pin `onnx<1.20` |
+| `tf_keras` pulls in newer ultralytics (breaks `YOLO` import) | Pin `ultralytics==8.4.14` |
+| SSH timeout kills long-running exports | Use `nohup ... &` and poll with `ps`/`tail` |
+| Model detects clubs only near center of frame | Train with `translate=0.5` (default 0.1 is too low) |
+| `eas build --local` reuses stale native code | Delete `ios/` directory on Mac before rebuilding |
