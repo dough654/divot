@@ -15,8 +15,6 @@ Pod::Spec.new do |s|
   s.dependency 'VisionCamera'
   s.dependency 'MediaPipeTasksVision', '~> 0.10.14'
 
-  # Bundle the MediaPipe pose landmarker model file
-  s.resource_bundles = {
-    'VisionCameraPoseDetection' => ['pose_landmarker_lite.task']
-  }
+  # Bundle the MediaPipe pose landmarker model file directly into the app
+  s.resources = ['pose_landmarker_lite.task']
 end

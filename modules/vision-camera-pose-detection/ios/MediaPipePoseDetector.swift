@@ -78,12 +78,22 @@ final class MediaPipePoseDetector {
   }
 
   private func loadModel() {
-    // Look for the .task model file in the pod's bundle first, then main bundle
+    // Look for the .task model file in multiple bundle locations:
+    // 1. Pod's own bundle (static linking → usually Bundle.main)
+    // 2. Named resource bundle (from resource_bundles podspec config)
+    // 3. Main app bundle (fallback)
     let podBundle = Bundle(for: MediaPipePoseDetector.self)
-    guard let modelPath = podBundle.path(forResource: "pose_landmarker_lite", ofType: "task")
+    let resourceBundle = podBundle.url(forResource: "VisionCameraPoseDetection", withExtension: "bundle")
+      .flatMap { Bundle(url: $0) }
+      ?? Bundle.main.url(forResource: "VisionCameraPoseDetection", withExtension: "bundle")
+      .flatMap { Bundle(url: $0) }
+
+    guard let modelPath = resourceBundle?.path(forResource: "pose_landmarker_lite", ofType: "task")
+            ?? podBundle.path(forResource: "pose_landmarker_lite", ofType: "task")
             ?? Bundle.main.path(forResource: "pose_landmarker_lite", ofType: "task") else {
       NSLog("[PoseDetection] pose_landmarker_lite.task not found — pose detection disabled")
       NSLog("[PoseDetection] Searched pod bundle: \(podBundle.bundlePath)")
+      NSLog("[PoseDetection] Searched resource bundle: \(resourceBundle?.bundlePath ?? "nil")")
       NSLog("[PoseDetection] Searched main bundle: \(Bundle.main.bundlePath)")
       initFailed = true
       return
