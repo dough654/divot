@@ -35,6 +35,7 @@ import { useSwingFeedback } from '@/src/hooks/use-swing-feedback';
 import { useMotionDetection } from '@/src/hooks/use-motion-detection';
 import { useAudioMetering } from '@/src/hooks/use-audio-metering';
 import { useMotionSwingDetection } from '@/src/hooks/use-motion-swing-detection';
+import { useSwingClassifier } from '@/src/hooks/use-swing-classifier';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
@@ -107,8 +108,9 @@ export default function CameraScreen() {
     toggleCamera,
   } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps });
 
-  // Pose detection — gated by feature flag + user setting (for overlay only, not swing detection)
-  const poseDetectionEnabled = !!poseDetectionFlag && settings.poseOverlayEnabled;
+  // Pose detection — gated by feature flag + user setting
+  // Also required when swing classifier is enabled (needs joint data)
+  const poseDetectionEnabled = !!poseDetectionFlag && (settings.poseOverlayEnabled || settings.swingClassifierEnabled);
   const { rawPoseData } = usePoseDetection({ enabled: poseDetectionEnabled });
 
   // Auto-detection pipeline: motion + audio → swing detection → rolling recorder
@@ -122,11 +124,14 @@ export default function CameraScreen() {
   // Audio metering — expo-av recording with metering for impact detection
   const { audioLevel } = useAudioMetering({ enabled: autoDetectEnabled });
 
-  // Motion-based swing detection state machine
+  // Motion-based swing detection state machine (legacy)
   const swingStartRef = useRef<(() => boolean | void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
-  const { isStill, detectionState, debugInfo } = useMotionSwingDetection({
-    enabled: autoDetectEnabled,
+  const useClassifier = autoDetectEnabled && settings.swingClassifierEnabled;
+  const useMotionDetect = autoDetectEnabled && !settings.swingClassifierEnabled;
+
+  const motionSwingResult = useMotionSwingDetection({
+    enabled: useMotionDetect,
     motionMagnitude,
     audioLevel,
     sensitivity: settings.swingDetectionSensitivity,
@@ -143,7 +148,32 @@ export default function CameraScreen() {
     }, [playSwingEnd]),
   });
 
-  // Play "ready" cue when entering armed state (equivalent of old address position)
+  // Classifier-based swing detection (new)
+  const classifierResult = useSwingClassifier({
+    enabled: useClassifier,
+    rawPoseData: rawPoseData ?? null,
+    onSwingStarted: useCallback(() => {
+      const accepted = swingStartRef.current?.();
+      if (accepted !== false) playSwingStart();
+    }, [playSwingStart]),
+    onSwingEnded: useCallback((durationMs: number) => {
+      playSwingEnd();
+      swingEndRef.current?.();
+      if (__DEV__) {
+        console.log('[Camera] Classifier swing ended:', durationMs, 'ms');
+      }
+    }, [playSwingEnd]),
+  });
+
+  // Unified interface — pick from classifier or motion
+  const isStill = useClassifier
+    ? classifierResult.isInAddress || classifierResult.isSwinging
+    : motionSwingResult.isStill;
+  const detectionState = useClassifier
+    ? classifierResult.phase
+    : motionSwingResult.detectionState;
+
+  // Play "ready" cue when entering armed/address state
   const prevIsStillRef = useRef(false);
   useEffect(() => {
     if (isStill && !prevIsStillRef.current) {
@@ -655,7 +685,9 @@ export default function CameraScreen() {
               color={isStill ? theme.colors.success : theme.colors.accent}
             />
             <Text style={[styles.autoBadgeText, isStill && styles.autoBadgeTextReady]}>
-              {isStill ? 'Armed' : detectionState === 'swing' ? 'Swing!' : 'Watching'}
+              {useClassifier
+                ? (classifierResult.isSwinging ? 'Swing!' : classifierResult.isInAddress ? 'Address' : 'Watching')
+                : (isStill ? 'Armed' : detectionState === 'swing' ? 'Swing!' : 'Watching')}
             </Text>
           </View>
         )}
@@ -700,7 +732,17 @@ export default function CameraScreen() {
             {autoDetectEnabled && settings.debugOverlayEnabled && (
               <DetectionDebugOverlay
                 visible={true}
-                debugInfo={debugInfo}
+                debugInfo={useClassifier
+                  ? {
+                      mode: 'classifier' as const,
+                      ...classifierResult.debugInfo,
+                      isModelTrained: classifierResult.isModelTrained,
+                    }
+                  : {
+                      mode: 'motion' as const,
+                      ...motionSwingResult.debugInfo,
+                    }
+                }
               />
             )}
             {currentError && (

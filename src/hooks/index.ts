@@ -22,3 +22,5 @@ export * from './use-video-zoom';
 // Import directly: import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
 // use-screen-orientation excluded from barrel — depends on expo-screen-orientation (native dep)
 // Import directly: import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
+// use-swing-classifier excluded from barrel — depends on pose detection native module
+// Import directly: import { useSwingClassifier } from '@/src/hooks/use-swing-classifier';

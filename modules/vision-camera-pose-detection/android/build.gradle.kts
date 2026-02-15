@@ -21,9 +21,11 @@ android {
   }
 }
 
+android.sourceSets["main"].assets.srcDirs("src/main/assets")
+
 dependencies {
   implementation(project(":expo-modules-core"))
   implementation("com.facebook.react:react-android")
   implementation(project(":react-native-vision-camera"))
-  implementation("com.google.mlkit:pose-detection:18.0.0-beta5")
+  implementation("com.google.mediapipe:tasks-vision:0.10.14")
 }

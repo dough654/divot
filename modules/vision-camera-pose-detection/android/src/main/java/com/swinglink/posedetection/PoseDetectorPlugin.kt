@@ -5,8 +5,8 @@ import com.mrousavy.camera.frameprocessors.Frame
 import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
 
 /**
- * VisionCamera frame processor plugin that runs ML Kit body pose
- * detection on each camera frame.
+ * VisionCamera frame processor plugin that runs MediaPipe Pose Landmarker
+ * on each camera frame.
  *
  * Registered as "detectPose" from [VisionCameraPoseDetectionModule].
  * Called from JS via: `VisionCameraProxy.initFrameProcessorPlugin('detectPose')`
@@ -16,17 +16,33 @@ import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
  */
 class PoseDetectorPlugin : FrameProcessorPlugin() {
 
-  private val detector = MLKitPoseDetector()
+  // Lazily initialized with app context from the first frame callback
+  private var detector: MediaPipePoseDetector? = null
 
   init {
     Log.d(TAG, "PoseDetectorPlugin instance created")
   }
 
   override fun callback(frame: Frame, arguments: Map<String, Any>?): Any? {
+    // Lazy init: MediaPipe needs app context, which isn't available in the constructor
+    if (detector == null) {
+      val context = try {
+        // Access the application context from the frame's image reader
+        android.app.ActivityThread.currentApplication()?.applicationContext
+      } catch (_: Exception) { null }
+
+      if (context != null) {
+        detector = MediaPipePoseDetector(context)
+      } else {
+        Log.w(TAG, "Cannot get app context for MediaPipe init")
+        return null
+      }
+    }
+
     val image = frame.image
     val rotationDegrees = orientationToDegrees(frame.orientation)
 
-    val result = detector.detectPose(image, rotationDegrees)
+    val result = detector?.detectPose(image, rotationDegrees)
     latestPoseData = result
 
     if (frameCount % LOG_INTERVAL == 0L) {

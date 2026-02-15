@@ -1,8 +1,8 @@
 import VisionCamera
 
 /**
- * VisionCamera frame processor plugin that runs Apple Vision body pose
- * detection on each camera frame.
+ * VisionCamera frame processor plugin that runs MediaPipe Pose Landmarker
+ * on each camera frame.
  *
  * Registered as "detectPose" — called from JS via:
  *   `VisionCameraProxy.initFrameProcessorPlugin('detectPose')`
@@ -18,7 +18,7 @@ import VisionCamera
 @objc(PoseDetectorPlugin)
 class PoseDetectorPlugin: FrameProcessorPlugin {
 
-  private let detector = AppleVisionPoseDetector()
+  private let detector = MediaPipePoseDetector()
 
   // Thread-safe storage for latest pose result.
   // Written from the frame processor thread, read from JS thread via Expo module.

@@ -48,5 +48,15 @@ runs/
 scripts/train-club-model/.venv/
 scripts/train-club-model/.venv-export/
 scripts/train-club-model/datasets/
+scripts/train-swing-classifier/.venv/
+scripts/train-swing-classifier/data/
+scripts/train-swing-classifier/models/
+scripts/train-swing-classifier/exported/
+scripts/train-swing-classifier/results/
 *.pt
 yolov8n-pose.pt
+
+# MediaPipe model files (too large for git, download separately)
+pose_landmarker_lite.task
+
+tmp

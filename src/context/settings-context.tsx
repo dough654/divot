@@ -42,6 +42,8 @@ export type Settings = {
   swingDetectionSensitivity: number;
   /** Whether the detection debug overlay is shown on camera preview. Defaults to false. */
   debugOverlayEnabled: boolean;
+  /** Whether to use the trained swing classifier instead of motion detection. Defaults to false. */
+  swingClassifierEnabled: boolean;
 };
 
 type SettingsContextValue = {
@@ -55,6 +57,7 @@ type SettingsContextValue = {
   setSwingAutoDetectionEnabled: (enabled: boolean) => void;
   setSwingDetectionSensitivity: (sensitivity: number) => void;
   setDebugOverlayEnabled: (enabled: boolean) => void;
+  setSwingClassifierEnabled: (enabled: boolean) => void;
 };
 
 // ============================================
@@ -72,6 +75,7 @@ const DEFAULT_SETTINGS: Settings = {
   swingAutoDetectionEnabled: false,
   swingDetectionSensitivity: 0.5,
   debugOverlayEnabled: false,
+  swingClassifierEnabled: false,
 };
 
 // ============================================
@@ -208,6 +212,17 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     [persistSettings]
   );
 
+  const setSwingClassifierEnabled = useCallback(
+    (enabled: boolean) => {
+      setSettings((prev) => {
+        const updated = { ...prev, swingClassifierEnabled: enabled };
+        persistSettings(updated);
+        return updated;
+      });
+    },
+    [persistSettings]
+  );
+
   const value = useMemo<SettingsContextValue>(
     () => ({
       settings,
@@ -220,8 +235,9 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
       setSwingAutoDetectionEnabled,
       setSwingDetectionSensitivity,
       setDebugOverlayEnabled,
+      setSwingClassifierEnabled,
     }),
-    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps, setPoseOverlayEnabled, setSwingAutoDetectionEnabled, setSwingDetectionSensitivity, setDebugOverlayEnabled]
+    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps, setPoseOverlayEnabled, setSwingAutoDetectionEnabled, setSwingDetectionSensitivity, setDebugOverlayEnabled, setSwingClassifierEnabled]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

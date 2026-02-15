@@ -4,7 +4,7 @@ import VisionCamera
 /**
  * Expo Module that registers the "detectPose" frame processor plugin.
  *
- * The plugin uses Apple's Vision framework VNDetectHumanBodyPoseRequest
+ * The plugin uses MediaPipe Pose Landmarker (BlazePose)
  * to detect 14 body joints and returns a flat [Double] array of 42 values
  * (x, y, confidence per joint).
  */
