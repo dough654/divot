@@ -40,6 +40,7 @@ export default function SettingsScreen() {
     setSwingAutoDetectionEnabled,
     setSwingDetectionSensitivity,
     setDebugOverlayEnabled,
+    setSwingClassifierEnabled,
   } = useSettings();
   const styles = useThemedStyles(createStyles);
   const haptics = useHaptics();
@@ -81,6 +82,11 @@ export default function SettingsScreen() {
   const handleDebugOverlayToggle = (value: boolean) => {
     haptics.selection();
     setDebugOverlayEnabled(value);
+  };
+
+  const handleSwingClassifierToggle = (value: boolean) => {
+    haptics.selection();
+    setSwingClassifierEnabled(value);
   };
 
   const handleClearClips = async () => {
@@ -263,8 +269,29 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* Detection Sensitivity Slider */}
+        {/* Swing Classifier Toggle */}
         {settings.swingAutoDetectionEnabled && (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.settingRow}>
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>TRAINED CLASSIFIER</Text>
+                <Text style={styles.settingDescription}>use ML model instead of motion detection</Text>
+              </View>
+              <Switch
+                value={settings.swingClassifierEnabled}
+                onValueChange={handleSwingClassifierToggle}
+                trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
+                thumbColor={theme.palette.white}
+                accessibilityLabel="Toggle trained swing classifier"
+                accessibilityHint={settings.swingClassifierEnabled ? 'Switch to motion detection' : 'Switch to trained classifier'}
+              />
+            </View>
+          </>
+        )}
+
+        {/* Detection Sensitivity Slider — only for motion detection mode */}
+        {settings.swingAutoDetectionEnabled && !settings.swingClassifierEnabled && (
           <>
             <View style={styles.divider} />
             <View style={styles.settingRow}>
@@ -291,9 +318,13 @@ export default function SettingsScreen() {
               thumbTintColor={theme.colors.accent}
             />
 
-            <View style={styles.divider} />
+          </>
+        )}
 
-            {/* Debug Overlay Toggle */}
+        {/* Debug Overlay Toggle — available in both classifier and motion modes */}
+        {settings.swingAutoDetectionEnabled && (
+          <>
+            <View style={styles.divider} />
             <View style={styles.settingRow}>
               <View style={styles.settingText}>
                 <Text style={styles.settingLabel}>DEBUG OVERLAY</Text>

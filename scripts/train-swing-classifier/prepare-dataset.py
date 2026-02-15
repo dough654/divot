@@ -325,8 +325,9 @@ def main():
         count = np.sum(y_all == i)
         print(f"  {phase}: {count} ({count / len(y_all) * 100:.1f}%)")
 
-    # Split using GolfDB's train/test split where available, then further split train into train/val
-    test_mask = splits == 1  # GolfDB test split
+    # Split using GolfDB's 4-fold cross-validation splits
+    # We use split 1 as test set (~25%), splits 2-4 as train/val
+    test_mask = splits == 1
     train_val_mask = ~test_mask
 
     X_train_val = X_all[train_val_mask]

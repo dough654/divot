@@ -33,7 +33,8 @@ def parse_golfdb_csv(csv_path: str) -> list[dict]:
         reader = csv.DictReader(f)
         for row in reader:
             # Filter: DTL view, real-time (not slow motion)
-            if row.get("view", "").strip().lower() != "dtl":
+            view = row.get("view", "").strip().lower()
+            if view not in ("dtl", "down-the-line"):
                 continue
             if row.get("slow", "1").strip() != "0":
                 continue

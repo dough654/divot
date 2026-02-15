@@ -2,14 +2,18 @@
 """
 Extract MediaPipe Pose landmarks from video frames.
 
-Runs MediaPipe Pose on every frame of each downloaded video and saves
-per-clip joint CSVs. These CSVs become the input for prepare-dataset.py.
+Runs MediaPipe Pose Landmarker (Tasks API) on every frame of each downloaded
+video and saves per-clip joint CSVs. These CSVs become the input for
+prepare-dataset.py.
 
 Output format per CSV row:
     frame_idx, joint0_x, joint0_y, joint0_conf, joint1_x, joint1_y, joint1_conf, ...
 
 We extract all 33 MediaPipe landmarks but the classifier only uses 8 joints
 (shoulders, elbows, wrists, hips). The full set is saved for future use.
+
+Requires the pose_landmarker model file. Download from:
+    https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task
 
 Usage:
     python extract-poses.py --metadata ./data/videos/clip_metadata.csv --output-dir ./data/poses
@@ -19,11 +23,17 @@ import argparse
 import csv
 import os
 import sys
+from pathlib import Path
 
 import cv2
 import mediapipe as mp
 import numpy as np
 from tqdm import tqdm
+
+BaseOptions = mp.tasks.BaseOptions
+PoseLandmarker = mp.tasks.vision.PoseLandmarker
+PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
+VisionRunningMode = mp.tasks.vision.RunningMode
 
 
 # MediaPipe landmark names (33 total)
@@ -45,24 +55,14 @@ LANDMARK_NAMES = [
     "left_foot_index", "right_foot_index",
 ]
 
-# MediaPipe indices for the 14 joints we map to our app's joint model
-# These map to pose-normalization.ts JOINT_NAMES
-OUR_14_JOINT_INDICES = {
-    "nose": 0,
-    "neck": None,  # Computed as midpoint of shoulders (11, 12)
-    "left_shoulder": 11,
-    "right_shoulder": 12,
-    "left_elbow": 13,
-    "right_elbow": 14,
-    "left_wrist": 15,
-    "right_wrist": 16,
-    "left_hip": 23,
-    "right_hip": 24,
-    "left_knee": 25,
-    "right_knee": 26,
-    "left_ankle": 27,
-    "right_ankle": 28,
-}
+# Default model path (relative to this script)
+DEFAULT_MODEL_PATH = str(
+    Path(__file__).parent.parent.parent
+    / "modules"
+    / "vision-camera-pose-detection"
+    / "ios"
+    / "pose_landmarker_lite.task"
+)
 
 
 def build_csv_header() -> list[str]:
@@ -76,10 +76,10 @@ def build_csv_header() -> list[str]:
 def extract_poses_from_video(
     video_path: str,
     output_csv: str,
-    model_complexity: int = 1,
+    model_path: str,
 ) -> int:
     """
-    Run MediaPipe Pose on every frame of a video and save landmarks to CSV.
+    Run MediaPipe Pose Landmarker on every frame of a video and save landmarks to CSV.
 
     Returns the number of frames processed.
     """
@@ -89,14 +89,17 @@ def extract_poses_from_video(
         return 0
 
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
 
-    mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose(
-        static_image_mode=False,
-        model_complexity=model_complexity,
-        min_detection_confidence=0.5,
+    options = PoseLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=model_path),
+        running_mode=VisionRunningMode.VIDEO,
+        num_poses=1,
+        min_pose_detection_confidence=0.5,
         min_tracking_confidence=0.5,
     )
+
+    landmarker = PoseLandmarker.create_from_options(options)
 
     header = build_csv_header()
     rows = []
@@ -111,12 +114,18 @@ def extract_poses_from_video(
 
         # MediaPipe expects RGB
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = pose.process(rgb)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+
+        # Timestamp in milliseconds
+        timestamp_ms = int(frame_idx * 1000.0 / fps) if fps > 0 else frame_idx * 33
+
+        results = landmarker.detect_for_video(mp_image, timestamp_ms)
 
         row = [frame_idx]
 
-        if results.pose_landmarks:
-            for landmark in results.pose_landmarks.landmark:
+        if results.pose_landmarks and len(results.pose_landmarks) > 0:
+            landmarks = results.pose_landmarks[0]  # First (only) pose
+            for landmark in landmarks:
                 row.extend([
                     round(landmark.x, 6),
                     round(landmark.y, 6),
@@ -132,7 +141,7 @@ def extract_poses_from_video(
 
     pbar.close()
     cap.release()
-    pose.close()
+    landmarker.close()
 
     # Write CSV
     os.makedirs(os.path.dirname(output_csv), exist_ok=True)
@@ -157,11 +166,9 @@ def main():
         help="Directory to save pose CSVs",
     )
     parser.add_argument(
-        "--model-complexity",
-        type=int,
-        default=1,
-        choices=[0, 1, 2],
-        help="MediaPipe model complexity (0=lite, 1=full, 2=heavy)",
+        "--model-path",
+        default=DEFAULT_MODEL_PATH,
+        help="Path to pose_landmarker .task model file",
     )
     parser.add_argument(
         "--video-dir",
@@ -170,12 +177,18 @@ def main():
     )
     args = parser.parse_args()
 
+    if not os.path.exists(args.model_path):
+        print(f"Model file not found: {args.model_path}")
+        print("Download from: https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task")
+        sys.exit(1)
+
     # Read metadata
     with open(args.metadata, "r") as f:
         reader = csv.DictReader(f)
         clips = list(reader)
 
     print(f"Processing {len(clips)} clips")
+    print(f"Model: {args.model_path}")
     os.makedirs(args.output_dir, exist_ok=True)
 
     processed = 0
@@ -201,7 +214,7 @@ def main():
         n_frames = extract_poses_from_video(
             video_path=video_path,
             output_csv=output_csv,
-            model_complexity=args.model_complexity,
+            model_path=args.model_path,
         )
         print(f"  Clip {clip_id}: {n_frames} frames -> {output_csv}")
         processed += 1
