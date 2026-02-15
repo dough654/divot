@@ -1,4 +1,4 @@
-/** Joint names in the common 14-joint pose model. */
+/** Joint names in the 24-joint pose model (MediaPipe BlazePose subset). */
 export type JointName =
   | 'nose'
   | 'neck'
@@ -13,7 +13,17 @@ export type JointName =
   | 'leftKnee'
   | 'rightKnee'
   | 'leftAnkle'
-  | 'rightAnkle';
+  | 'rightAnkle'
+  | 'leftPinky'
+  | 'rightPinky'
+  | 'leftIndex'
+  | 'rightIndex'
+  | 'leftThumb'
+  | 'rightThumb'
+  | 'leftHeel'
+  | 'rightHeel'
+  | 'leftFootIndex'
+  | 'rightFootIndex';
 
 /** A single joint's position in normalized coordinates. */
 export type JointPosition = {

@@ -16,6 +16,9 @@ const makeUniformPose = (x: number, y: number, confidence: number, timestamp = 0
     'leftElbow', 'rightElbow', 'leftWrist', 'rightWrist',
     'leftHip', 'rightHip', 'leftKnee', 'rightKnee',
     'leftAnkle', 'rightAnkle',
+    'leftPinky', 'rightPinky', 'leftIndex', 'rightIndex',
+    'leftThumb', 'rightThumb',
+    'leftHeel', 'rightHeel', 'leftFootIndex', 'rightFootIndex',
   ];
 
   const joints = {} as Record<JointName, JointPosition>;
@@ -101,16 +104,26 @@ describe('checkAddressGeometry', () => {
 
   it('fails with too few visible joints', () => {
     const pose = makeAddressPose();
-    // Set most joints to confidence 0 — only keep shoulders, hips, wrists (6)
-    // but we need to drop below minVisibleJoints (6)
-    pose.joints.nose = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.neck = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.leftElbow = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.rightElbow = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.leftKnee = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.rightKnee = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.leftAnkle = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.rightAnkle = { x: 0.5, y: 0.5, confidence: 0 };
+    // Zero all non-essential joints — keep only shoulders, hips, wrists (6)
+    const z = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.nose = z;
+    pose.joints.neck = z;
+    pose.joints.leftElbow = z;
+    pose.joints.rightElbow = z;
+    pose.joints.leftKnee = z;
+    pose.joints.rightKnee = z;
+    pose.joints.leftAnkle = z;
+    pose.joints.rightAnkle = z;
+    pose.joints.leftPinky = z;
+    pose.joints.rightPinky = z;
+    pose.joints.leftIndex = z;
+    pose.joints.rightIndex = z;
+    pose.joints.leftThumb = z;
+    pose.joints.rightThumb = z;
+    pose.joints.leftHeel = z;
+    pose.joints.rightHeel = z;
+    pose.joints.leftFootIndex = z;
+    pose.joints.rightFootIndex = z;
     // 6 visible joints (2 shoulders + 2 hips + 2 wrists) — passes at minVisibleJoints=6
     expect(checkAddressGeometry(pose, config)).toBe(true);
 
@@ -196,15 +209,26 @@ describe('checkAddressGeometry', () => {
 
   it('hold mode: passes with fewer visible joints than entry requires', () => {
     const pose = makeAddressPose();
-    // Keep shoulders, hips, wrists visible (6), drop the rest to 0
-    pose.joints.nose = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.neck = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.leftElbow = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.rightElbow = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.leftKnee = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.rightKnee = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.leftAnkle = { x: 0.5, y: 0.5, confidence: 0 };
-    pose.joints.rightAnkle = { x: 0.5, y: 0.5, confidence: 0 };
+    // Keep shoulders, hips, wrists visible (6), zero everything else
+    const z = { x: 0.5, y: 0.5, confidence: 0 };
+    pose.joints.nose = z;
+    pose.joints.neck = z;
+    pose.joints.leftElbow = z;
+    pose.joints.rightElbow = z;
+    pose.joints.leftKnee = z;
+    pose.joints.rightKnee = z;
+    pose.joints.leftAnkle = z;
+    pose.joints.rightAnkle = z;
+    pose.joints.leftPinky = z;
+    pose.joints.rightPinky = z;
+    pose.joints.leftIndex = z;
+    pose.joints.rightIndex = z;
+    pose.joints.leftThumb = z;
+    pose.joints.rightThumb = z;
+    pose.joints.leftHeel = z;
+    pose.joints.rightHeel = z;
+    pose.joints.leftFootIndex = z;
+    pose.joints.rightFootIndex = z;
     // 6 visible — passes entry (minVisibleJoints=6)
     expect(checkAddressGeometry(pose, config, false)).toBe(true);
 
@@ -214,15 +238,26 @@ describe('checkAddressGeometry', () => {
     // But hold mode needs wrists visible, so this still fails (wrist check).
     // Instead, drop a non-essential joint:
     const pose2 = makeAddressPose();
-    pose2.joints.nose = { x: 0.5, y: 0.5, confidence: 0 };
-    pose2.joints.neck = { x: 0.5, y: 0.5, confidence: 0 };
-    pose2.joints.leftElbow = { x: 0.5, y: 0.5, confidence: 0 };
-    pose2.joints.rightElbow = { x: 0.5, y: 0.5, confidence: 0 };
-    pose2.joints.leftKnee = { x: 0.5, y: 0.5, confidence: 0 };
-    pose2.joints.rightKnee = { x: 0.5, y: 0.5, confidence: 0 };
-    pose2.joints.leftAnkle = { x: 0.5, y: 0.5, confidence: 0 };
-    pose2.joints.rightAnkle = { x: 0.5, y: 0.5, confidence: 0 };
-    // 6 visible: 2 shoulders + 2 hips + 2 wrists — passes both modes at minVisibleJoints=6
+    const zero = { x: 0.5, y: 0.5, confidence: 0 };
+    pose2.joints.nose = zero;
+    pose2.joints.neck = zero;
+    pose2.joints.leftElbow = zero;
+    pose2.joints.rightElbow = zero;
+    pose2.joints.leftKnee = zero;
+    pose2.joints.rightKnee = zero;
+    pose2.joints.leftAnkle = zero;
+    pose2.joints.rightAnkle = zero;
+    pose2.joints.leftPinky = zero;
+    pose2.joints.rightPinky = zero;
+    pose2.joints.leftIndex = zero;
+    pose2.joints.rightIndex = zero;
+    pose2.joints.leftThumb = zero;
+    pose2.joints.rightThumb = zero;
+    pose2.joints.leftHeel = zero;
+    pose2.joints.rightHeel = zero;
+    pose2.joints.leftFootIndex = zero;
+    pose2.joints.rightFootIndex = zero;
+    // 6 visible: 2 shoulders + 2 hips + 2 wrists
 
     // Use a config with higher minVisibleJoints to demonstrate the difference
     const strictConfig: AddressDetectionConfig = { ...config, minVisibleJoints: 8 };

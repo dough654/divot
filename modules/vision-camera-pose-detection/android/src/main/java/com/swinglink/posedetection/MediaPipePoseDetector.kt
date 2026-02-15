@@ -18,12 +18,9 @@ import java.io.ByteArrayOutputStream
 /**
  * Wrapper around MediaPipe Pose Landmarker for body pose detection.
  *
- * Detects 33 MediaPipe landmarks, maps 33→14 joints matching our
- * app's common pose model, and returns a flat list of 42 Doubles:
+ * Detects 33 MediaPipe landmarks, maps 33→24 joints matching our
+ * app's pose model, and returns a flat list of 72 Doubles:
  * [x, y, confidence] for each joint.
- *
- * Replaces MLKitPoseDetector — same interface, better cross-platform
- * consistency (identical BlazePose model on iOS and Android).
  *
  * Coordinate system:
  *   - MediaPipe returns landmark positions normalized 0-1 relative to image
@@ -42,12 +39,13 @@ class MediaPipePoseDetector(private val context: Context) {
   }
 
   /**
-   * Maps our 14-joint model to MediaPipe landmark indices.
+   * Maps our 24-joint model to MediaPipe landmark indices.
    * Order matches JOINT_NAMES in pose-normalization.ts.
    *
    * -1 means "neck" = computed as midpoint of left_shoulder (11) and right_shoulder (12).
    */
   private val landmarkMapping = listOf(
+    // Original 14 joints (indices 0-13)
     0,   // nose
     -1,  // neck (midpoint of shoulders)
     11,  // left_shoulder
@@ -62,6 +60,18 @@ class MediaPipePoseDetector(private val context: Context) {
     26,  // right_knee
     27,  // left_ankle
     28,  // right_ankle
+    // New finger joints (indices 14-19)
+    17,  // left_pinky
+    18,  // right_pinky
+    19,  // left_index
+    20,  // right_index
+    21,  // left_thumb
+    22,  // right_thumb
+    // New foot joints (indices 20-23)
+    29,  // left_heel
+    30,  // right_heel
+    31,  // left_foot_index
+    32,  // right_foot_index
   )
 
   init {
@@ -97,7 +107,7 @@ class MediaPipePoseDetector(private val context: Context) {
    *
    * @param image The camera frame as android.media.Image (YUV_420_888)
    * @param rotationDegrees The image rotation in degrees (0, 90, 180, 270)
-   * @returns List of 42 Doubles, or null if no pose detected
+   * @returns List of 72 Doubles, or null if no pose detected
    */
   fun detectPose(image: Image, rotationDegrees: Int): List<Double>? {
     val landmarker = poseLandmarker ?: return null
@@ -127,12 +137,12 @@ class MediaPipePoseDetector(private val context: Context) {
     }
 
     val landmarks = result.landmarks()
-    if (landmarks.isEmpty() || landmarks[0].size < 29) {
+    if (landmarks.isEmpty() || landmarks[0].size < 33) {
       return null
     }
 
     val poseLandmarks = landmarks[0]
-    val output = MutableList(42) { 0.0 }
+    val output = MutableList(72) { 0.0 }
 
     for ((index, mpIndex) in landmarkMapping.withIndex()) {
       val offset = index * 3

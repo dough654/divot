@@ -2,7 +2,8 @@ import type { JointName, JointPosition, PoseFrame } from '@/src/types/pose';
 
 /**
  * Ordered list of joint names matching the native plugin's flat array layout.
- * Index × 3 = offset into the 42-element flat array (x, y, confidence per joint).
+ * Index × 3 = offset into the 72-element flat array (x, y, confidence per joint).
+ * Indices 0-13 are the original 14 joints; 14-23 are the new finger/foot joints.
  */
 export const JOINT_NAMES: JointName[] = [
   'nose',
@@ -19,6 +20,16 @@ export const JOINT_NAMES: JointName[] = [
   'rightKnee',
   'leftAnkle',
   'rightAnkle',
+  'leftPinky',
+  'rightPinky',
+  'leftIndex',
+  'rightIndex',
+  'leftThumb',
+  'rightThumb',
+  'leftHeel',
+  'rightHeel',
+  'leftFootIndex',
+  'rightFootIndex',
 ];
 
 /**
@@ -47,16 +58,30 @@ export const SKELETON_CONNECTIONS: [JointName, JointName][] = [
   // Right leg
   ['rightHip', 'rightKnee'],
   ['rightKnee', 'rightAnkle'],
+  // Left hand fingers
+  ['leftWrist', 'leftPinky'],
+  ['leftWrist', 'leftIndex'],
+  ['leftWrist', 'leftThumb'],
+  // Right hand fingers
+  ['rightWrist', 'rightPinky'],
+  ['rightWrist', 'rightIndex'],
+  ['rightWrist', 'rightThumb'],
+  // Left foot
+  ['leftAnkle', 'leftHeel'],
+  ['leftHeel', 'leftFootIndex'],
+  // Right foot
+  ['rightAnkle', 'rightHeel'],
+  ['rightHeel', 'rightFootIndex'],
 ];
 
 /** Expected length of the flat pose array from the native plugin (14 joints × 3 values). */
 export const POSE_ARRAY_LENGTH = JOINT_NAMES.length * 3;
 
 /**
- * Parses the flat 42-element number array from the native pose detection plugin
+ * Parses the flat 72-element number array from the native pose detection plugin
  * into a structured PoseFrame.
  *
- * @param data - Flat array of [x, y, confidence] × 14 joints
+ * @param data - Flat array of [x, y, confidence] × 24 joints
  * @param timestamp - Frame timestamp in milliseconds
  * @returns Parsed PoseFrame, or null if data is invalid
  */

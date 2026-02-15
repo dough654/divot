@@ -5,13 +5,9 @@ import MediaPipeTasksVision
 /**
  * Wrapper around MediaPipe Pose Landmarker for body pose detection.
  *
- * Detects 33 MediaPipe landmarks from a CMSampleBuffer, maps 33→14 joints
- * matching our app's common pose model, and returns a flat [Double] array
- * of 42 values: [x, y, confidence] for each joint.
- *
- * Replaces AppleVisionPoseDetector — same interface, better cross-platform
- * consistency (identical BlazePose model on iOS and Android), and eliminates
- * the train/inference distribution shift for the swing classifier.
+ * Detects 33 MediaPipe landmarks from a CMSampleBuffer, maps 33→24 joints
+ * matching our app's pose model, and returns a flat [Double] array
+ * of 72 values: [x, y, confidence] for each joint.
  *
  * Coordinate system:
  *   - MediaPipe returns landmark positions normalized 0-1 relative to image
@@ -23,14 +19,8 @@ final class MediaPipePoseDetector {
   private var poseLandmarker: PoseLandmarker?
   private var initFailed = false
 
-  /// Maps our 14-joint model to MediaPipe landmark indices.
+  /// Maps our 24-joint model to MediaPipe landmark indices.
   /// Order matches JOINT_NAMES in pose-normalization.ts.
-  ///
-  /// MediaPipe indices:
-  ///   0: nose, 11: left_shoulder, 12: right_shoulder,
-  ///   13: left_elbow, 14: right_elbow, 15: left_wrist, 16: right_wrist,
-  ///   23: left_hip, 24: right_hip, 25: left_knee, 26: right_knee,
-  ///   27: left_ankle, 28: right_ankle
   ///
   /// "neck" = midpoint of landmarks 11 (left_shoulder) and 12 (right_shoulder)
   private struct JointMapping {
@@ -54,6 +44,7 @@ final class MediaPipePoseDetector {
   }
 
   private static let jointMappings: [JointMapping] = [
+    // Original 14 joints (indices 0-13)
     JointMapping(mpIndex: 0, name: "nose"),
     JointMapping(midpointOf: (11, 12), name: "neck"),
     JointMapping(mpIndex: 11, name: "leftShoulder"),
@@ -68,6 +59,18 @@ final class MediaPipePoseDetector {
     JointMapping(mpIndex: 26, name: "rightKnee"),
     JointMapping(mpIndex: 27, name: "leftAnkle"),
     JointMapping(mpIndex: 28, name: "rightAnkle"),
+    // New finger joints (indices 14-19)
+    JointMapping(mpIndex: 17, name: "leftPinky"),
+    JointMapping(mpIndex: 18, name: "rightPinky"),
+    JointMapping(mpIndex: 19, name: "leftIndex"),
+    JointMapping(mpIndex: 20, name: "rightIndex"),
+    JointMapping(mpIndex: 21, name: "leftThumb"),
+    JointMapping(mpIndex: 22, name: "rightThumb"),
+    // New foot joints (indices 20-23)
+    JointMapping(mpIndex: 29, name: "leftHeel"),
+    JointMapping(mpIndex: 30, name: "rightHeel"),
+    JointMapping(mpIndex: 31, name: "leftFootIndex"),
+    JointMapping(mpIndex: 32, name: "rightFootIndex"),
   ]
 
   init() {
@@ -110,7 +113,7 @@ final class MediaPipePoseDetector {
    *
    * @param sampleBuffer The camera frame to analyze
    * @param orientation The UIImage.Orientation of the frame (from VisionCamera CoreMotion)
-   * @returns Flat array of 42 Doubles, or nil if no pose detected
+   * @returns Flat array of 72 Doubles, or nil if no pose detected
    */
   func detectPose(sampleBuffer: CMSampleBuffer, orientation: UIImage.Orientation) -> [Double]? {
     guard let landmarker = poseLandmarker, !initFailed else {
@@ -137,12 +140,12 @@ final class MediaPipePoseDetector {
     // Run inference
     guard let result = try? landmarker.detect(image: mpImage),
           let landmarks = result.landmarks.first,
-          landmarks.count >= 29 else {
+          landmarks.count >= 33 else {
       return nil
     }
 
-    // Map 33 MediaPipe landmarks → 14 joints
-    var output = [Double](repeating: 0.0, count: 42)
+    // Map 33 MediaPipe landmarks → 24 joints
+    var output = [Double](repeating: 0.0, count: 72)
 
     for (index, mapping) in Self.jointMappings.enumerated() {
       let offset = index * 3

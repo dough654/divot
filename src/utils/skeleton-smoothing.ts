@@ -28,7 +28,7 @@ export type SmoothedPose = Map<string, SmoothedJoint>;
  * Swing detection should continue using raw unsmoothed data — this is purely
  * for visual overlay rendering.
  *
- * @param rawData - 42-element flat pose array from native plugin, or null
+ * @param rawData - 72-element flat pose array from native plugin, or null
  * @param previous - Previous smoothed pose, or null on first frame
  * @param alpha - EMA weight for new data (default 0.4)
  * @returns Smoothed pose map, or null when all joints have expired
