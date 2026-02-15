@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { describe, it, expect, beforeAll } from 'vitest';
 import {
   classifyWindow,
@@ -5,7 +7,7 @@ import {
   extractClassifierFeatures,
   type CompiledWeights,
 } from '../swing-classifier';
-import { SWING_CLASSIFIER_WEIGHTS } from '../swing-classifier-weights';
+import { SWING_CLASSIFIER_WEIGHTS, WEIGHTS_ARE_TRAINED } from '../swing-classifier-weights';
 import {
   SWING_PHASES,
   DEFAULT_CLASSIFIER_CONFIG,
@@ -127,6 +129,44 @@ describe('swing-classifier', () => {
       const window = new Float32Array(30 * 16);
       const result = classifyWindow(window, compiled, DEFAULT_CLASSIFIER_CONFIG);
       expect(result.probabilities).toHaveLength(DEFAULT_CLASSIFIER_CONFIG.numClasses);
+    });
+  });
+
+  describe('PyTorch reference validation', () => {
+    // Load reference data from the export step (PyTorch's output for a known input)
+    const referenceData = JSON.parse(
+      readFileSync(join(__dirname, 'swing-classifier-reference.json'), 'utf-8'),
+    ) as {
+      input: number[][];
+      expected_logits: number[];
+      expected_probs: number[];
+      expected_class: number;
+      phases: string[];
+    };
+
+    it('should confirm weights are trained', () => {
+      expect(WEIGHTS_ARE_TRAINED).toBe(true);
+    });
+
+    it('should match PyTorch predicted class', () => {
+      const result = classifyWindow(referenceData.input, compiled);
+      const expectedPhase = referenceData.phases[referenceData.expected_class];
+      expect(result.phase).toBe(expectedPhase);
+    });
+
+    it('should produce probabilities close to PyTorch reference', () => {
+      const result = classifyWindow(referenceData.input, compiled);
+
+      for (let i = 0; i < referenceData.expected_probs.length; i++) {
+        const expected = referenceData.expected_probs[i];
+        const actual = result.probabilities[i];
+        // Use absolute tolerance for small values, relative for large
+        if (expected > 0.01) {
+          expect(actual).toBeCloseTo(expected, 2);
+        } else {
+          expect(actual).toBeLessThan(0.05);
+        }
+      }
     });
   });
 

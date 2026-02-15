@@ -77,9 +77,14 @@ def extract_poses_from_video(
     video_path: str,
     output_csv: str,
     model_path: str,
+    frame_start: int = 0,
+    frame_end: int | None = None,
 ) -> int:
     """
-    Run MediaPipe Pose Landmarker on every frame of a video and save landmarks to CSV.
+    Run MediaPipe Pose Landmarker on frames of a video and save landmarks to CSV.
+
+    Only processes frames in [frame_start, frame_end). If frame_end is None,
+    processes to the end of the video.
 
     Returns the number of frames processed.
     """
@@ -91,6 +96,11 @@ def extract_poses_from_video(
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = cap.get(cv2.CAP_PROP_FPS)
 
+    actual_end = min(frame_end or total_frames, total_frames)
+    actual_start = max(frame_start, 0)
+    n_to_process = actual_end - actual_start
+
+    # Use IMAGE mode for non-sequential frame access (seeking skips frames)
     options = PoseLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=model_path),
         running_mode=VisionRunningMode.VIDEO,
@@ -101,13 +111,17 @@ def extract_poses_from_video(
 
     landmarker = PoseLandmarker.create_from_options(options)
 
+    # Seek to start frame
+    if actual_start > 0:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, actual_start)
+
     header = build_csv_header()
     rows = []
-    frame_idx = 0
+    frame_idx = actual_start
 
-    pbar = tqdm(total=total_frames, desc=os.path.basename(video_path), leave=False)
+    pbar = tqdm(total=n_to_process, desc=os.path.basename(video_path), leave=False)
 
-    while True:
+    while frame_idx < actual_end:
         ret, frame = cap.read()
         if not ret:
             break
@@ -116,7 +130,7 @@ def extract_poses_from_video(
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 
-        # Timestamp in milliseconds
+        # Timestamp in milliseconds (must be monotonically increasing for VIDEO mode)
         timestamp_ms = int(frame_idx * 1000.0 / fps) if fps > 0 else frame_idx * 33
 
         results = landmarker.detect_for_video(mp_image, timestamp_ms)
@@ -150,7 +164,7 @@ def extract_poses_from_video(
         writer.writerow(header)
         writer.writerows(rows)
 
-    return frame_idx
+    return len(rows)
 
 
 def main():
@@ -175,6 +189,17 @@ def main():
         default=None,
         help="Override video directory (if videos were moved)",
     )
+    parser.add_argument(
+        "--margin",
+        type=int,
+        default=60,
+        help="Extra frames before first event and after last event (default: 60)",
+    )
+    parser.add_argument(
+        "--full-video",
+        action="store_true",
+        help="Process entire video instead of just event region",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.model_path):
@@ -189,6 +214,8 @@ def main():
 
     print(f"Processing {len(clips)} clips")
     print(f"Model: {args.model_path}")
+    if not args.full_video:
+        print(f"Frame margin around events: {args.margin}")
     os.makedirs(args.output_dir, exist_ok=True)
 
     processed = 0
@@ -211,12 +238,27 @@ def main():
             processed += 1
             continue
 
+        # Compute frame range from events
+        frame_start = 0
+        frame_end = None
+        if not args.full_video:
+            events_str = clip.get("events", "")
+            if events_str:
+                try:
+                    events = [int(x) for x in events_str.split()]
+                    frame_start = max(0, min(events) - args.margin)
+                    frame_end = max(events) + args.margin
+                except ValueError:
+                    pass
+
         n_frames = extract_poses_from_video(
             video_path=video_path,
             output_csv=output_csv,
             model_path=args.model_path,
+            frame_start=frame_start,
+            frame_end=frame_end,
         )
-        print(f"  Clip {clip_id}: {n_frames} frames -> {output_csv}")
+        print(f"  Clip {clip_id}: {n_frames} frames [{frame_start}-{frame_end or 'end'}] -> {output_csv}")
         processed += 1
 
     print(f"\nDone: {processed} processed, {skipped} skipped (no video)")

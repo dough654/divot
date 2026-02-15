@@ -36,13 +36,24 @@ def export_weights(model: SwingClassifier1DCNN) -> dict:
 
     Weight naming convention matches the JS inference code:
         conv1_weight, conv1_bias, bn1_weight, bn1_bias, bn1_running_mean, bn1_running_var, ...
+
+    Skips num_batches_tracked (not used by JS inference).
+    Flattens conv weights from (out, in, kernel) to (out, in*kernel) for the JS ModelWeights type.
     """
     state = model.state_dict()
 
     weights = {}
     for key, tensor in state.items():
-        # Clean up key names for JS consumption
+        # Skip batch norm tracking counters (not needed for inference)
+        if "num_batches_tracked" in key:
+            continue
+
         js_key = key.replace(".", "_")
+
+        # Flatten 3D conv weights (out, in, kernel) -> 2D (out, in*kernel) to match JS ModelWeights type
+        if tensor.dim() == 3:
+            tensor = tensor.reshape(tensor.shape[0], -1)
+
         weights[js_key] = tensor_to_nested_list(tensor)
 
     return weights
@@ -78,8 +89,7 @@ def generate_typescript_file(weights: dict, output_path: str):
     """
     Generate a TypeScript file with weights as typed array initializers.
 
-    For small models (~16K params), inline weights are fine.
-    For larger models, consider loading from a JSON asset file.
+    Imports ModelWeights from the swing-classifier module to ensure type compatibility.
     """
     total_params = sum(np.prod(np.array(v).shape) for v in weights.values())
     lines = [
@@ -92,17 +102,16 @@ def generate_typescript_file(weights: dict, output_path: str):
         "",
         "/* eslint-disable */",
         "",
-        "export type SwingClassifierWeights = {",
-    ]
-
-    for key in weights:
-        lines.append(f"  readonly {key}: readonly number[] | readonly number[][];")
-
-    lines.extend([
-        "};",
+        "import type { ModelWeights } from './swing-classifier';",
         "",
-        "export const SWING_CLASSIFIER_WEIGHTS: SwingClassifierWeights = {",
-    ])
+        "/**",
+        " * Whether these are real trained weights or placeholders.",
+        " * Check this before trusting classifier output.",
+        " */",
+        "export const WEIGHTS_ARE_TRAINED = true;",
+        "",
+        "export const SWING_CLASSIFIER_WEIGHTS: ModelWeights = {",
+    ]
 
     for key, value in weights.items():
         json_value = json.dumps(value, separators=(",", ":"))

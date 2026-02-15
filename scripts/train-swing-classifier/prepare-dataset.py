@@ -51,7 +51,7 @@ CLASSIFIER_JOINT_INDICES = [
 
 # Window parameters
 WINDOW_SIZE = 30  # frames
-WINDOW_STRIDE = 5  # frames
+WINDOW_STRIDE = 3  # frames (small stride to capture short phases like impact)
 
 
 def events_to_frame_labels(events: list[int], total_frames: int) -> np.ndarray:
@@ -120,11 +120,13 @@ def events_to_frame_labels(events: list[int], total_frames: int) -> np.ndarray:
     return labels
 
 
-def load_pose_csv(csv_path: str) -> np.ndarray | None:
+def load_pose_csv(csv_path: str) -> tuple[np.ndarray, int] | None:
     """
     Load pose CSV and extract the 8 classifier joints.
 
-    Returns array of shape (n_frames, 16) — 8 joints x 2 coords (x, y).
+    Returns (features, frame_offset) where:
+      - features: array of shape (n_frames, 16) — 8 joints x 2 coords (x, y)
+      - frame_offset: the first frame index in the CSV (CSVs may not start at 0)
     Confidence values are used for filtering but not included in the feature vector.
     """
     try:
@@ -138,6 +140,7 @@ def load_pose_csv(csv_path: str) -> np.ndarray | None:
         return None
 
     n_frames = data.shape[0]
+    frame_offset = int(data[0, 0])  # First frame index in the CSV
     features = np.zeros((n_frames, len(CLASSIFIER_JOINT_INDICES) * 2), dtype=np.float32)
 
     for i, mp_idx in enumerate(CLASSIFIER_JOINT_INDICES):
@@ -147,8 +150,8 @@ def load_pose_csv(csv_path: str) -> np.ndarray | None:
         col_y = 1 + mp_idx * 3 + 1
         col_vis = 1 + mp_idx * 3 + 2
 
-        x = data[:, col_x]
-        y = data[:, col_y]
+        x = data[:, col_x].copy()
+        y = data[:, col_y].copy()
         vis = data[:, col_vis]
 
         # Zero out low-confidence joints (< 0.3)
@@ -159,7 +162,7 @@ def load_pose_csv(csv_path: str) -> np.ndarray | None:
         features[:, i * 2] = x
         features[:, i * 2 + 1] = y
 
-    return features
+    return features, frame_offset
 
 
 def create_windows(
@@ -171,7 +174,11 @@ def create_windows(
     """
     Create sliding windows from frame features and labels.
 
-    Window label = mode (most common) label in the window.
+    Window label = center frame's label. The surrounding frames provide temporal
+    context for classifying what's happening at the center. This ensures short
+    phases like impact (~5 frames) and downswing (~10-15 frames) get represented,
+    unlike mode-based labeling where they'd be drowned out by longer phases.
+
     Returns (X, y) where X has shape (n_windows, window_size, n_features)
     and y has shape (n_windows,).
     """
@@ -181,15 +188,14 @@ def create_windows(
 
     windows_X = []
     windows_y = []
+    center_offset = window_size // 2
 
     for start in range(0, n_frames - window_size + 1, stride):
         end = start + window_size
         window_features = features[start:end]
-        window_labels = labels[start:end]
 
-        # Window label = mode
-        unique, counts = np.unique(window_labels, return_counts=True)
-        window_label = unique[np.argmax(counts)]
+        # Label = center frame's phase
+        window_label = labels[start + center_offset]
 
         windows_X.append(window_features)
         windows_y.append(window_label)
@@ -286,19 +292,23 @@ def main():
         if not os.path.exists(pose_csv):
             continue
 
-        features = load_pose_csv(pose_csv)
-        if features is None:
+        result = load_pose_csv(pose_csv)
+        if result is None:
             continue
 
+        features, frame_offset = result
         n_frames = features.shape[0]
 
-        # Skip clips where events are out of bounds
-        if max(events) >= n_frames:
-            print(f"  Clip {clip_id}: events exceed frame count ({max(events)} >= {n_frames}), skipping")
+        # Adjust events relative to the CSV's frame offset
+        adjusted_events = [e - frame_offset for e in events]
+
+        # Skip clips where adjusted events are out of bounds
+        if max(adjusted_events) >= n_frames or min(adjusted_events) < 0:
+            print(f"  Clip {clip_id}: events out of CSV range (offset={frame_offset}, n_frames={n_frames}), skipping")
             continue
 
-        # Create per-frame labels
-        labels = events_to_frame_labels(events, n_frames)
+        # Create per-frame labels using adjusted events
+        labels = events_to_frame_labels(adjusted_events, n_frames)
 
         # Create windows
         X, y = create_windows(features, labels, args.window_size, args.window_stride)
@@ -342,9 +352,15 @@ def main():
         )
 
     # Split train_val into train and val
+    # Use stratified split if all classes have enough samples, otherwise fall back to random
+    min_class_count = min(np.sum(y_train_val == i) for i in range(len(PHASES)))
+    use_stratify = min_class_count >= 2
     X_train, X_val, y_train, y_val = train_test_split(
-        X_train_val, y_train_val, test_size=0.15, random_state=args.seed, stratify=y_train_val,
+        X_train_val, y_train_val, test_size=0.15, random_state=args.seed,
+        stratify=y_train_val if use_stratify else None,
     )
+    if not use_stratify:
+        print(f"  Warning: some classes have <2 samples in train_val, using non-stratified split")
 
     # Balance training set
     if args.balance:
