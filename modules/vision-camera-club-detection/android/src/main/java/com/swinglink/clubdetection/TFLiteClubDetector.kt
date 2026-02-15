@@ -69,12 +69,13 @@ class TFLiteClubDetector(private val context: Context) {
       }
 
       val options = Interpreter.Options()
-      // Try GPU delegate first, fall back to CPU
+      // Try GPU delegate first, fall back to CPU.
+      // Catch Throwable — NoClassDefFoundError (missing GPU libs) is an Error, not Exception.
       try {
         val gpuDelegate = GpuDelegate()
         options.addDelegate(gpuDelegate)
         Log.d(TAG, "GPU delegate enabled")
-      } catch (e: Exception) {
+      } catch (e: Throwable) {
         Log.w(TAG, "GPU delegate not available, using CPU: ${e.message}")
       }
       options.setNumThreads(2)
