@@ -15,24 +15,18 @@ import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
  * Returns a list of 72 Doubles (24 joints × [x, y, confidence]),
  * or null if no pose was detected.
  */
-class PoseDetectorPlugin(private val appContext: Context?) : FrameProcessorPlugin() {
+class PoseDetectorPlugin(private val appContext: Context) : FrameProcessorPlugin() {
 
   // Lazily initialized on first frame callback
   private var detector: MediaPipePoseDetector? = null
 
   init {
-    Log.d(TAG, "PoseDetectorPlugin instance created (context=${appContext != null})")
+    Log.d(TAG, "PoseDetectorPlugin instance created")
   }
 
   override fun callback(frame: Frame, arguments: Map<String, Any>?): Any? {
     if (detector == null) {
-      val context = appContext
-      if (context != null) {
-        detector = MediaPipePoseDetector(context)
-      } else {
-        Log.w(TAG, "Cannot init MediaPipe: no app context")
-        return null
-      }
+      detector = MediaPipePoseDetector(appContext)
     }
 
     val image = frame.image

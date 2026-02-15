@@ -1,6 +1,5 @@
 package com.swinglink.posedetection
 
-import android.content.Context
 import android.util.Log
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -19,10 +18,9 @@ class VisionCameraPoseDetectionModule : Module() {
     Name("VisionCameraPoseDetection")
 
     OnCreate {
-      val context = appContext.reactContext?.applicationContext
-      Log.d(TAG, "Registering detectPose frame processor plugin (context=${context != null})")
-      FrameProcessorPluginRegistry.addFrameProcessorPlugin("detectPose") { _, _ ->
-        PoseDetectorPlugin(context)
+      Log.d(TAG, "Registering detectPose frame processor plugin")
+      FrameProcessorPluginRegistry.addFrameProcessorPlugin("detectPose") { proxy, _ ->
+        PoseDetectorPlugin(proxy.context.applicationContext)
       }
     }
 
