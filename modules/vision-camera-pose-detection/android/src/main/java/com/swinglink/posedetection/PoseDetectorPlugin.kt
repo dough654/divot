@@ -1,5 +1,6 @@
 package com.swinglink.posedetection
 
+import android.content.Context
 import android.util.Log
 import com.mrousavy.camera.frameprocessors.Frame
 import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
@@ -11,30 +12,25 @@ import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
  * Registered as "detectPose" from [VisionCameraPoseDetectionModule].
  * Called from JS via: `VisionCameraProxy.initFrameProcessorPlugin('detectPose')`
  *
- * Returns a list of 42 Doubles (14 joints × [x, y, confidence]),
+ * Returns a list of 72 Doubles (24 joints × [x, y, confidence]),
  * or null if no pose was detected.
  */
-class PoseDetectorPlugin : FrameProcessorPlugin() {
+class PoseDetectorPlugin(private val appContext: Context?) : FrameProcessorPlugin() {
 
-  // Lazily initialized with app context from the first frame callback
+  // Lazily initialized on first frame callback
   private var detector: MediaPipePoseDetector? = null
 
   init {
-    Log.d(TAG, "PoseDetectorPlugin instance created")
+    Log.d(TAG, "PoseDetectorPlugin instance created (context=${appContext != null})")
   }
 
   override fun callback(frame: Frame, arguments: Map<String, Any>?): Any? {
-    // Lazy init: MediaPipe needs app context, which isn't available in the constructor
     if (detector == null) {
-      val context = try {
-        // Access the application context from the frame's image reader
-        android.app.ActivityThread.currentApplication()?.applicationContext
-      } catch (_: Exception) { null }
-
+      val context = appContext
       if (context != null) {
         detector = MediaPipePoseDetector(context)
       } else {
-        Log.w(TAG, "Cannot get app context for MediaPipe init")
+        Log.w(TAG, "Cannot init MediaPipe: no app context")
         return null
       }
     }

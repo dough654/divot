@@ -11,8 +11,8 @@ import android.media.Image
 import android.util.Log
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
-import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerOptions
 import java.io.ByteArrayOutputStream
 
 /**
@@ -85,9 +85,9 @@ class MediaPipePoseDetector(private val context: Context) {
         .setModelAssetPath(MODEL_ASSET)
         .build()
 
-      val options = PoseLandmarkerOptions.builder()
+      val options = PoseLandmarker.PoseLandmarkerOptions.builder()
         .setBaseOptions(baseOptions)
-        .setRunningMode(PoseLandmarkerOptions.RunningMode.IMAGE)
+        .setRunningMode(RunningMode.IMAGE)
         .setNumPoses(1)
         .setMinPoseDetectionConfidence(0.5f)
         .setMinPosePresenceConfidence(0.5f)
