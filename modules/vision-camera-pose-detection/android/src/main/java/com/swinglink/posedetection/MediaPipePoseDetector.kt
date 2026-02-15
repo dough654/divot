@@ -154,9 +154,11 @@ class MediaPipePoseDetector(private val context: Context) {
 
         output[offset] = ((leftShoulder.x() + rightShoulder.x()) / 2.0).toDouble()
         output[offset + 1] = ((leftShoulder.y() + rightShoulder.y()) / 2.0).toDouble()
+        val leftVis = leftShoulder.visibility()
+        val rightVis = rightShoulder.visibility()
         output[offset + 2] = minOf(
-          leftShoulder.visibility().orElse(0f),
-          rightShoulder.visibility().orElse(0f)
+          if (leftVis.isPresent) leftVis.get() else 0f,
+          if (rightVis.isPresent) rightVis.get() else 0f
         ).toDouble()
         continue
       }
@@ -166,7 +168,8 @@ class MediaPipePoseDetector(private val context: Context) {
 
       output[offset] = lm.x().toDouble()
       output[offset + 1] = lm.y().toDouble()
-      output[offset + 2] = lm.visibility().orElse(0f).toDouble()
+      val vis = lm.visibility()
+      output[offset + 2] = if (vis.isPresent) vis.get().toDouble() else 0.0
     }
 
     return output
