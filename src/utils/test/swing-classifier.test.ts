@@ -11,7 +11,10 @@ import { SWING_CLASSIFIER_WEIGHTS, WEIGHTS_ARE_TRAINED } from '../swing-classifi
 import {
   SWING_PHASES,
   DEFAULT_CLASSIFIER_CONFIG,
+  type ClassifierOutput,
+  type SwingPhase,
 } from '../../types/swing-classifier';
+import { nextState, type StateMachineState } from '../../hooks/use-swing-classifier';
 
 describe('swing-classifier', () => {
   let compiled: CompiledWeights;
@@ -171,8 +174,8 @@ describe('swing-classifier', () => {
   });
 
   describe('extractClassifierFeatures', () => {
-    it('should extract 16 features from 42-element pose data', () => {
-      const poseData = new Array(42).fill(0);
+    it('should extract 16 features from 72-element pose data', () => {
+      const poseData = new Array(72).fill(0);
       // Set left shoulder (idx 2): x=0.5, y=0.6, conf=0.9
       poseData[6] = 0.5;
       poseData[7] = 0.6;
@@ -186,7 +189,7 @@ describe('swing-classifier', () => {
     });
 
     it('should zero out low-confidence joints', () => {
-      const poseData = new Array(42).fill(0);
+      const poseData = new Array(72).fill(0);
       // Set left shoulder with low confidence
       poseData[6] = 0.5; // x
       poseData[7] = 0.6; // y
@@ -198,7 +201,7 @@ describe('swing-classifier', () => {
     });
 
     it('should extract all 8 joints correctly', () => {
-      const poseData = new Array(42).fill(0);
+      const poseData = new Array(72).fill(0);
       // Set all joints with high confidence
       // Joint indices in 14-joint model: 2,3,4,5,6,7,8,9
       for (let i = 2; i <= 9; i++) {
@@ -226,5 +229,167 @@ describe('swing-classifier', () => {
         expect(features[i]).toBe(0);
       }
     });
+  });
+});
+
+// ============================================
+// STATE MACHINE TESTS
+// ============================================
+
+/** Helper to create a classifier prediction. */
+const makePrediction = (phase: SwingPhase, confidence = 0.9): ClassifierOutput => ({
+  phase,
+  confidence,
+  probabilities: SWING_PHASES.map(p => p === phase ? confidence : (1 - confidence) / 6),
+});
+
+/** Helper: feed N identical predictions into the state machine. */
+const feedFrames = (
+  initialState: StateMachineState,
+  phase: SwingPhase,
+  count: number,
+  confidence = 0.9,
+  startTimestamp = 1000,
+): { state: StateMachineState; events: Array<ReturnType<typeof nextState>['event']> } => {
+  let state = initialState;
+  const events: Array<ReturnType<typeof nextState>['event']> = [];
+  for (let i = 0; i < count; i++) {
+    const result = nextState(state, makePrediction(phase, confidence), startTimestamp + i * 100);
+    state = result.state;
+    events.push(result.event);
+  }
+  return { state, events };
+};
+
+const FRESH_STATE: StateMachineState = {
+  detectionState: 'idle',
+  rawPhase: 'idle',
+  confirmCount: 0,
+  pendingState: 'idle',
+  swingStartTimestamp: null,
+  idleCount: 0,
+};
+
+describe('nextState (state machine)', () => {
+  it('idle → address after 5 address frames', () => {
+    const { state } = feedFrames(FRESH_STATE, 'address', 4);
+    expect(state.detectionState).toBe('idle');
+
+    const { state: after5 } = feedFrames(FRESH_STATE, 'address', 5);
+    expect(after5.detectionState).toBe('address');
+  });
+
+  it('address → swinging after 2 backswing frames', () => {
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    expect(inAddress.detectionState).toBe('address');
+
+    const { state: after1 } = feedFrames(inAddress, 'backswing', 1);
+    expect(after1.detectionState).toBe('address');
+
+    const { state: after2, events } = feedFrames(inAddress, 'backswing', 2);
+    expect(after2.detectionState).toBe('swinging');
+    expect(events.some(e => e?.type === 'swingStarted')).toBe(true);
+  });
+
+  it('address → swinging works for ANY swing phase, not just backswing', () => {
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+
+    for (const phase of ['downswing', 'impact', 'follow_through', 'finish'] as SwingPhase[]) {
+      const { state } = feedFrames(inAddress, phase, 2);
+      expect(state.detectionState).toBe('swinging');
+    }
+  });
+
+  it('stays swinging through phase changes (backswing → downswing → impact)', () => {
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    let { state } = feedFrames(inAddress, 'backswing', 2);
+    expect(state.detectionState).toBe('swinging');
+
+    ({ state } = feedFrames(state, 'downswing', 3));
+    expect(state.detectionState).toBe('swinging');
+
+    ({ state } = feedFrames(state, 'impact', 2));
+    expect(state.detectionState).toBe('swinging');
+
+    ({ state } = feedFrames(state, 'follow_through', 5));
+    expect(state.detectionState).toBe('swinging');
+
+    ({ state } = feedFrames(state, 'finish', 3));
+    expect(state.detectionState).toBe('swinging');
+  });
+
+  it('swinging → idle after 8 consecutive idle frames (emits swingEnded)', () => {
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: swinging } = feedFrames(inAddress, 'backswing', 2, 0.9, 1000);
+    expect(swinging.detectionState).toBe('swinging');
+
+    // 7 idle frames — still swinging
+    const { state: still7 } = feedFrames(swinging, 'idle', 7, 0.9, 2000);
+    expect(still7.detectionState).toBe('swinging');
+
+    // 8 idle frames — transitions to idle with swingEnded event
+    const { state: after8, events } = feedFrames(swinging, 'idle', 8, 0.9, 2000);
+    expect(after8.detectionState).toBe('idle');
+    const endEvent = events.find(e => e?.type === 'swingEnded');
+    expect(endEvent).toBeDefined();
+    if (endEvent?.type === 'swingEnded') {
+      expect(endEvent.durationMs).toBeGreaterThan(0);
+    }
+  });
+
+  it('mid-swing idle frames (< 8) do not reset', () => {
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: swinging } = feedFrames(inAddress, 'backswing', 2);
+
+    // 5 idle frames then back to swinging — should stay swinging
+    let { state } = feedFrames(swinging, 'idle', 5);
+    expect(state.detectionState).toBe('swinging');
+
+    ({ state } = feedFrames(state, 'downswing', 3));
+    expect(state.detectionState).toBe('swinging');
+  });
+
+  it('timeout: 10 idle frames from address resets to idle (no swingEnded)', () => {
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    expect(inAddress.detectionState).toBe('address');
+
+    const { state: reset, events } = feedFrames(inAddress, 'idle', 10);
+    expect(reset.detectionState).toBe('idle');
+    // No swingEnded event — we never started swinging
+    expect(events.every(e => e === null || e.type !== 'swingEnded')).toBe(true);
+  });
+
+  it('timeout: 10 idle frames from swinging emits swingEnded', () => {
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: swinging } = feedFrames(inAddress, 'backswing', 2, 0.9, 1000);
+
+    const { state: reset, events } = feedFrames(swinging, 'idle', 10, 0.9, 2000);
+    expect(reset.detectionState).toBe('idle');
+    const endEvent = events.find(e => e?.type === 'swingEnded');
+    expect(endEvent).toBeDefined();
+  });
+
+  it('low confidence (< 0.3) does not trigger transitions', () => {
+    // Try to go idle → address with low confidence
+    const { state } = feedFrames(FRESH_STATE, 'address', 10, 0.2);
+    expect(state.detectionState).toBe('idle');
+  });
+
+  it('swingStarted event emitted on address → swinging transition', () => {
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { events } = feedFrames(inAddress, 'backswing', 2, 0.9, 5000);
+    const startEvent = events.find(e => e?.type === 'swingStarted');
+    expect(startEvent).toBeDefined();
+    if (startEvent?.type === 'swingStarted') {
+      expect(startEvent.timestamp).toBeGreaterThanOrEqual(5000);
+    }
+  });
+
+  it('rawPhase tracks CNN output regardless of detection state', () => {
+    const result = nextState(FRESH_STATE, makePrediction('backswing'), 1000);
+    // Detection state stays idle (not enough frames for address first)
+    expect(result.state.detectionState).toBe('idle');
+    // But rawPhase reflects the CNN output
+    expect(result.state.rawPhase).toBe('backswing');
   });
 });

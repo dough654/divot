@@ -87,6 +87,13 @@ rsync -az --delete \
   --exclude='/ios' \
   --exclude='builds' \
   --exclude='build-output.*' \
+  --exclude='scripts/train-swing-classifier' \
+  --exclude='scripts/train-club-model' \
+  --exclude='scripts/analyze-motion' \
+  --exclude='golfdb-repo' \
+  --exclude='runs' \
+  --exclude='server/node_modules' \
+  --exclude='__pycache__' \
   "${LOCAL_DIR}/" "${MAC_HOST}:${REMOTE_DIR}/"
 echo "    Done."
 

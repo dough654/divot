@@ -1,11 +1,14 @@
 /**
  * Hook that runs the 1D CNN swing phase classifier on a sliding window
- * of pose data and manages phase transitions via a state machine.
+ * of pose data and manages phase transitions via a simplified state machine.
  *
  * Consumes raw pose data from usePoseDetection, extracts features for
  * the 8 classifier joints, maintains a rolling window buffer, runs
- * inference at ~10Hz, and enforces forward-only phase transitions
- * during an active swing.
+ * inference at ~10Hz, and uses a binary swinging/not-swinging signal
+ * for recording control. The raw CNN 7-phase output is still exposed
+ * for debug overlay and future per-phase clip analysis.
+ *
+ * State machine: idle → address → swinging → idle
  *
  * Import directly:
  *   import { useSwingClassifier } from '@/src/hooks/use-swing-classifier';
@@ -33,55 +36,55 @@ import {
 // STATE MACHINE
 // ============================================
 
-/**
- * Phase transition order during an active swing.
- * Once a swing starts (backswing), transitions can only go forward.
- */
-const SWING_PHASE_ORDER: readonly SwingPhase[] = [
-  'backswing',
-  'downswing',
-  'impact',
-  'follow_through',
-  'finish',
-];
-
-const phaseOrderIndex = (phase: SwingPhase): number =>
-  SWING_PHASE_ORDER.indexOf(phase);
-
-/** Minimum consecutive frames predicting a phase before transitioning. */
-const CONFIRMATION_FRAMES: Readonly<Record<SwingPhase, number>> = {
-  idle: 10,
-  address: 5,
-  backswing: 1,
-  downswing: 1,
-  impact: 1,
-  follow_through: 1,
-  finish: 1,
-};
+/** Simplified detection states — binary swinging/not-swinging. */
+type DetectionState = 'idle' | 'address' | 'swinging';
 
 /** Minimum confidence to consider a classifier prediction. */
 const MIN_CONFIDENCE = 0.3;
 
-type StateMachineState = {
-  /** Current confirmed phase. */
-  currentPhase: SwingPhase;
-  /** Phase the classifier is predicting (may not be confirmed yet). */
-  pendingPhase: SwingPhase;
-  /** Consecutive frames predicting pendingPhase. */
-  pendingCount: number;
-  /** Whether we're in an active swing (backswing→finish). */
-  inSwing: boolean;
-  /** Timestamp when the swing started. */
+/** Frames required to confirm each transition. */
+const CONFIRMATION = {
+  address: 5,   // idle → address
+  swinging: 2,  // address → swinging (any swing phase)
+  idle: 8,      // swinging → idle (forgiving — survives mid-swing misclassifications)
+  timeout: 10,  // safety reset from any non-idle state
+} as const;
+
+/** Returns true if a CNN phase represents active swinging. */
+const isSwingPhase = (phase: SwingPhase): boolean =>
+  phase === 'backswing' ||
+  phase === 'downswing' ||
+  phase === 'impact' ||
+  phase === 'follow_through' ||
+  phase === 'finish';
+
+/** Maps a raw CNN phase to a simplified detection state. */
+const toDetectionState = (phase: SwingPhase): DetectionState => {
+  if (phase === 'address') return 'address';
+  if (isSwingPhase(phase)) return 'swinging';
+  return 'idle';
+};
+
+export type StateMachineState = {
+  /** Current confirmed detection state. */
+  detectionState: DetectionState;
+  /** Latest raw CNN phase (for debug overlay). */
+  rawPhase: SwingPhase;
+  /** Consecutive frames confirming a pending transition. */
+  confirmCount: number;
+  /** The detection state we're counting toward. */
+  pendingState: DetectionState;
+  /** Timestamp when the swing started (address → swinging). */
   swingStartTimestamp: number | null;
-  /** Consecutive idle frames (for timeout). */
+  /** Consecutive idle frames for timeout reset. */
   idleCount: number;
 };
 
 const INITIAL_STATE: StateMachineState = {
-  currentPhase: 'idle',
-  pendingPhase: 'idle',
-  pendingCount: 0,
-  inSwing: false,
+  detectionState: 'idle',
+  rawPhase: 'idle',
+  confirmCount: 0,
+  pendingState: 'idle',
   swingStartTimestamp: null,
   idleCount: 0,
 };
@@ -89,89 +92,79 @@ const INITIAL_STATE: StateMachineState = {
 /**
  * Pure state machine transition function.
  *
- * Rules:
- * - idle → address: classifier says address for 5+ frames
- * - address → backswing: classifier says backswing (emit swingStarted)
- * - During swing (backswing→finish): transitions only go FORWARD
- * - finish → idle: 3+ frames of idle (emit swingEnded)
- * - any → idle: 10+ frames of idle (timeout/reset)
+ * Collapses the CNN's 7-phase output into 3 detection states:
+ *   idle → address (5 frames) → swinging (2 frames) → idle (8 frames)
+ *
+ * Mid-swing phase changes (backswing→downswing→impact etc.) are ignored —
+ * all count as "swinging". A stray idle prediction during a swing won't
+ * reset unless 8 consecutive idle frames are seen.
  */
-const nextState = (
+export const nextState = (
   state: StateMachineState,
   prediction: ClassifierOutput,
   timestamp: number,
 ): { state: StateMachineState; event: SwingClassifierEvent | null } => {
-  const predictedPhase = prediction.phase;
-  const confidence = prediction.confidence;
-
-  // Clone state
   const next: StateMachineState = { ...state };
+  next.rawPhase = prediction.phase;
   let event: SwingClassifierEvent | null = null;
 
-  // Track idle frames for timeout
-  if (predictedPhase === 'idle') {
+  // Track consecutive idle frames for timeout
+  if (prediction.phase === 'idle') {
     next.idleCount = state.idleCount + 1;
   } else {
     next.idleCount = 0;
   }
 
-  // Timeout: 10+ consecutive idle frames resets everything
-  if (next.idleCount >= 10 && state.currentPhase !== 'idle') {
-    if (state.inSwing && state.swingStartTimestamp) {
+  // Timeout: 10+ consecutive idle frames hard-resets to idle
+  if (next.idleCount >= CONFIRMATION.timeout && state.detectionState !== 'idle') {
+    if (state.detectionState === 'swinging' && state.swingStartTimestamp) {
       event = {
         type: 'swingEnded',
         timestamp,
         durationMs: timestamp - state.swingStartTimestamp,
       };
     }
-    return {
-      state: { ...INITIAL_STATE },
-      event,
-    };
+    return { state: { ...INITIAL_STATE, rawPhase: prediction.phase }, event };
   }
 
-  // Low confidence: don't transition
-  if (confidence < MIN_CONFIDENCE) {
+  // Low confidence: keep tracking idle count but don't transition
+  if (prediction.confidence < MIN_CONFIDENCE) {
     return { state: next, event: null };
   }
 
-  // Track pending phase for confirmation
-  if (predictedPhase === state.pendingPhase) {
-    next.pendingCount = state.pendingCount + 1;
+  // Map CNN phase to detection state
+  const mapped = toDetectionState(prediction.phase);
+
+  // Track consecutive frames predicting a different detection state
+  if (mapped === state.pendingState) {
+    next.confirmCount = state.confirmCount + 1;
   } else {
-    next.pendingPhase = predictedPhase;
-    next.pendingCount = 1;
+    next.pendingState = mapped;
+    next.confirmCount = 1;
   }
 
-  const required = CONFIRMATION_FRAMES[predictedPhase] ?? 1;
-  const isConfirmed = next.pendingCount >= required;
+  // Apply transitions based on current detection state
+  switch (state.detectionState) {
+    case 'idle':
+      if (mapped === 'address' && next.confirmCount >= CONFIRMATION.address) {
+        next.detectionState = 'address';
+      }
+      break;
 
-  if (!isConfirmed) {
-    return { state: next, event: null };
-  }
+    case 'address':
+      if (mapped === 'swinging' && next.confirmCount >= CONFIRMATION.swinging) {
+        next.detectionState = 'swinging';
+        next.swingStartTimestamp = timestamp;
+        event = { type: 'swingStarted', timestamp };
+      } else if (mapped === 'idle' && next.confirmCount >= CONFIRMATION.timeout) {
+        next.detectionState = 'idle';
+        next.swingStartTimestamp = null;
+      }
+      break;
 
-  // Phase is confirmed — apply transition rules
-
-  if (!state.inSwing) {
-    // Not in swing: allow idle → address → backswing
-    if (state.currentPhase === 'idle' && predictedPhase === 'address') {
-      next.currentPhase = 'address';
-    } else if (state.currentPhase === 'address' && predictedPhase === 'backswing') {
-      next.currentPhase = 'backswing';
-      next.inSwing = true;
-      next.swingStartTimestamp = timestamp;
-      event = { type: 'swingStarted', timestamp };
-    } else if (predictedPhase === 'idle') {
-      next.currentPhase = 'idle';
-    }
-    // Ignore other transitions outside of swing
-  } else {
-    // In swing: forward-only transitions
-    if (predictedPhase === 'idle' || predictedPhase === 'address') {
-      // Swing ending — check if we've reached finish first
-      if (state.currentPhase === 'finish' && predictedPhase === 'idle' && next.pendingCount >= 3) {
-        next.currentPhase = 'idle';
-        next.inSwing = false;
+    case 'swinging':
+      if (mapped === 'idle' && next.confirmCount >= CONFIRMATION.idle) {
+        next.detectionState = 'idle';
         if (state.swingStartTimestamp) {
           event = {
             type: 'swingEnded',
@@ -181,17 +174,8 @@ const nextState = (
         }
         next.swingStartTimestamp = null;
       }
-      // Otherwise ignore idle/address during swing
-    } else {
-      // Check forward-only constraint
-      const currentOrder = phaseOrderIndex(state.currentPhase);
-      const predictedOrder = phaseOrderIndex(predictedPhase);
-
-      if (predictedOrder > currentOrder) {
-        next.currentPhase = predictedPhase;
-      }
-      // Ignore backward transitions during swing
-    }
+      // Stays swinging through any swing phase or address predictions
+      break;
   }
 
   return { state: next, event };
@@ -204,7 +188,7 @@ const nextState = (
 export type UseSwingClassifierOptions = {
   /** Whether the classifier is active. */
   enabled: boolean;
-  /** Raw pose data from usePoseDetection (42-element array). */
+  /** Raw pose data from usePoseDetection (72-element array, 24 joints x 3). */
   rawPoseData: readonly number[] | null;
   /** Called when a swing is detected (backswing started). */
   onSwingStarted?: () => void;
@@ -230,6 +214,9 @@ export type UseSwingClassifierReturn = {
     probabilities: readonly number[];
     windowFill: number;
     inSwing: boolean;
+    detectionState: 'idle' | 'address' | 'swinging';
+    confirmCount: number;
+    pendingState: 'idle' | 'address' | 'swinging';
   };
 };
 
@@ -237,10 +224,10 @@ export type UseSwingClassifierReturn = {
  * Runs the swing phase classifier on pose data and manages phase transitions.
  *
  * The hook:
- * 1. Extracts 8-joint features from 14-joint pose data
+ * 1. Extracts 8-joint features from 24-joint pose data
  * 2. Maintains a 30-frame sliding window
  * 3. Runs the 1D CNN forward pass when the window is full
- * 4. Applies the phase transition state machine
+ * 4. Applies the simplified 3-state detection machine (idle/address/swinging)
  * 5. Emits swingStarted/swingEnded events
  */
 export const useSwingClassifier = ({
@@ -277,7 +264,7 @@ export const useSwingClassifier = ({
 
   // Process each new pose frame
   useEffect(() => {
-    if (!enabled || !rawPoseData || rawPoseData.length < 42) return;
+    if (!enabled || !rawPoseData || rawPoseData.length < 72) return;
 
     // Extract 8-joint features (16 values)
     const features = extractClassifierFeatures(rawPoseData, [...CLASSIFIER_JOINT_INDICES]);
@@ -334,17 +321,20 @@ export const useSwingClassifier = ({
   const currentOutput = classifierOutputRef.current;
 
   return {
-    phase: currentState.currentPhase,
-    isInAddress: currentState.currentPhase === 'address',
-    isSwinging: currentState.inSwing,
+    phase: currentState.rawPhase,
+    isInAddress: currentState.detectionState === 'address',
+    isSwinging: currentState.detectionState === 'swinging',
     isModelTrained: WEIGHTS_ARE_TRAINED,
     classifierOutput: currentOutput,
     debugInfo: {
-      phase: currentState.currentPhase,
+      phase: currentState.rawPhase,
       confidence: currentOutput?.confidence ?? 0,
       probabilities: currentOutput?.probabilities ?? Array(7).fill(0),
       windowFill: windowBufferRef.current.length,
-      inSwing: currentState.inSwing,
+      inSwing: currentState.detectionState === 'swinging',
+      detectionState: currentState.detectionState,
+      confirmCount: currentState.confirmCount,
+      pendingState: currentState.pendingState,
     },
   };
 };

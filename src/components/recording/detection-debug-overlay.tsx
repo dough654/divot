@@ -22,6 +22,8 @@ type MotionDebugInfo = {
 // CLASSIFIER MODE (new)
 // ============================================
 
+type DetectionState = 'idle' | 'address' | 'swinging';
+
 type ClassifierDebugInfo = {
   mode: 'classifier';
   phase: SwingPhase;
@@ -30,6 +32,9 @@ type ClassifierDebugInfo = {
   windowFill: number;
   inSwing: boolean;
   isModelTrained: boolean;
+  detectionState: DetectionState;
+  confirmCount: number;
+  pendingState: DetectionState;
 };
 
 type DetectionDebugOverlayProps = {
@@ -90,39 +95,82 @@ const PHASE_COLORS: Record<SwingPhase, string> = {
 };
 
 // ============================================
+// DETECTION STATE LABELS / COLORS
+// ============================================
+
+const DETECTION_STATE_LABELS: Record<DetectionState, string> = {
+  idle: 'IDLE',
+  address: 'ADDRESS',
+  swinging: 'SWINGING',
+};
+
+const DETECTION_STATE_COLORS: Record<DetectionState, string> = {
+  idle: '#888',
+  address: '#00FF88',
+  swinging: '#FF0066',
+};
+
+/** Frames required to confirm each transition (must match use-swing-classifier). */
+const CONFIRMATION_THRESHOLDS: Record<string, number> = {
+  'idle→address': 5,
+  'address→swinging': 2,
+  'swinging→idle': 8,
+  'address→idle': 10,
+};
+
+/** Get the confirmation threshold for the current transition. */
+const getConfirmThreshold = (current: DetectionState, pending: DetectionState): number =>
+  CONFIRMATION_THRESHOLDS[`${current}→${pending}`] ?? 5;
+
+// ============================================
 // CLASSIFIER OVERLAY
 // ============================================
 
 const ClassifierOverlay = ({ debugInfo }: { debugInfo: ClassifierDebugInfo }) => {
-  const { phase, confidence, probabilities, windowFill, inSwing, isModelTrained } = debugInfo;
+  const {
+    phase, confidence, probabilities, windowFill, isModelTrained,
+    detectionState, confirmCount, pendingState,
+  } = debugInfo;
+
+  const stateLabel = DETECTION_STATE_LABELS[detectionState];
+  const stateColor = DETECTION_STATE_COLORS[detectionState];
+  const isTransitioning = pendingState !== detectionState;
+  const confirmThreshold = getConfirmThreshold(detectionState, pendingState);
+  const confirmPct = Math.min(confirmCount / confirmThreshold, 1) * 100;
 
   const phaseLabel = PHASE_LABELS[phase] ?? phase;
   const phaseColor = PHASE_COLORS[phase] ?? '#888';
-  const confidenceBarWidth = Math.min(confidence, 1) * 100;
   const windowFillPct = (windowFill / 30) * 100;
 
   return (
     <View style={styles.container} pointerEvents="none">
-      {/* Model status badge */}
-      {!isModelTrained && (
-        <View style={styles.warningBadge}>
-          <Text style={styles.warningText}>PLACEHOLDER WEIGHTS</Text>
+      {/* Detection state badge — the primary signal */}
+      <View style={[styles.detectionBadge, { borderColor: stateColor, backgroundColor: `${stateColor}22` }]}>
+        <Text style={[styles.detectionText, { color: stateColor }]}>{stateLabel}</Text>
+      </View>
+
+      {/* Confirmation progress — only shown during transitions */}
+      {isTransitioning && (
+        <View style={styles.confirmRow}>
+          <Text style={styles.confirmLabel}>
+            → {DETECTION_STATE_LABELS[pendingState].toLowerCase()} {confirmCount}/{confirmThreshold}
+          </Text>
+          <View style={styles.confirmTrack}>
+            <View style={[
+              styles.confirmFill,
+              { width: `${confirmPct}%`, backgroundColor: DETECTION_STATE_COLORS[pendingState] },
+            ]} />
+          </View>
         </View>
       )}
 
-      {/* Phase badge */}
-      <View style={[styles.stateBadge, { borderColor: phaseColor }]}>
-        <Text style={[styles.stateText, { color: phaseColor }]}>{phaseLabel}</Text>
-        {inSwing && <Text style={styles.swingIndicator}>SWING</Text>}
-      </View>
+      {/* Separator */}
+      <View style={styles.separator} />
 
-      {/* Confidence bar */}
-      <View style={styles.barRow}>
-        <Text style={styles.barLabel}>CONF</Text>
-        <View style={styles.barTrack}>
-          <View style={[styles.barFill, { width: `${confidenceBarWidth}%`, backgroundColor: phaseColor }]} />
-        </View>
-        <Text style={styles.barValue}>{(confidence * 100).toFixed(0)}%</Text>
+      {/* CNN prediction — compact row */}
+      <View style={styles.cnnRow}>
+        <Text style={[styles.cnnPhase, { color: phaseColor }]}>{phaseLabel}</Text>
+        <Text style={styles.cnnConfidence}>{(confidence * 100).toFixed(0)}%</Text>
       </View>
 
       {/* Phase probability bars */}
@@ -146,11 +194,21 @@ const ClassifierOverlay = ({ debugInfo }: { debugInfo: ClassifierDebugInfo }) =>
         );
       })}
 
+      {/* Separator */}
+      <View style={styles.separator} />
+
       {/* Window fill indicator */}
       <View style={styles.countersRow}>
         <Text style={styles.counterText}>buf: {windowFill}/30</Text>
         <View style={[styles.fillBar, { width: `${windowFillPct}%` }]} />
       </View>
+
+      {/* Model warning badge */}
+      {!isModelTrained && (
+        <View style={styles.warningBadge}>
+          <Text style={styles.warningText}>PLACEHOLDER WEIGHTS</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -250,13 +308,72 @@ const styles = StyleSheet.create({
     minWidth: 180,
     gap: 4,
   },
+
+  // Detection state badge (large, prominent)
+  detectionBadge: {
+    borderWidth: 2,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignSelf: 'flex-start',
+  },
+  detectionText: {
+    fontSize: 16,
+    fontWeight: '800',
+    fontFamily: 'monospace',
+  },
+
+  // Confirmation progress row
+  confirmRow: {
+    gap: 2,
+  },
+  confirmLabel: {
+    fontSize: 9,
+    color: '#AAA',
+    fontFamily: 'monospace',
+  },
+  confirmTrack: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  confirmFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+
+  // Separator
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 2,
+  },
+
+  // CNN prediction compact row
+  cnnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cnnPhase: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+  },
+  cnnConfidence: {
+    fontSize: 10,
+    color: '#AAA',
+    fontFamily: 'monospace',
+  },
+
+  // Model warning badge
   warningBadge: {
     backgroundColor: '#FF6600',
     borderRadius: 3,
     paddingHorizontal: 4,
     paddingVertical: 1,
     alignSelf: 'flex-start',
-    marginBottom: 2,
   },
   warningText: {
     fontSize: 7,
@@ -264,6 +381,8 @@ const styles = StyleSheet.create({
     color: '#000',
     fontFamily: 'monospace',
   },
+
+  // Motion overlay state badge (legacy)
   stateBadge: {
     borderWidth: 1,
     borderRadius: 4,
@@ -280,12 +399,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'monospace',
   },
-  swingIndicator: {
-    fontSize: 8,
-    fontWeight: '800',
-    color: '#FF0066',
-    fontFamily: 'monospace',
-  },
+
+  // Shared bar styles
   barRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -323,6 +438,8 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontFamily: 'monospace',
   },
+
+  // Phase probability bars
   probRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -354,6 +471,8 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontFamily: 'monospace',
   },
+
+  // Buffer / counters
   countersRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -370,6 +489,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#00AAFF',
     borderRadius: 1.5,
   },
+
+  // Motion overlay confirmed badge (legacy)
   confirmedBadge: {
     backgroundColor: '#00FF88',
     borderRadius: 3,

@@ -42,6 +42,8 @@ TRAIN_CONFIG = {
     "project": "runs/pose",
     "name": "golf-club",
     "patience": 30,               # Early stopping patience
+    "translate": 0.5,             # Aggressive translation augmentation (±50%)
+    "device": "cpu",              # ROCm NMS is broken; CPU is ~48min for 200 epochs
     "save": True,
     "plots": True,
 }
@@ -91,14 +93,17 @@ def train():
     """Train the YOLOv8-nano-pose model."""
     from ultralytics import YOLO
 
-    data_yaml = Path(TRAIN_CONFIG["data"])
+    # Resolve absolute path to data.yaml (yolo CLI requires it)
+    script_dir = Path(__file__).parent
+    data_yaml = script_dir / "datasets" / "golf_club_pose" / "data.yaml"
     if not data_yaml.exists():
         print(f"Error: {data_yaml} not found.")
-        print("Download a dataset first and create data.yaml (see download_dataset()).")
+        print("Download a dataset first (see download_dataset()).")
         sys.exit(1)
 
-    model = YOLO(TRAIN_CONFIG["model"])
-    model.train(**TRAIN_CONFIG)
+    config = {**TRAIN_CONFIG, "data": str(data_yaml.resolve())}
+    model = YOLO(config["model"])
+    model.train(**config)
 
     print(f"\nTraining complete. Best weights: {BEST_WEIGHTS}")
     print(f"Run 'python {sys.argv[0]} export' to export for mobile.")
