@@ -380,9 +380,21 @@ export const classifyWindow = (
  * @param classifierJointIndices - Indices into the 14-joint array for the 8 classifier joints
  * @returns 16-element array [joint0_x, joint0_y, joint1_x, joint1_y, ...]
  */
+/**
+ * Minimum joint confidence to include position data.
+ * Below this, positions are zeroed out (matching training preprocessing).
+ *
+ * Training used 0.3, but on-device MediaPipe gives lower confidence
+ * for partially occluded joints (e.g. far arm in DTL view). Lowered
+ * to 0.05 so noisy-but-present positions reach the CNN rather than
+ * zeros that make address look like idle.
+ */
+export const FEATURE_CONFIDENCE_THRESHOLD = 0.05;
+
 export const extractClassifierFeatures = (
   poseData: readonly number[],
   classifierJointIndices: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 9],
+  confidenceThreshold: number = FEATURE_CONFIDENCE_THRESHOLD,
 ): Float32Array => {
   const features = new Float32Array(classifierJointIndices.length * 2);
 
@@ -391,11 +403,11 @@ export const extractClassifierFeatures = (
     const poseOffset = jointIdx * 3;
     const confidence = poseData[poseOffset + 2] ?? 0;
 
-    if (confidence >= 0.3) {
+    if (confidence >= confidenceThreshold) {
       features[i * 2] = poseData[poseOffset] ?? 0;
       features[i * 2 + 1] = poseData[poseOffset + 1] ?? 0;
     }
-    // Low confidence: leave as 0 (same as training preprocessing)
+    // Below threshold: leave as 0
   }
 
   return features;

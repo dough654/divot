@@ -193,7 +193,7 @@ describe('swing-classifier', () => {
       // Set left shoulder with low confidence
       poseData[6] = 0.5; // x
       poseData[7] = 0.6; // y
-      poseData[8] = 0.1; // conf < 0.3 threshold
+      poseData[8] = 0.02; // conf below feature threshold
 
       const features = extractClassifierFeatures(poseData);
       expect(features[0]).toBe(0);

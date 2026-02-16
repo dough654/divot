@@ -19,6 +19,7 @@ import {
   classifyWindow,
   compileWeights,
   extractClassifierFeatures,
+  FEATURE_CONFIDENCE_THRESHOLD,
   type CompiledWeights,
 } from '@/src/utils/swing-classifier';
 import { SWING_CLASSIFIER_WEIGHTS, WEIGHTS_ARE_TRAINED } from '@/src/utils/swing-classifier-weights';
@@ -44,7 +45,7 @@ const getJointConfidences = (rawPoseData: readonly number[]): string => {
   return CLASSIFIER_JOINT_INDICES.map((jointIdx, i) => {
     const confidence = rawPoseData[jointIdx * 3 + 2];
     const label = JOINT_LABELS[i];
-    const flag = confidence < 0.3 ? '!' : ' ';
+    const flag = confidence < FEATURE_CONFIDENCE_THRESHOLD ? '!' : ' ';
     return `${label}=${confidence.toFixed(2)}${flag}`;
   }).join(' ');
 };
