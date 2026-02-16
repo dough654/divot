@@ -1,9 +1,8 @@
-import { StyleSheet, View, Text, Platform } from 'react-native';
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { useState, useMemo, useRef } from 'react';
 import Svg, { Circle, Line } from 'react-native-svg';
 import { JOINT_NAMES, SKELETON_CONNECTIONS } from '@/src/utils/pose-normalization';
 import { smoothPoseData, jointOpacity, SmoothedPose } from '@/src/utils/skeleton-smoothing';
-import { VisionCameraPoseDetectionModule } from '@/modules/vision-camera-pose-detection';
 
 /** Joint circle radius in SVG units. */
 const JOINT_RADIUS = 4;
@@ -110,51 +109,6 @@ export const PoseOverlay = ({ poseData, visible }: PoseOverlayProps) => {
           );
         })}
       </Svg>
-      {/* Debug coordinate display — temporary, remove after fixing alignment */}
-      <PoseDebugInfo joints={joints} width={width} height={height} />
-    </View>
-  );
-};
-
-/** Temporary debug display showing raw pose coordinates. Remove after fixing alignment. */
-const PoseDebugInfo = ({ joints, width, height }: {
-  joints: SmoothedPose | null;
-  width: number;
-  height: number;
-}) => {
-  const [orientInfo, setOrientInfo] = useState('');
-
-  useEffect(() => {
-    if (!__DEV__) return;
-    const interval = setInterval(() => {
-      try {
-        setOrientInfo(VisionCameraPoseDetectionModule.getLastOrientation());
-      } catch { /* ignore */ }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (!__DEV__ || !joints) return null;
-  const nose = joints.get('nose');
-  const leftHip = joints.get('leftHip');
-  if (!nose) return null;
-
-  return (
-    <View style={styles.debugInfo}>
-      <Text style={styles.debugText}>
-        {`${Platform.OS} ${width.toFixed(0)}x${height.toFixed(0)}`}
-      </Text>
-      <Text style={styles.debugText}>
-        {`orient: ${orientInfo}`}
-      </Text>
-      <Text style={styles.debugText}>
-        {`nose: ${nose.x.toFixed(3)}, ${nose.y.toFixed(3)}`}
-      </Text>
-      {leftHip && (
-        <Text style={styles.debugText}>
-          {`hip: ${leftHip.x.toFixed(3)}, ${leftHip.y.toFixed(3)}`}
-        </Text>
-      )}
     </View>
   );
 };
@@ -162,18 +116,5 @@ const PoseDebugInfo = ({ joints, width, height }: {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-  },
-  debugInfo: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 4,
-    borderRadius: 4,
-  },
-  debugText: {
-    color: '#0f0',
-    fontSize: 10,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });

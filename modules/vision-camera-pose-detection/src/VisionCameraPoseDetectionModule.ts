@@ -7,8 +7,6 @@ type NativeModule = {
   getModelStatus: () => string;
   /** Returns the latest pose detection result (72-element array), or null if no pose detected. */
   getLatestPose: () => number[] | null;
-  /** Returns the last frame orientation and buffer dimensions for diagnostics. */
-  getLastOrientation: () => string;
 };
 
 /**

@@ -40,9 +40,6 @@ class VisionCameraPoseDetectionModule : Module() {
       return@Function data
     }
 
-    Function("getLastOrientation") {
-      return@Function PoseDetectorPlugin.latestOrientation
-    }
   }
 
   companion object {

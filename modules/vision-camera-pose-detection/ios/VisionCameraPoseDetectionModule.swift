@@ -30,8 +30,5 @@ public class VisionCameraPoseDetectionModule: Module {
       return PoseDetectorPlugin.latestPoseData
     }
 
-    Function("getLastOrientation") {
-      return PoseDetectorPlugin.latestOrientation
-    }
   }
 }

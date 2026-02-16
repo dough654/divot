@@ -29,8 +29,6 @@ class PoseDetectorPlugin: FrameProcessorPlugin {
   /// Model initialization status, readable from JS for diagnostics.
   static var modelStatus: String = "not_initialized"
 
-  /// Last orientation name, readable from JS for diagnostics.
-  static var latestOrientation: String = "none"
 
   static var latestPoseData: [Double]? {
     get {
@@ -111,7 +109,6 @@ class PoseDetectorPlugin: FrameProcessorPlugin {
         PoseDetectorPlugin.latestPoseData = result
       }
 
-      // Store orientation for JS debug overlay
       let orientName: String
       switch orientation {
       case .up: orientName = "up"
@@ -124,8 +121,6 @@ class PoseDetectorPlugin: FrameProcessorPlugin {
       case .rightMirrored: orientName = "rightMirrored"
       @unknown default: orientName = "unknown(\(orientation.rawValue))"
       }
-      Self.latestOrientation = "\(orientName) \(width)x\(height)"
-
       Self.frameCount += 1
       // Log every 60 frames (+ first 3 frames for immediate diagnostics)
       if Self.frameCount <= 3 || Self.frameCount % 60 == 0 {
