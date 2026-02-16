@@ -36,6 +36,7 @@ import { useMotionDetection } from '@/src/hooks/use-motion-detection';
 import { useAudioMetering } from '@/src/hooks/use-audio-metering';
 import { useMotionSwingDetection } from '@/src/hooks/use-motion-swing-detection';
 import { useSwingClassifier } from '@/src/hooks/use-swing-classifier';
+import { usePhaseAnnouncer } from '@/src/hooks/use-phase-announcer';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
 import { useConnectionQuality } from '@/src/hooks/use-connection-quality';
@@ -172,6 +173,9 @@ export default function CameraScreen() {
   const detectionState = useClassifier
     ? classifierResult.phase
     : motionSwingResult.detectionState;
+
+  // TTS phase announcements for hands-free testing
+  usePhaseAnnouncer({ enabled: useClassifier && settings.debugOverlayEnabled, detectionState });
 
   // Play "ready" cue when entering armed/address state
   const prevIsStillRef = useRef(false);
