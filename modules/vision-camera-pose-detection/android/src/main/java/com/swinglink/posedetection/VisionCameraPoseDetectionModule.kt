@@ -28,6 +28,10 @@ class VisionCameraPoseDetectionModule : Module() {
       return@Function true
     }
 
+    Function("getModelStatus") {
+      return@Function PoseDetectorPlugin.modelStatus
+    }
+
     Function("getLatestPose") {
       val data = PoseDetectorPlugin.latestPoseData
       if (pollCount++ % 100L == 0L) {

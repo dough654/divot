@@ -81,6 +81,8 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
   }, ref) => {
     const cameraRef = useRef<Camera>(null);
 
+    const isFrontCamera = device.position === 'front';
+
     // Shared values so Reanimated worklets can reactively access dimensions
     const containerWidth = useSharedValue(0);
     const containerHeight = useSharedValue(0);
@@ -100,7 +102,7 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
       if (poseDetectionEnabled && posePlugin) {
         runAtTargetFps(poseDetectionFps, () => {
           'worklet';
-          posePlugin.call(frame);
+          posePlugin.call(frame, { mirror: isFrontCamera });
         });
       }
 
@@ -119,7 +121,7 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           frameDiffPlugin.call(frame);
         });
       }
-    }, [poseDetectionEnabled, poseDetectionFps, clubDetectionEnabled, clubDetectionFps, frameDiffEnabled, frameDiffFps]);
+    }, [poseDetectionEnabled, poseDetectionFps, isFrontCamera, clubDetectionEnabled, clubDetectionFps, frameDiffEnabled, frameDiffFps]);
 
     // Counter-rotation style for Android preview correction.
     const cameraWrapperStyle = useAnimatedStyle(() => {

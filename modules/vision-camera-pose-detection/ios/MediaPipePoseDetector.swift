@@ -5,19 +5,25 @@ import MediaPipeTasksVision
 /**
  * Wrapper around MediaPipe Pose Landmarker for body pose detection.
  *
- * Detects 33 MediaPipe landmarks from a CMSampleBuffer, maps 33→24 joints
+ * Detects 33 MediaPipe landmarks from copied pixel data, maps 33→24 joints
  * matching our app's pose model, and returns a flat [Double] array
  * of 72 values: [x, y, confidence] for each joint.
  *
  * Coordinate system:
  *   - MediaPipe returns landmark positions normalized 0-1 relative to image
- *   - No x-flip needed (MediaPipe uses standard image coordinates)
+ *   - Orientation is passed via UIImage so coordinates are in display space
  *   - Y is already in top-left origin (y increases downward)
  */
 final class MediaPipePoseDetector {
 
   private var poseLandmarker: PoseLandmarker?
   private var initFailed = false
+
+  /// Cached CIContext — creating one per frame is very expensive.
+  private let ciContext = CIContext()
+
+  /// Whether the model loaded successfully and is ready for inference.
+  var isReady: Bool { poseLandmarker != nil && !initFailed }
 
   /// Maps our 24-joint model to MediaPipe landmark indices.
   /// Order matches JOINT_NAMES in pose-normalization.ts.
@@ -119,25 +125,56 @@ final class MediaPipePoseDetector {
   }
 
   /**
-   * Runs pose detection synchronously on the given sample buffer.
+   * Runs pose detection on pre-copied pixel data.
    *
-   * @param sampleBuffer The camera frame to analyze
-   * @param orientation The UIImage.Orientation of the frame (from VisionCamera CoreMotion)
-   * @returns Flat array of 72 Doubles, or nil if no pose detected
+   * Called from a background queue with pixel bytes copied from the camera
+   * frame. Reconstructs a CVPixelBuffer, converts to UIImage with
+   * orientation, and runs inference.
    */
-  func detectPose(sampleBuffer: CMSampleBuffer, orientation: UIImage.Orientation) -> [Double]? {
+  func detectPoseFromPixelData(
+    _ pixelData: Data,
+    width: Int,
+    height: Int,
+    bytesPerRow: Int,
+    pixelFormat: OSType,
+    orientation: UIImage.Orientation
+  ) -> [Double]? {
     guard let landmarker = poseLandmarker, !initFailed else {
       return nil
     }
 
-    // Convert CMSampleBuffer to MPImage
-    guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+    // Reconstruct a CVPixelBuffer from the copied bytes
+    var optionalBuffer: CVPixelBuffer?
+    let status = CVPixelBufferCreate(
+      kCFAllocatorDefault,
+      width, height,
+      pixelFormat,
+      nil,
+      &optionalBuffer
+    )
+    guard status == kCVReturnSuccess, let newBuffer = optionalBuffer else {
       return nil
     }
 
-    let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-    let context = CIContext()
-    guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
+    CVPixelBufferLockBaseAddress(newBuffer, [])
+    if let dest = CVPixelBufferGetBaseAddress(newBuffer) {
+      let destBytesPerRow = CVPixelBufferGetBytesPerRow(newBuffer)
+      // Copy row by row to handle potentially different bytesPerRow
+      pixelData.withUnsafeBytes { srcPtr in
+        guard let srcBase = srcPtr.baseAddress else { return }
+        let copyWidth = min(bytesPerRow, destBytesPerRow)
+        for row in 0..<height {
+          let srcRow = srcBase.advanced(by: row * bytesPerRow)
+          let dstRow = dest.advanced(by: row * destBytesPerRow)
+          memcpy(dstRow, srcRow, copyWidth)
+        }
+      }
+    }
+    CVPixelBufferUnlockBaseAddress(newBuffer, [])
+
+    // Convert to UIImage with orientation for MediaPipe
+    let ciImage = CIImage(cvPixelBuffer: newBuffer)
+    guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
       return nil
     }
 
@@ -161,7 +198,6 @@ final class MediaPipePoseDetector {
       let offset = index * 3
 
       if let midpointOf = mapping.midpointOf {
-        // Computed joint (neck): midpoint of two landmarks
         let (idx1, idx2) = midpointOf
         guard idx1 < landmarks.count, idx2 < landmarks.count else { continue }
         let lm1 = landmarks[idx1]
@@ -171,7 +207,6 @@ final class MediaPipePoseDetector {
         output[offset + 1] = Double((lm1.y + lm2.y) / 2.0)
         output[offset + 2] = Double(min(lm1.visibility?.floatValue ?? 0, lm2.visibility?.floatValue ?? 0))
       } else if let mpIndex = mapping.mpIndex {
-        // Direct landmark mapping
         guard mpIndex < landmarks.count else { continue }
         let lm = landmarks[mpIndex]
 

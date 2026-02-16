@@ -22,6 +22,10 @@ public class VisionCameraPoseDetectionModule: Module {
       return true
     }
 
+    Function("getModelStatus") {
+      return PoseDetectorPlugin.modelStatus
+    }
+
     Function("getLatestPose") { () -> [Double]? in
       return PoseDetectorPlugin.latestPoseData
     }

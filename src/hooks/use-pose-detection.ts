@@ -46,18 +46,41 @@ export const usePoseDetection = ({
   const consecutiveNullsRef = useRef(0);
   const GRACE_POLLS = 3; // ~300ms at 10fps before clearing
 
+  const pollCountRef = useRef(0);
+
   useEffect(() => {
     if (!enabled) {
+      if (__DEV__) console.log('[PoseDetection] Polling disabled');
       setRawPoseData(null);
       setLatestPose(null);
       prevDataRef.current = null;
       consecutiveNullsRef.current = 0;
+      pollCountRef.current = 0;
       return;
+    }
+
+    if (__DEV__) {
+      console.log('[PoseDetection] Polling started, fps:', pollingFps);
+      try {
+        const status = VisionCameraPoseDetectionModule.getModelStatus();
+        console.log('[PoseDetection] Model status:', status);
+      } catch {
+        console.log('[PoseDetection] getModelStatus not available (needs native rebuild)');
+      }
     }
 
     const interval = setInterval(() => {
       try {
         const data = VisionCameraPoseDetectionModule.getLatestPose();
+        pollCountRef.current++;
+
+        if (__DEV__ && pollCountRef.current % 30 === 1) {
+          console.log(
+            `[PoseDetection] Poll #${pollCountRef.current}: ` +
+            `data=${data ? `Array(${data.length})` : String(data)}, ` +
+            `expected=${POSE_ARRAY_LENGTH}`
+          );
+        }
 
         if (!data || data.length !== POSE_ARRAY_LENGTH) {
           consecutiveNullsRef.current++;
@@ -80,8 +103,10 @@ export const usePoseDetection = ({
         prevDataRef.current = data;
         setRawPoseData(data);
         setLatestPose(parsePoseArray(data, Date.now()));
-      } catch {
-        // Ignore polling errors (module not loaded, etc.)
+      } catch (e) {
+        if (__DEV__ && pollCountRef.current % 30 === 1) {
+          console.warn('[PoseDetection] Polling error:', e);
+        }
       }
     }, Math.round(1000 / pollingFps));
 

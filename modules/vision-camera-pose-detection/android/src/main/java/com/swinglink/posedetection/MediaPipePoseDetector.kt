@@ -2,18 +2,15 @@ package com.swinglink.posedetection
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.graphics.Matrix
-import android.graphics.Rect
-import android.graphics.YuvImage
 import android.media.Image
 import android.util.Log
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
-import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
 
 /**
  * Wrapper around MediaPipe Pose Landmarker for body pose detection.
@@ -24,7 +21,7 @@ import java.io.ByteArrayOutputStream
  *
  * Coordinate system:
  *   - MediaPipe returns landmark positions normalized 0-1 relative to image
- *   - Image is rotated according to rotationDegrees before inference
+ *   - Image is rotated before inference so coordinates are in display space
  *   - Y is already top-left origin (no flip needed)
  */
 class MediaPipePoseDetector(private val context: Context) {
@@ -32,6 +29,9 @@ class MediaPipePoseDetector(private val context: Context) {
   private var poseLandmarker: PoseLandmarker? = null
   private var initFailed = false
   private var errorCount = 0L
+
+  /** Whether the model loaded successfully and is ready for inference. */
+  val isReady: Boolean get() = poseLandmarker != null && !initFailed
 
   companion object {
     private const val TAG = "PoseDetection"
@@ -81,8 +81,18 @@ class MediaPipePoseDetector(private val context: Context) {
   private fun loadModel() {
     try {
       Log.d(TAG, "Initializing MediaPipe PoseLandmarker")
+
+      val modelBuffer = context.assets.open(MODEL_ASSET).use { inputStream ->
+        val bytes = inputStream.readBytes()
+        ByteBuffer.allocateDirect(bytes.size).also {
+          it.put(bytes)
+          it.rewind()
+        }
+      }
+      Log.d(TAG, "Model loaded into buffer: ${modelBuffer.capacity()} bytes")
+
       val baseOptions = BaseOptions.builder()
-        .setModelAssetPath(MODEL_ASSET)
+        .setModelAssetBuffer(modelBuffer)
         .build()
 
       val options = PoseLandmarker.PoseLandmarkerOptions.builder()
@@ -96,37 +106,47 @@ class MediaPipePoseDetector(private val context: Context) {
 
       poseLandmarker = PoseLandmarker.createFromOptions(context, options)
       Log.d(TAG, "MediaPipe PoseLandmarker created successfully")
-    } catch (e: Exception) {
-      Log.e(TAG, "Failed to create PoseLandmarker: ${e.message}")
+    } catch (e: Throwable) {
+      Log.e(TAG, "Failed to create PoseLandmarker: ${e.javaClass.simpleName}: ${e.message}")
       initFailed = true
     }
   }
 
   /**
-   * Runs pose detection synchronously on the given image.
+   * Runs pose detection on pre-copied YUV frame data.
    *
-   * @param image The camera frame as android.media.Image (YUV_420_888)
-   * @param rotationDegrees The image rotation in degrees (0, 90, 180, 270)
-   * @returns List of 72 Doubles, or null if no pose detected
+   * Called from a background thread with YUV bytes copied from the camera
+   * frame. Converts YUV→RGB, rotates the bitmap, and runs inference.
+   * Coordinates are returned in the rotated (display) space.
    */
-  fun detectPose(image: Image, rotationDegrees: Int): List<Double>? {
+  fun detectPoseFromYuv(
+    yBytes: ByteArray, uBytes: ByteArray, vBytes: ByteArray,
+    width: Int, height: Int,
+    yRowStride: Int, uvRowStride: Int, uvPixelStride: Int,
+    rotationDegrees: Int,
+  ): List<Double>? {
     val landmarker = poseLandmarker ?: return null
     if (initFailed) return null
 
-    // Convert YUV Image to Bitmap
-    val bitmap = try {
-      imageToBitmap(image, rotationDegrees)
+    // YUV → ARGB_8888 Bitmap (downsampled 3x to ~640x360 — reduces allocations ~9x)
+    var bitmap = try {
+      yuvToRgbBitmap(yBytes, uBytes, vBytes, width, height, yRowStride, uvRowStride, uvPixelStride, downsample = 3)
     } catch (e: Exception) {
       if (errorCount++ % 60L == 0L) {
-        Log.e(TAG, "Image conversion failed (error #$errorCount): ${e.message}")
+        Log.e(TAG, "YUV conversion failed (error #$errorCount): ${e.message}")
       }
       return null
     } ?: return null
 
-    // Create MediaPipe image
+    // Rotate bitmap so coordinates are in display (portrait) space
+    if (rotationDegrees != 0) {
+      val matrix = Matrix()
+      matrix.postRotate(rotationDegrees.toFloat())
+      bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    }
+
     val mpImage = BitmapImageBuilder(bitmap).build()
 
-    // Run inference
     val result = try {
       landmarker.detect(mpImage)
     } catch (e: Exception) {
@@ -148,7 +168,6 @@ class MediaPipePoseDetector(private val context: Context) {
       val offset = index * 3
 
       if (mpIndex == -1) {
-        // Neck: midpoint of left and right shoulder
         val leftShoulder = poseLandmarks[11]
         val rightShoulder = poseLandmarks[12]
 
@@ -176,40 +195,40 @@ class MediaPipePoseDetector(private val context: Context) {
   }
 
   /**
-   * Convert android.media.Image (YUV_420_888) to a rotated Bitmap.
+   * Convert YUV_420_888 byte arrays directly to an ARGB_8888 Bitmap.
+   * Handles variable row/pixel strides across devices.
    */
-  private fun imageToBitmap(image: Image, rotationDegrees: Int): Bitmap? {
-    if (image.format != ImageFormat.YUV_420_888) {
-      Log.w(TAG, "Unexpected image format: ${image.format}")
-      return null
+  private fun yuvToRgbBitmap(
+    yBytes: ByteArray, uBytes: ByteArray, vBytes: ByteArray,
+    width: Int, height: Int,
+    yRowStride: Int, uvRowStride: Int, uvPixelStride: Int,
+    downsample: Int = 1,
+  ): Bitmap? {
+    val outW = width / downsample
+    val outH = height / downsample
+    val pixels = IntArray(outW * outH)
+
+    for (outRow in 0 until outH) {
+      for (outCol in 0 until outW) {
+        val srcRow = outRow * downsample
+        val srcCol = outCol * downsample
+        val yIndex = srcRow * yRowStride + srcCol
+        val uvRow = srcRow shr 1
+        val uvCol = srcCol shr 1
+        val uvIndex = uvRow * uvRowStride + uvCol * uvPixelStride
+
+        val y = (yBytes[yIndex].toInt() and 0xFF).toFloat()
+        val u = (uBytes[uvIndex].toInt() and 0xFF).toFloat() - 128f
+        val v = (vBytes[uvIndex].toInt() and 0xFF).toFloat() - 128f
+
+        val r = (y + 1.370705f * v).toInt().coerceIn(0, 255)
+        val g = (y - 0.337633f * u - 0.698001f * v).toInt().coerceIn(0, 255)
+        val b = (y + 1.732446f * u).toInt().coerceIn(0, 255)
+
+        pixels[outRow * outW + outCol] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+      }
     }
 
-    val yBuffer = image.planes[0].buffer
-    val uBuffer = image.planes[1].buffer
-    val vBuffer = image.planes[2].buffer
-
-    val ySize = yBuffer.remaining()
-    val uSize = uBuffer.remaining()
-    val vSize = vBuffer.remaining()
-
-    val nv21 = ByteArray(ySize + uSize + vSize)
-    yBuffer.get(nv21, 0, ySize)
-    vBuffer.get(nv21, ySize, vSize)
-    uBuffer.get(nv21, ySize + vSize, uSize)
-
-    val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
-    val out = ByteArrayOutputStream()
-    yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 80, out)
-    val jpegBytes = out.toByteArray()
-    var bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return null
-
-    // Rotate if needed
-    if (rotationDegrees != 0) {
-      val matrix = Matrix()
-      matrix.postRotate(rotationDegrees.toFloat())
-      bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-    }
-
-    return bitmap
+    return Bitmap.createBitmap(pixels, outW, outH, Bitmap.Config.ARGB_8888)
   }
 }

@@ -56,7 +56,5 @@ scripts/train-swing-classifier/results/
 *.pt
 yolov8n-pose.pt
 
-# MediaPipe model files (too large for git, download separately)
-pose_landmarker_lite.task
 
 tmp
