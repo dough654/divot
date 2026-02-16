@@ -12,7 +12,7 @@ import MediaPipeTasksVision
  * Coordinate system:
  *   - MediaPipe returns landmark positions normalized 0-1 relative to image
  *   - Image is physically rotated to display orientation before inference
- *   - A 180° coordinate correction compensates for the CIImage→CGImage pipeline
+ *   - A y-flip correction compensates for CIImage's bottom-left origin
  *   - Y is in top-left origin (y increases downward)
  */
 final class MediaPipePoseDetector {
@@ -235,14 +235,12 @@ final class MediaPipePoseDetector {
       }
     }
 
-    // Correct for 180° offset in the CIImage → CGImage → UIKit rotation pipeline.
-    // Both CGContext and UIGraphicsImageRenderer rotation approaches produce a
-    // consistent 180° error (the skeleton maps correctly to joints but is upside
-    // down). This is likely from CIImage's bottom-left coordinate origin causing
-    // a y-flip in the CGImage, which compounds with the rotation to produce 180°.
-    // Flipping both coordinates cancels this out.
+    // Correct for vertical flip from CIImage → CGImage conversion.
+    // CIImage uses bottom-left origin; the resulting CGImage has y inverted
+    // relative to the pixel buffer. The UIKit rotation handles orientation
+    // correctly but inherits this y-flip, so MediaPipe landmarks have
+    // inverted y-coordinates. Flip y only (x is already correct).
     for i in stride(from: 0, to: output.count, by: 3) {
-      output[i] = 1.0 - output[i]
       output[i + 1] = 1.0 - output[i + 1]
     }
 
