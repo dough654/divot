@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { Audio } from 'expo-av';
+import { useEffect, useRef, useCallback } from 'react';
 import * as Speech from 'expo-speech';
 
 /** Minimum time (ms) between consecutive announcements to avoid rapid-fire TTS. */
@@ -24,44 +23,20 @@ const PHASE_LABELS: Record<string, string> = {
   cooldown: 'Cooldown',
 };
 
-/**
- * Temporarily disables the recording audio session so TTS plays at full
- * volume through the main speaker, then restores it after speech finishes.
- *
- * `allowsRecordingIOS: true` (set by audio metering) switches iOS to
- * `playAndRecord` mode which heavily attenuates all playback output.
- */
-const speakLoud = (label: string): void => {
-  Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-    playsInSilentModeIOS: true,
-  }).then(() => {
-    Speech.speak(label, {
-      rate: 1.2,
-      onDone: restoreRecordingMode,
-      onStopped: restoreRecordingMode,
-      onError: restoreRecordingMode,
-    });
-  }).catch(() => {
-    // Fall back to quiet speech if mode switch fails
-    Speech.speak(label, { rate: 1.2 });
-  });
-};
-
-const restoreRecordingMode = (): void => {
-  Audio.setAudioModeAsync({
-    allowsRecordingIOS: true,
-    playsInSilentModeIOS: true,
-  }).catch(() => {
-    // Best-effort restore — audio metering will re-set on next poll cycle anyway
-  });
-};
-
 type UsePhaseAnnouncerOptions = {
   /** Whether TTS announcements are active. */
   enabled: boolean;
   /** Current detection state from classifier or motion pipeline. */
   detectionState: string;
+  /**
+   * Pause audio metering before speaking so iOS exits playAndRecord mode
+   * and TTS plays at full volume. Called before each announcement.
+   */
+  pauseMetering?: () => Promise<void>;
+  /**
+   * Resume audio metering after speech finishes.
+   */
+  resumeMetering?: () => Promise<void>;
 };
 
 /**
@@ -69,10 +44,45 @@ type UsePhaseAnnouncerOptions = {
  *
  * Gated by `enabled` — intended to be tied to `debugOverlayEnabled` so it
  * only fires during development/testing sessions.
+ *
+ * On iOS, audio metering forces the session into playAndRecord mode which
+ * heavily attenuates playback. This hook pauses metering around each
+ * announcement so TTS plays through the main speaker at full volume.
  */
-export const usePhaseAnnouncer = ({ enabled, detectionState }: UsePhaseAnnouncerOptions): void => {
+export const usePhaseAnnouncer = ({
+  enabled,
+  detectionState,
+  pauseMetering,
+  resumeMetering,
+}: UsePhaseAnnouncerOptions): void => {
   const previousStateRef = useRef<string | null>(null);
   const lastAnnouncedAtRef = useRef(0);
+  const pauseMeteringRef = useRef(pauseMetering);
+  const resumeMeteringRef = useRef(resumeMetering);
+  pauseMeteringRef.current = pauseMetering;
+  resumeMeteringRef.current = resumeMetering;
+
+  const speak = useCallback((label: string) => {
+    const pause = pauseMeteringRef.current;
+    const resume = resumeMeteringRef.current;
+
+    if (!pause || !resume) {
+      // No metering control — just speak (will be quiet on iOS)
+      Speech.speak(label, { rate: 1.2 });
+      return;
+    }
+
+    pause().then(() => {
+      Speech.speak(label, {
+        rate: 1.2,
+        onDone: () => { resume(); },
+        onStopped: () => { resume(); },
+        onError: () => { resume(); },
+      });
+    }).catch(() => {
+      Speech.speak(label, { rate: 1.2 });
+    });
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
@@ -94,14 +104,13 @@ export const usePhaseAnnouncer = ({ enabled, detectionState }: UsePhaseAnnouncer
 
     const label = PHASE_LABELS[detectionState] ?? detectionState;
     Speech.stop();
-    speakLoud(label);
-  }, [enabled, detectionState]);
+    speak(label);
+  }, [enabled, detectionState, speak]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       Speech.stop();
-      restoreRecordingMode();
     };
   }, []);
 };

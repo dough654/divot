@@ -123,7 +123,7 @@ export default function CameraScreen() {
   const { motionMagnitude } = useMotionDetection({ enabled: autoDetectEnabled });
 
   // Audio metering — expo-av recording with metering for impact detection
-  const { audioLevel } = useAudioMetering({ enabled: autoDetectEnabled });
+  const { audioLevel, pause: pauseMetering, resume: resumeMetering } = useAudioMetering({ enabled: autoDetectEnabled });
 
   // Motion-based swing detection state machine (legacy)
   const swingStartRef = useRef<(() => boolean | void) | null>(null);
@@ -175,7 +175,12 @@ export default function CameraScreen() {
     : motionSwingResult.detectionState;
 
   // TTS phase announcements for hands-free testing
-  usePhaseAnnouncer({ enabled: useClassifier && settings.debugOverlayEnabled, detectionState });
+  usePhaseAnnouncer({
+    enabled: useClassifier && settings.debugOverlayEnabled,
+    detectionState,
+    pauseMetering,
+    resumeMetering,
+  });
 
   // Play "ready" cue when entering armed/address state
   const prevIsStillRef = useRef(false);

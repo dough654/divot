@@ -15,6 +15,10 @@ export type UseAudioMeteringReturn = {
   audioLevel: number | null;
   /** Whether the current audio level exceeds the peak threshold. */
   isPeak: boolean;
+  /** Temporarily stop metering so another audio source can use full volume. */
+  pause: () => Promise<void>;
+  /** Resume metering after a pause. */
+  resume: () => Promise<void>;
 };
 
 /**
@@ -124,5 +128,5 @@ export const useAudioMetering = ({
     };
   }, [enabled, startMetering, stopMetering]);
 
-  return { audioLevel, isPeak };
+  return { audioLevel, isPeak, pause: stopMetering, resume: startMetering };
 };
