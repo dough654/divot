@@ -215,6 +215,8 @@ export type UseSwingClassifierOptions = {
   enabled: boolean;
   /** Raw pose data from usePoseDetection (72-element array, 24 joints x 3). */
   rawPoseData: readonly number[] | null;
+  /** Flip x-coordinates to compensate for front camera mirror. */
+  mirrorX?: boolean;
   /** Called when a swing is detected (backswing started). */
   onSwingStarted?: () => void;
   /** Called when the swing ends. */
@@ -258,6 +260,7 @@ export type UseSwingClassifierReturn = {
 export const useSwingClassifier = ({
   enabled,
   rawPoseData,
+  mirrorX = false,
   onSwingStarted,
   onSwingEnded,
 }: UseSwingClassifierOptions): UseSwingClassifierReturn => {
@@ -297,6 +300,14 @@ export const useSwingClassifier = ({
 
     // Extract 8-joint features (16 values)
     const features = extractClassifierFeatures(rawPoseData, [...CLASSIFIER_JOINT_INDICES]);
+
+    // Front camera delivers mirrored frames — flip x so the CNN sees
+    // the same spatial pattern as rear camera DTL training data.
+    if (mirrorX) {
+      for (let i = 0; i < features.length; i += 2) {
+        if (features[i] !== 0) features[i] = 1.0 - features[i];
+      }
+    }
 
     // Push to sliding window
     const buffer = windowBufferRef.current;
@@ -383,7 +394,7 @@ export const useSwingClassifier = ({
           break;
       }
     }
-  }, [enabled, rawPoseData, compiledWeights]);
+  }, [enabled, rawPoseData, mirrorX, compiledWeights]);
 
   const currentState = stateRef.current;
   const currentOutput = classifierOutputRef.current;
