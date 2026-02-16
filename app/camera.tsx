@@ -122,14 +122,16 @@ export default function CameraScreen() {
   // Motion detection — polls native frame diff module
   const { motionMagnitude } = useMotionDetection({ enabled: autoDetectEnabled });
 
-  // Audio metering — expo-av recording with metering for impact detection
-  const { audioLevel, pause: pauseMetering, resume: resumeMetering } = useAudioMetering({ enabled: autoDetectEnabled });
-
   // Motion-based swing detection state machine (legacy)
   const swingStartRef = useRef<(() => boolean | void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
   const useClassifier = autoDetectEnabled && settings.swingClassifierEnabled;
   const useMotionDetect = autoDetectEnabled && !settings.swingClassifierEnabled;
+
+  // Audio metering — only needed for motion-based detection (classifier uses pose data).
+  // Keeping this disabled when using the classifier also avoids iOS routing all audio
+  // to the earpiece (allowsRecordingIOS sets playAndRecord mode).
+  const { audioLevel } = useAudioMetering({ enabled: useMotionDetect });
 
   const motionSwingResult = useMotionSwingDetection({
     enabled: useMotionDetect,
@@ -178,8 +180,6 @@ export default function CameraScreen() {
   usePhaseAnnouncer({
     enabled: useClassifier && settings.debugOverlayEnabled,
     detectionState,
-    pauseMetering,
-    resumeMetering,
   });
 
   // Play "ready" cue when entering armed/address state
