@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 
 /** Minimum time (ms) between consecutive announcements to avoid rapid-fire TTS. */
@@ -21,6 +22,39 @@ const PHASE_LABELS: Record<string, string> = {
   detecting: 'Detecting',
   swing: 'Swing',
   cooldown: 'Cooldown',
+};
+
+/**
+ * Temporarily disables the recording audio session so TTS plays at full
+ * volume through the main speaker, then restores it after speech finishes.
+ *
+ * `allowsRecordingIOS: true` (set by audio metering) switches iOS to
+ * `playAndRecord` mode which heavily attenuates all playback output.
+ */
+const speakLoud = (label: string): void => {
+  Audio.setAudioModeAsync({
+    allowsRecordingIOS: false,
+    playsInSilentModeIOS: true,
+  }).then(() => {
+    Speech.speak(label, {
+      rate: 1.2,
+      onDone: restoreRecordingMode,
+      onStopped: restoreRecordingMode,
+      onError: restoreRecordingMode,
+    });
+  }).catch(() => {
+    // Fall back to quiet speech if mode switch fails
+    Speech.speak(label, { rate: 1.2 });
+  });
+};
+
+const restoreRecordingMode = (): void => {
+  Audio.setAudioModeAsync({
+    allowsRecordingIOS: true,
+    playsInSilentModeIOS: true,
+  }).catch(() => {
+    // Best-effort restore — audio metering will re-set on next poll cycle anyway
+  });
 };
 
 type UsePhaseAnnouncerOptions = {
@@ -60,18 +94,14 @@ export const usePhaseAnnouncer = ({ enabled, detectionState }: UsePhaseAnnouncer
 
     const label = PHASE_LABELS[detectionState] ?? detectionState;
     Speech.stop();
-    Speech.speak(label, {
-      rate: 1.2,
-      // Use a separate audio session so TTS isn't ducked by the
-      // recording-mode session from audio metering (allowsRecordingIOS).
-      useApplicationAudioSession: false,
-    });
+    speakLoud(label);
   }, [enabled, detectionState]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       Speech.stop();
+      restoreRecordingMode();
     };
   }, []);
 };
