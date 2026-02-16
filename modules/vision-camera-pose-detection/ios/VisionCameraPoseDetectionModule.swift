@@ -29,5 +29,9 @@ public class VisionCameraPoseDetectionModule: Module {
     Function("getLatestPose") { () -> [Double]? in
       return PoseDetectorPlugin.latestPoseData
     }
+
+    Function("getLastOrientation") {
+      return PoseDetectorPlugin.latestOrientation
+    }
   }
 }

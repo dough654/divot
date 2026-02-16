@@ -12,7 +12,7 @@ import MediaPipeTasksVision
  * Coordinate system:
  *   - MediaPipe returns landmark positions normalized 0-1 relative to image
  *   - Image is physically rotated to display orientation before inference
- *     (UIKit handles the CG y-flip correctly, unlike raw CGContext.draw)
+ *   - A 180° coordinate correction compensates for the CIImage→CGImage pipeline
  *   - Y is in top-left origin (y increases downward)
  */
 final class MediaPipePoseDetector {
@@ -185,18 +185,18 @@ final class MediaPipePoseDetector {
       return nil
     }
 
-    // Physically rotate the image to display orientation (like Android's Matrix rotation).
-    // We use UIKit drawing (UIGraphicsImageRenderer) instead of raw Core Graphics because
-    // CGContext.draw() y-flips CGImages (CG coords are bottom-left origin, bitmap rows are
-    // top-down). UIImage.draw(in:) handles this correctly.
+    // Physically rotate the image to display orientation so MediaPipe gets
+    // an upright person (required for reliable detection).
+    // UIGraphicsImageRenderer handles the UIImage orientation transform.
     let rawUIImage = UIImage(cgImage: rawCGImage, scale: 1.0, orientation: orientation)
     let targetSize = rawUIImage.size  // .size accounts for orientation (swaps w/h for 90° rotations)
-    let renderer = UIGraphicsImageRenderer(size: targetSize)
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1.0  // Avoid screen-scale multiplication
+    let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
     let orientedUIImage = renderer.image { _ in
       rawUIImage.draw(in: CGRect(origin: .zero, size: targetSize))
     }
 
-    // orientedUIImage is now physically rotated with .up orientation
     let uiImage = orientedUIImage
 
     guard let mpImage = try? MPImage(uiImage: uiImage) else {
@@ -233,6 +233,17 @@ final class MediaPipePoseDetector {
         output[offset + 1] = Double(lm.y)
         output[offset + 2] = Double(lm.visibility?.floatValue ?? 0)
       }
+    }
+
+    // Correct for 180° offset in the CIImage → CGImage → UIKit rotation pipeline.
+    // Both CGContext and UIGraphicsImageRenderer rotation approaches produce a
+    // consistent 180° error (the skeleton maps correctly to joints but is upside
+    // down). This is likely from CIImage's bottom-left coordinate origin causing
+    // a y-flip in the CGImage, which compounds with the rotation to produce 180°.
+    // Flipping both coordinates cancels this out.
+    for i in stride(from: 0, to: output.count, by: 3) {
+      output[i] = 1.0 - output[i]
+      output[i + 1] = 1.0 - output[i + 1]
     }
 
     return output

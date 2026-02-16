@@ -74,6 +74,8 @@ class PoseDetectorPlugin(private val appContext: Context) : FrameProcessorPlugin
     val uvRowStride = uPlane.rowStride
     val uvPixelStride = uPlane.pixelStride
 
+    latestOrientation = "${rotationDegrees}° ${width}x${height}"
+
     // Dispatch detection to background thread — frame processor returns immediately
     detectionInProgress.set(true)
     detectionExecutor.submit {
@@ -128,6 +130,10 @@ class PoseDetectorPlugin(private val appContext: Context) : FrameProcessorPlugin
     /** Model initialization status, readable from JS for diagnostics. */
     @Volatile
     var modelStatus: String = "not_initialized"
+
+    /** Last orientation info, readable from JS for diagnostics. */
+    @Volatile
+    var latestOrientation: String = "none"
 
     /** Convert VisionCamera Orientation enum to rotation degrees. */
     private fun orientationToDegrees(orientation: com.mrousavy.camera.core.types.Orientation): Int =

@@ -29,6 +29,9 @@ class PoseDetectorPlugin: FrameProcessorPlugin {
   /// Model initialization status, readable from JS for diagnostics.
   static var modelStatus: String = "not_initialized"
 
+  /// Last orientation name, readable from JS for diagnostics.
+  static var latestOrientation: String = "none"
+
   static var latestPoseData: [Double]? {
     get {
       lock.lock()
@@ -108,21 +111,24 @@ class PoseDetectorPlugin: FrameProcessorPlugin {
         PoseDetectorPlugin.latestPoseData = result
       }
 
+      // Store orientation for JS debug overlay
+      let orientName: String
+      switch orientation {
+      case .up: orientName = "up"
+      case .down: orientName = "down"
+      case .left: orientName = "left"
+      case .right: orientName = "right"
+      case .upMirrored: orientName = "upMirrored"
+      case .downMirrored: orientName = "downMirrored"
+      case .leftMirrored: orientName = "leftMirrored"
+      case .rightMirrored: orientName = "rightMirrored"
+      @unknown default: orientName = "unknown(\(orientation.rawValue))"
+      }
+      Self.latestOrientation = "\(orientName) \(width)x\(height)"
+
       Self.frameCount += 1
       // Log every 60 frames (+ first 3 frames for immediate diagnostics)
       if Self.frameCount <= 3 || Self.frameCount % 60 == 0 {
-        let orientName: String
-        switch orientation {
-        case .up: orientName = "up"
-        case .down: orientName = "down"
-        case .left: orientName = "left"
-        case .right: orientName = "right"
-        case .upMirrored: orientName = "upMirrored"
-        case .downMirrored: orientName = "downMirrored"
-        case .leftMirrored: orientName = "leftMirrored"
-        case .rightMirrored: orientName = "rightMirrored"
-        @unknown default: orientName = "unknown(\(orientation.rawValue))"
-        }
 
         if let result = result {
           let maxConf = stride(from: 2, to: result.count, by: 3).map { result[$0] }.max() ?? 0

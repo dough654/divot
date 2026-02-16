@@ -1,8 +1,9 @@
 import { StyleSheet, View, Text, Platform } from 'react-native';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Svg, { Circle, Line } from 'react-native-svg';
 import { JOINT_NAMES, SKELETON_CONNECTIONS } from '@/src/utils/pose-normalization';
 import { smoothPoseData, jointOpacity, SmoothedPose } from '@/src/utils/skeleton-smoothing';
+import { VisionCameraPoseDetectionModule } from '@/modules/vision-camera-pose-detection';
 
 /** Joint circle radius in SVG units. */
 const JOINT_RADIUS = 4;
@@ -121,6 +122,18 @@ const PoseDebugInfo = ({ joints, width, height }: {
   width: number;
   height: number;
 }) => {
+  const [orientInfo, setOrientInfo] = useState('');
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    const interval = setInterval(() => {
+      try {
+        setOrientInfo(VisionCameraPoseDetectionModule.getLastOrientation());
+      } catch { /* ignore */ }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   if (!__DEV__ || !joints) return null;
   const nose = joints.get('nose');
   const leftHip = joints.get('leftHip');
@@ -130,6 +143,9 @@ const PoseDebugInfo = ({ joints, width, height }: {
     <View style={styles.debugInfo}>
       <Text style={styles.debugText}>
         {`${Platform.OS} ${width.toFixed(0)}x${height.toFixed(0)}`}
+      </Text>
+      <Text style={styles.debugText}>
+        {`orient: ${orientInfo}`}
       </Text>
       <Text style={styles.debugText}>
         {`nose: ${nose.x.toFixed(3)}, ${nose.y.toFixed(3)}`}
