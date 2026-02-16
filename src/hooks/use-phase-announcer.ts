@@ -7,7 +7,6 @@ const DEBOUNCE_MS = 500;
 /** Map detection states to human-friendly spoken labels. */
 const PHASE_LABELS: Record<string, string> = {
   // Classifier phases (SwingPhase)
-  idle: 'Reset',
   address: 'Address',
   backswing: 'Backswing',
   downswing: 'Downswing',
@@ -62,7 +61,9 @@ export const usePhaseAnnouncer = ({ enabled, detectionState }: UsePhaseAnnouncer
 
     lastAnnouncedAtRef.current = now;
 
-    const label = PHASE_LABELS[detectionState] ?? detectionState;
+    const label = PHASE_LABELS[detectionState];
+    if (!label) return;
+
     Speech.stop();
     Speech.speak(label, { rate: 1.2 });
   }, [enabled, detectionState]);
