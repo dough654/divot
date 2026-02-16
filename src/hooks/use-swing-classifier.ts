@@ -28,9 +28,33 @@ import type {
   SwingClassifierEvent,
 } from '@/src/types/swing-classifier';
 import {
+  SWING_PHASES,
   DEFAULT_CLASSIFIER_CONFIG,
   CLASSIFIER_JOINT_INDICES,
 } from '@/src/types/swing-classifier';
+
+// ============================================
+// DEBUG LOGGING
+// ============================================
+
+const JOINT_LABELS = ['lShldr', 'rShldr', 'lElbow', 'rElbow', 'lWrist', 'rWrist', 'lHip', 'rHip'] as const;
+
+/** Extracts per-joint confidence values from raw 72-element pose data for the 8 classifier joints. */
+const getJointConfidences = (rawPoseData: readonly number[]): string => {
+  return CLASSIFIER_JOINT_INDICES.map((jointIdx, i) => {
+    const confidence = rawPoseData[jointIdx * 3 + 2];
+    const label = JOINT_LABELS[i];
+    const flag = confidence < 0.3 ? '!' : ' ';
+    return `${label}=${confidence.toFixed(2)}${flag}`;
+  }).join(' ');
+};
+
+/** Formats top-2 phase probabilities for compact logging. */
+const formatTopPhases = (probabilities: readonly number[]): string => {
+  const indexed = probabilities.map((p, i) => ({ phase: SWING_PHASES[i], prob: p }));
+  indexed.sort((a, b) => b.prob - a.prob);
+  return `${indexed[0].phase}(${(indexed[0].prob * 100).toFixed(0)}%) ${indexed[1].phase}(${(indexed[1].prob * 100).toFixed(0)}%)`;
+};
 
 // ============================================
 // STATE MACHINE
@@ -246,6 +270,8 @@ export const useSwingClassifier = ({
   const windowBufferRef = useRef<Float32Array[]>([]);
   const stateRef = useRef<StateMachineState>({ ...INITIAL_STATE });
   const classifierOutputRef = useRef<ClassifierOutput | null>(null);
+  const frameCountRef = useRef(0);
+  const windowFilledRef = useRef(false);
 
   // Stable callback refs
   const onSwingStartedRef = useRef(onSwingStarted);
@@ -259,6 +285,8 @@ export const useSwingClassifier = ({
       windowBufferRef.current = [];
       stateRef.current = { ...INITIAL_STATE };
       classifierOutputRef.current = null;
+      frameCountRef.current = 0;
+      windowFilledRef.current = false;
     }
   }, [enabled]);
 
@@ -281,6 +309,14 @@ export const useSwingClassifier = ({
     // Only classify when we have a full window
     if (buffer.length < DEFAULT_CLASSIFIER_CONFIG.windowSize) return;
 
+    // Log once when window first fills
+    if (__DEV__ && !windowFilledRef.current) {
+      windowFilledRef.current = true;
+      console.log('[SwingClassifier] Window buffer full (30 frames) — classifier active');
+    }
+
+    frameCountRef.current += 1;
+
     // Flatten window: (30, 16) -> Float32Array of 480
     const windowSize = DEFAULT_CLASSIFIER_CONFIG.windowSize;
     const numFeatures = DEFAULT_CLASSIFIER_CONFIG.numFeatures;
@@ -295,21 +331,52 @@ export const useSwingClassifier = ({
 
     // Run state machine
     const now = Date.now();
-    const { state: newState, event } = nextState(stateRef.current, output, now);
+    const prevState = stateRef.current;
+    const { state: newState, event } = nextState(prevState, output, now);
     stateRef.current = newState;
+
+    if (__DEV__) {
+      // Log state transitions
+      if (newState.detectionState !== prevState.detectionState) {
+        console.log(
+          `[SwingClassifier] STATE: ${prevState.detectionState} → ${newState.detectionState}` +
+          ` | phase=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%` +
+          ` | top: ${formatTopPhases(output.probabilities)}` +
+          `\n  joints: ${getJointConfidences(rawPoseData)}`,
+        );
+      }
+
+      // Periodic summary every 30 frames (~3s at 10Hz)
+      if (frameCountRef.current % 30 === 0) {
+        console.log(
+          `[SwingClassifier] tick #${frameCountRef.current}` +
+          ` | state=${newState.detectionState} phase=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%` +
+          ` | top: ${formatTopPhases(output.probabilities)}` +
+          ` | pending=${newState.pendingState} confirm=${newState.confirmCount}` +
+          `\n  joints: ${getJointConfidences(rawPoseData)}`,
+        );
+      }
+    }
 
     // Handle events
     if (event) {
       switch (event.type) {
         case 'swingStarted':
           if (__DEV__) {
-            console.log('[SwingClassifier] Swing started');
+            console.log(
+              `[SwingClassifier] >>> SWING STARTED` +
+              ` | phase=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%` +
+              `\n  joints: ${getJointConfidences(rawPoseData)}`,
+            );
           }
           onSwingStartedRef.current?.();
           break;
         case 'swingEnded':
           if (__DEV__) {
-            console.log('[SwingClassifier] Swing ended:', event.durationMs, 'ms');
+            console.log(
+              `[SwingClassifier] <<< SWING ENDED: ${event.durationMs}ms` +
+              ` | phase=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%`,
+            );
           }
           onSwingEndedRef.current?.(event.durationMs);
           break;
