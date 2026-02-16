@@ -179,9 +179,21 @@ final class MediaPipePoseDetector {
     }
     CVPixelBufferUnlockBaseAddress(newBuffer, [])
 
-    // Convert pixel buffer to CGImage
+    // Convert pixel buffer to CGImage, downsampled ~3x for performance.
+    // Android does the same (640×360 from 1920×1080) — reduces pixel count ~9x
+    // with no meaningful loss in pose detection accuracy.
     let ciImage = CIImage(cvPixelBuffer: newBuffer)
-    guard let rawCGImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
+    let fullExtent = ciImage.extent
+    let downsampleFactor = 3.0
+    let scaledWidth = Int(fullExtent.width / downsampleFactor)
+    let scaledHeight = Int(fullExtent.height / downsampleFactor)
+    let scaledRect = CGRect(x: 0, y: 0, width: scaledWidth, height: scaledHeight)
+
+    // CIContext renders at the requested size — efficient GPU-accelerated downscale
+    let scaledCIImage = ciImage.transformed(by: CGAffineTransform(
+      scaleX: 1.0 / downsampleFactor, y: 1.0 / downsampleFactor
+    ))
+    guard let rawCGImage = ciContext.createCGImage(scaledCIImage, from: scaledRect) else {
       return nil
     }
 
