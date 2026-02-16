@@ -109,16 +109,30 @@ class PoseDetectorPlugin: FrameProcessorPlugin {
       }
 
       Self.frameCount += 1
-      if Self.frameCount % 60 == 0 {
+      // Log every 60 frames (+ first 3 frames for immediate diagnostics)
+      if Self.frameCount <= 3 || Self.frameCount % 60 == 0 {
+        let orientName: String
+        switch orientation {
+        case .up: orientName = "up"
+        case .down: orientName = "down"
+        case .left: orientName = "left"
+        case .right: orientName = "right"
+        case .upMirrored: orientName = "upMirrored"
+        case .downMirrored: orientName = "downMirrored"
+        case .leftMirrored: orientName = "leftMirrored"
+        case .rightMirrored: orientName = "rightMirrored"
+        @unknown default: orientName = "unknown(\(orientation.rawValue))"
+        }
+
         if let result = result {
           let maxConf = stride(from: 2, to: result.count, by: 3).map { result[$0] }.max() ?? 0
           let noseX = result[0]; let noseY = result[1]
           let hipX = result[24]; let hipY = result[25]
-          NSLog("[PoseDetection] Frame #\(Self.frameCount): pose detected (orient=\(orientation.rawValue) " +
-            "img=\(width)x\(height) nose=\(String(format: "%.2f,%.2f", noseX, noseY)) " +
-            "hip=\(String(format: "%.2f,%.2f", hipX, hipY)) maxConf=\(String(format: "%.2f", maxConf)))")
+          NSLog("[PoseDetection] Frame #\(Self.frameCount): pose detected (orient=\(orientName) " +
+            "buf=\(width)x\(height) nose=\(String(format: "%.3f,%.3f", noseX, noseY)) " +
+            "hip=\(String(format: "%.3f,%.3f", hipX, hipY)) maxConf=\(String(format: "%.2f", maxConf)))")
         } else {
-          NSLog("[PoseDetection] Frame #\(Self.frameCount): no pose detected (orient=\(orientation.rawValue) img=\(width)x\(height))")
+          NSLog("[PoseDetection] Frame #\(Self.frameCount): no pose detected (orient=\(orientName) buf=\(width)x\(height))")
         }
       }
     }
