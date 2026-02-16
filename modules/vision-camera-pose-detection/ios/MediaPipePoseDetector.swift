@@ -11,8 +11,9 @@ import MediaPipeTasksVision
  *
  * Coordinate system:
  *   - MediaPipe returns landmark positions normalized 0-1 relative to image
- *   - Orientation is passed via UIImage so coordinates are in display space
- *   - Y is already in top-left origin (y increases downward)
+ *   - Image is physically rotated to display orientation before inference
+ *     (UIKit handles the CG y-flip correctly, unlike raw CGContext.draw)
+ *   - Y is in top-left origin (y increases downward)
  */
 final class MediaPipePoseDetector {
 
@@ -184,12 +185,19 @@ final class MediaPipePoseDetector {
       return nil
     }
 
-    // Physically rotate the CGImage to display orientation (like Android's Matrix rotation).
-    // This ensures MediaPipe landmarks are always in display-space coordinates.
-    let rotatedCGImage = rotateToUpOrientation(rawCGImage, from: orientation) ?? rawCGImage
+    // Physically rotate the image to display orientation (like Android's Matrix rotation).
+    // We use UIKit drawing (UIGraphicsImageRenderer) instead of raw Core Graphics because
+    // CGContext.draw() y-flips CGImages (CG coords are bottom-left origin, bitmap rows are
+    // top-down). UIImage.draw(in:) handles this correctly.
+    let rawUIImage = UIImage(cgImage: rawCGImage, scale: 1.0, orientation: orientation)
+    let targetSize = rawUIImage.size  // .size accounts for orientation (swaps w/h for 90° rotations)
+    let renderer = UIGraphicsImageRenderer(size: targetSize)
+    let orientedUIImage = renderer.image { _ in
+      rawUIImage.draw(in: CGRect(origin: .zero, size: targetSize))
+    }
 
-    // Create UIImage with .up orientation — image is already correctly rotated
-    let uiImage = UIImage(cgImage: rotatedCGImage, scale: 1.0, orientation: .up)
+    // orientedUIImage is now physically rotated with .up orientation
+    let uiImage = orientedUIImage
 
     guard let mpImage = try? MPImage(uiImage: uiImage) else {
       return nil
@@ -230,109 +238,4 @@ final class MediaPipePoseDetector {
     return output
   }
 
-  /**
-   * Physically rotates a CGImage to "up" orientation using Core Graphics.
-   *
-   * Matches Android's `Bitmap.createBitmap(bitmap, 0, 0, w, h, matrix, true)`
-   * approach — the rotated image has correct pixel data so MediaPipe
-   * landmarks are directly in display-space coordinates.
-   *
-   * Returns nil only on allocation failure; returns the original if
-   * orientation is already `.up`.
-   */
-  private func rotateToUpOrientation(_ image: CGImage, from orientation: UIImage.Orientation) -> CGImage? {
-    // No rotation needed — buffer is already in display orientation
-    if orientation == .up {
-      return image
-    }
-
-    let srcWidth = image.width
-    let srcHeight = image.height
-
-    // Compute the destination size and transform
-    let (dstWidth, dstHeight, transform) = orientationTransform(
-      orientation: orientation,
-      width: srcWidth,
-      height: srcHeight
-    )
-
-    guard let colorSpace = image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB),
-          let context = CGContext(
-            data: nil,
-            width: dstWidth,
-            height: dstHeight,
-            bitsPerComponent: image.bitsPerComponent,
-            bytesPerRow: 0, // let CG compute
-            space: colorSpace,
-            bitmapInfo: image.bitmapInfo.rawValue
-          ) else {
-      return nil
-    }
-
-    context.concatenate(transform)
-    context.draw(image, in: CGRect(x: 0, y: 0, width: srcWidth, height: srcHeight))
-
-    return context.makeImage()
-  }
-
-  /**
-   * Returns (dstWidth, dstHeight, transform) for rotating from the given
-   * UIImage.Orientation to `.up`.
-   */
-  private func orientationTransform(
-    orientation: UIImage.Orientation,
-    width: Int,
-    height: Int
-  ) -> (Int, Int, CGAffineTransform) {
-    let w = CGFloat(width)
-    let h = CGFloat(height)
-
-    switch orientation {
-    case .up:
-      return (width, height, .identity)
-
-    case .down:
-      // 180° rotation
-      var t = CGAffineTransform(translationX: w, y: h)
-      t = t.rotated(by: .pi)
-      return (width, height, t)
-
-    case .left:
-      // 90° CCW (landscape-right sensor → portrait)
-      var t = CGAffineTransform(translationX: h, y: 0)
-      t = t.rotated(by: .pi / 2)
-      return (height, width, t)
-
-    case .right:
-      // 90° CW (landscape-left sensor → portrait)
-      var t = CGAffineTransform(translationX: 0, y: w)
-      t = t.rotated(by: -.pi / 2)
-      return (height, width, t)
-
-    case .upMirrored:
-      let t = CGAffineTransform(scaleX: -1, y: 1).translatedBy(x: -w, y: 0)
-      return (width, height, t)
-
-    case .downMirrored:
-      let t = CGAffineTransform(scaleX: -1, y: -1).translatedBy(x: -w, y: -h)
-      return (width, height, t)
-
-    case .leftMirrored:
-      var t = CGAffineTransform(translationX: h, y: 0)
-      t = t.rotated(by: .pi / 2)
-      t = t.scaledBy(x: -1, y: 1)
-      t = t.translatedBy(x: -CGFloat(height), y: 0)
-      return (height, width, t)
-
-    case .rightMirrored:
-      var t = CGAffineTransform(translationX: 0, y: w)
-      t = t.rotated(by: -.pi / 2)
-      t = t.scaledBy(x: -1, y: 1)
-      t = t.translatedBy(x: -CGFloat(height), y: 0)
-      return (height, width, t)
-
-    @unknown default:
-      return (width, height, .identity)
-    }
-  }
 }
