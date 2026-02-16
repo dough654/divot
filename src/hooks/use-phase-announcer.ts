@@ -60,7 +60,12 @@ export const usePhaseAnnouncer = ({ enabled, detectionState }: UsePhaseAnnouncer
 
     const label = PHASE_LABELS[detectionState] ?? detectionState;
     Speech.stop();
-    Speech.speak(label, { rate: 1.2 });
+    Speech.speak(label, {
+      rate: 1.2,
+      // Use a separate audio session so TTS isn't ducked by the
+      // recording-mode session from audio metering (allowsRecordingIOS).
+      useApplicationAudioSession: false,
+    });
   }, [enabled, detectionState]);
 
   // Cleanup on unmount
