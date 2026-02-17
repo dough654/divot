@@ -210,11 +210,17 @@ export const nextState = (
 // HOOK
 // ============================================
 
-/** Pose displacement threshold for stillness (normalized coordinates). */
-const POSE_STILLNESS_THRESHOLD = 0.01;
+/** Pose displacement threshold for stillness (normalized coordinates).
+ *  0.02 = 2% of frame dimension — forgiving of per-frame joint jitter. */
+const POSE_STILLNESS_THRESHOLD = 0.02;
 
-/** Consecutive still frames to enter address (~10Hz inference rate). */
+/** Still-frame count required to enter address (~10Hz → ~1.5s). */
 const STILLNESS_FRAMES = 15;
+
+/** Counter penalty per non-still frame (leaky bucket).
+ *  At decay=3, one jittery frame costs 3 still frames of progress,
+ *  but doesn't zero out 14 frames of accumulated evidence. */
+const STILLNESS_DECAY = 3;
 
 export type UseSwingClassifierOptions = {
   /** Whether the classifier is active. */
@@ -347,12 +353,15 @@ export const useSwingClassifier = ({
     // the golfer's body is still. The CNN struggles with address detection from selfie
     // camera (arm occlusion), but reliably detects swing phases once motion starts.
     const prevPose = previousPoseRef.current;
+    let poseDisplacement = 0;
     if (prevPose) {
-      const displacement = computePoseDisplacement(rawPoseData, prevPose);
-      if (isPoseStill(displacement, POSE_STILLNESS_THRESHOLD)) {
+      const displacementResult = computePoseDisplacement(rawPoseData, prevPose);
+      poseDisplacement = displacementResult.displacement;
+      if (isPoseStill(displacementResult, POSE_STILLNESS_THRESHOLD)) {
         stillCountRef.current += 1;
       } else {
-        stillCountRef.current = 0;
+        // Leaky bucket — occasional jittery frames don't destroy accumulated evidence
+        stillCountRef.current = Math.max(0, stillCountRef.current - STILLNESS_DECAY);
       }
     }
     previousPoseRef.current = rawPoseData;
@@ -396,7 +405,7 @@ export const useSwingClassifier = ({
           ` | state=${newState.detectionState} cnn=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%` +
           ` | top: ${formatTopPhases(output.probabilities)}` +
           ` | pending=${newState.pendingState} confirm=${newState.confirmCount}` +
-          ` | poseStill=${stillCountRef.current}/${STILLNESS_FRAMES}` +
+          ` | disp=${poseDisplacement.toFixed(4)} still=${stillCountRef.current}/${STILLNESS_FRAMES}` +
           motionTag +
           `\n  joints: ${getJointConfidences(rawPoseData)}`,
         );
