@@ -16,10 +16,12 @@ import { useEffect, ReactNode } from 'react';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
+import { ClerkProvider, ClerkLoaded, useUser } from '@clerk/clerk-expo';
+import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import Constants from 'expo-constants';
 
 import { AppThemeProvider, ToastProvider, SettingsProvider, useSettings, useTheme } from '@/src/context';
-import { setPostHogInstance } from '@/src/services/analytics';
+import { setPostHogInstance, identifyUser } from '@/src/services/analytics';
 import type { ThemeMode } from '@/src/context';
 
 export { ErrorBoundary } from 'expo-router';
@@ -27,6 +29,7 @@ export { ErrorBoundary } from 'expo-router';
 SplashScreen.preventAutoHideAsync();
 
 const posthogApiKey = Constants.expoConfig?.extra?.posthogApiKey as string | undefined;
+const clerkPublishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 /**
  * Bridge that captures the PostHog instance for use outside React.
@@ -37,6 +40,21 @@ const PostHogBridge = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (posthog) setPostHogInstance(posthog);
   }, [posthog]);
+
+  return <>{children}</>;
+};
+
+/**
+ * Identifies the signed-in Clerk user in PostHog analytics.
+ */
+const AuthAnalyticsBridge = ({ children }: { children: ReactNode }) => {
+  const { user } = useUser();
+
+  useEffect(() => {
+    if (user?.id) {
+      identifyUser(user.id);
+    }
+  }, [user?.id]);
 
   return <>{children}</>;
 };
@@ -109,70 +127,98 @@ export default function RootLayout() {
     return null;
   }
 
+  const screens = (
+    <>
+      <Stack.Screen
+        name="index"
+        options={{
+          title: 'SwingLink',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="camera"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="viewer"
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          headerBackTitle: 'Home',
+        }}
+      />
+      <Stack.Screen
+        name="clips"
+        options={{
+          title: 'Clips',
+          headerBackTitle: 'Home',
+        }}
+      />
+      <Stack.Screen
+        name="playback/[id]"
+        options={{
+          title: 'Playback',
+          headerBackTitle: 'Clips',
+        }}
+      />
+      <Stack.Screen
+        name="sessions"
+        options={{
+          title: 'Sessions',
+          headerBackTitle: 'Home',
+        }}
+      />
+      <Stack.Screen
+        name="session/[id]"
+        options={{
+          title: 'Session',
+          headerBackTitle: 'Sessions',
+        }}
+      />
+      <Stack.Screen
+        name="sign-in"
+        options={{
+          title: 'Account',
+          presentation: 'modal',
+          headerBackTitle: 'Back',
+        }}
+      />
+    </>
+  );
+
+  const innerContent = (
+    <SettingsProvider>
+      <ThemedApp>
+        <ToastProvider>
+          <NavigationLayout>
+            {screens}
+          </NavigationLayout>
+        </ToastProvider>
+      </ThemedApp>
+    </SettingsProvider>
+  );
+
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SettingsProvider>
-        <ThemedApp>
-          <ToastProvider>
-            <NavigationLayout>
-              <Stack.Screen
-                name="index"
-                options={{
-                  title: 'SwingLink',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="camera"
-                options={{
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="viewer"
-                options={{
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="settings"
-                options={{
-                  title: 'Settings',
-                  headerBackTitle: 'Home',
-                }}
-              />
-              <Stack.Screen
-                name="clips"
-                options={{
-                  title: 'Clips',
-                  headerBackTitle: 'Home',
-                }}
-              />
-              <Stack.Screen
-                name="playback/[id]"
-                options={{
-                  title: 'Playback',
-                  headerBackTitle: 'Clips',
-                }}
-              />
-              <Stack.Screen
-                name="sessions"
-                options={{
-                  title: 'Sessions',
-                  headerBackTitle: 'Home',
-                }}
-              />
-              <Stack.Screen
-                name="session/[id]"
-                options={{
-                  title: 'Session',
-                  headerBackTitle: 'Sessions',
-                }}
-              />
-            </NavigationLayout>
-          </ToastProvider>
-        </ThemedApp>
-      </SettingsProvider>
+      {clerkPublishableKey ? (
+        <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
+          <ClerkLoaded>
+            <AuthAnalyticsBridge>
+              {innerContent}
+            </AuthAnalyticsBridge>
+          </ClerkLoaded>
+        </ClerkProvider>
+      ) : (
+        innerContent
+      )}
     </GestureHandlerRootView>
   );
 

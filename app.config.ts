@@ -78,6 +78,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         microphonePermissionText: 'SwingLink needs microphone access to record audio with your swing videos.',
       },
     ],
+    'expo-apple-authentication',
     [
       'expo-media-library',
       {

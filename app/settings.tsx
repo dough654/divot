@@ -2,6 +2,8 @@ import { View, Text, Switch, Pressable, Alert, Linking, ScrollView } from 'react
 import { useState } from 'react';
 import Slider from '@react-native-community/slider';
 import { useFeatureFlag } from 'posthog-react-native';
+import { SignedIn, SignedOut, useUser, useClerk } from '@clerk/clerk-expo';
+import { useRouter } from 'expo-router';
 
 import { useTheme, useSettings } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
@@ -25,9 +27,12 @@ const FPS_OPTIONS: { value: RecordingFps; label: string }[] = [
 
 const FEEDBACK_EMAIL = 'feedback@swinglink.app';
 
+const showAccountSection = !!process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
 export default function SettingsScreen() {
   useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
+  const router = useRouter();
   const poseDetectionFlag = useFeatureFlag('pose-detection-enabled');
   const autoDetectionFlag = useFeatureFlag('swing-auto-detection-enabled');
   const showRecordingSection = !!poseDetectionFlag || !!autoDetectionFlag;
@@ -46,6 +51,8 @@ export default function SettingsScreen() {
   const haptics = useHaptics();
   const { show: showToast } = useToast();
   const [isClearing, setIsClearing] = useState(false);
+  const { user } = useUser();
+  const { signOut } = useClerk();
 
   const handleHapticsToggle = (value: boolean) => {
     // Trigger haptic before potentially disabling
@@ -123,6 +130,39 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      haptics.success();
+      showToast('Signed out', { variant: 'success' });
+    } catch {
+      showToast('Failed to sign out', { variant: 'error' });
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure? This will permanently delete your account and all associated data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await user?.delete();
+              haptics.success();
+              showToast('Account deleted', { variant: 'success' });
+            } catch {
+              showToast('Failed to delete account', { variant: 'error' });
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSendFeedback = () => {
     haptics.light();
     const subject = encodeURIComponent('SwingLink Feedback');
@@ -132,6 +172,60 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {/* Account Section — only when Clerk is configured */}
+      {showAccountSection && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>account</Text>
+
+          <SignedOut>
+            <Pressable
+              style={styles.actionRow}
+              onPress={() => router.push('/sign-in')}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in to your account"
+            >
+              <Text style={styles.settingLabel}>SIGN IN</Text>
+              <Text style={styles.actionArrow}>&rarr;</Text>
+            </Pressable>
+          </SignedOut>
+
+          <SignedIn>
+            <View style={styles.settingRow}>
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>EMAIL</Text>
+                <Text style={styles.settingDescription}>
+                  {user?.primaryEmailAddress?.emailAddress ?? 'unknown'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              style={styles.actionRow}
+              onPress={handleSignOut}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+            >
+              <Text style={styles.settingLabel}>SIGN OUT</Text>
+              <Text style={styles.actionArrow}>&rarr;</Text>
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              style={styles.actionRow}
+              onPress={handleDeleteAccount}
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+            >
+              <Text style={[styles.settingLabel, styles.dangerText]}>DELETE ACCOUNT</Text>
+              <Text style={styles.actionArrow}>&rarr;</Text>
+            </Pressable>
+          </SignedIn>
+        </View>
+      )}
+
       {/* Preferences Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>preferences</Text>
