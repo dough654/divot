@@ -8,10 +8,11 @@ import type { Theme } from '@/src/context';
 
 type AppleSignInButtonProps = {
   onSuccess?: () => void;
+  mode?: 'sign-in' | 'sign-up';
 };
 
 /** Native Apple Sign-In button. Only renders on iOS. */
-export const AppleSignInButton = ({ onSuccess }: AppleSignInButtonProps) => {
+export const AppleSignInButton = ({ onSuccess, mode = 'sign-in' }: AppleSignInButtonProps) => {
   const { startAppleAuthenticationFlow } = useSignInWithApple();
   const styles = useThemedStyles(createStyles);
   const { show: showToast } = useToast();
@@ -37,10 +38,10 @@ export const AppleSignInButton = ({ onSuccess }: AppleSignInButtonProps) => {
       style={styles.button}
       onPress={handleAppleSignIn}
       accessibilityRole="button"
-      accessibilityLabel="Sign in with Apple"
+      accessibilityLabel={`${mode === 'sign-up' ? 'Sign up' : 'Sign in'} with Apple`}
     >
       <Text style={styles.appleIcon}>{'\uF8FF'}</Text>
-      <Text style={styles.buttonText}>Sign in with Apple</Text>
+      <Text style={styles.buttonText}>{mode === 'sign-up' ? 'Sign up' : 'Sign in'} with Apple</Text>
     </Pressable>
   );
 };

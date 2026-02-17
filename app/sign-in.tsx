@@ -37,6 +37,7 @@ export default function SignInScreen() {
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [pendingVerification, setPendingVerification] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -86,6 +87,10 @@ export default function SignInScreen() {
       showToast(getPasswordError(password) ?? 'Invalid password', { variant: 'error' });
       return;
     }
+    if (password !== confirmPassword) {
+      showToast('Passwords do not match', { variant: 'error' });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -129,6 +134,7 @@ export default function SignInScreen() {
     setMode((prev) => (prev === 'sign-in' ? 'sign-up' : 'sign-in'));
     setPendingVerification(false);
     setVerificationCode('');
+    setConfirmPassword('');
   }, []);
 
   if (pendingVerification) {
@@ -202,8 +208,8 @@ export default function SignInScreen() {
 
           {/* Social sign-in buttons */}
           <View style={styles.socialSection}>
-            <OAuthButton onSuccess={handleSuccess} />
-            <AppleSignInButton onSuccess={handleSuccess} />
+            <OAuthButton onSuccess={handleSuccess} mode={mode} />
+            <AppleSignInButton onSuccess={handleSuccess} mode={mode} />
           </View>
 
           {/* Divider */}
@@ -235,6 +241,18 @@ export default function SignInScreen() {
             secureTextEntry
             textContentType={mode === 'sign-up' ? 'newPassword' : 'password'}
           />
+
+          {mode === 'sign-up' && (
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm password"
+              placeholderTextColor={theme.colors.textTertiary}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              textContentType="newPassword"
+            />
+          )}
 
           <Pressable
             style={[styles.submitButton, loading && styles.submitButtonDisabled]}

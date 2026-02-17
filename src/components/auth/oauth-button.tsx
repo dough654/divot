@@ -12,10 +12,11 @@ WebBrowser.maybeCompleteAuthSession();
 
 type OAuthButtonProps = {
   onSuccess?: () => void;
+  mode?: 'sign-in' | 'sign-up';
 };
 
 /** Google OAuth sign-in button using Clerk SSO. */
-export const OAuthButton = ({ onSuccess }: OAuthButtonProps) => {
+export const OAuthButton = ({ onSuccess, mode = 'sign-in' }: OAuthButtonProps) => {
   const { startSSOFlow } = useSSO();
   const styles = useThemedStyles(createStyles);
   const { show: showToast } = useToast();
@@ -42,9 +43,9 @@ export const OAuthButton = ({ onSuccess }: OAuthButtonProps) => {
       style={styles.button}
       onPress={handleGoogleSignIn}
       accessibilityRole="button"
-      accessibilityLabel="Sign in with Google"
+      accessibilityLabel={`${mode === 'sign-up' ? 'Sign up' : 'Sign in'} with Google`}
     >
-      <Text style={styles.buttonText}>Sign in with Google</Text>
+      <Text style={styles.buttonText}>{mode === 'sign-up' ? 'Sign up' : 'Sign in'} with Google</Text>
     </Pressable>
   );
 };
