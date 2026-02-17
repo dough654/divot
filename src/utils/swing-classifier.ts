@@ -381,20 +381,29 @@ export const classifyWindow = (
  * @returns 16-element array [joint0_x, joint0_y, joint1_x, joint1_y, ...]
  */
 /**
- * Minimum joint confidence to include position data.
- * Below this, positions are zeroed out (matching training preprocessing).
- *
- * Training used 0.3, but on-device MediaPipe gives lower confidence
- * for partially occluded joints (e.g. far arm in DTL view). Lowered
- * to 0.05 so noisy-but-present positions reach the CNN rather than
- * zeros that make address look like idle.
+ * Minimum joint confidence to include position data (matches training).
+ * Below this, the joint's last-known-good position is used instead.
  */
-export const FEATURE_CONFIDENCE_THRESHOLD = 0.05;
+export const FEATURE_CONFIDENCE_THRESHOLD = 0.3;
 
+/**
+ * Extracts classifier features with last-known-good carry-forward.
+ *
+ * When a joint's confidence drops below the threshold, the last position
+ * where it was confidently detected is reused. This avoids feeding the CNN
+ * zeros (which make address look like idle) or garbage noise from low-confidence
+ * detections (which misclassify phases).
+ *
+ * @param poseData - Raw pose data (72 elements: 24 joints x 3)
+ * @param classifierJointIndices - Indices into the 14-joint array
+ * @param lastKnown - Carry-forward buffer, mutated in place. Pass the same
+ *   Float32Array across calls to maintain state.
+ * @returns 16-element feature array
+ */
 export const extractClassifierFeatures = (
   poseData: readonly number[],
   classifierJointIndices: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 9],
-  confidenceThreshold: number = FEATURE_CONFIDENCE_THRESHOLD,
+  lastKnown?: Float32Array,
 ): Float32Array => {
   const features = new Float32Array(classifierJointIndices.length * 2);
 
@@ -403,11 +412,22 @@ export const extractClassifierFeatures = (
     const poseOffset = jointIdx * 3;
     const confidence = poseData[poseOffset + 2] ?? 0;
 
-    if (confidence >= confidenceThreshold) {
-      features[i * 2] = poseData[poseOffset] ?? 0;
-      features[i * 2 + 1] = poseData[poseOffset + 1] ?? 0;
+    if (confidence >= FEATURE_CONFIDENCE_THRESHOLD) {
+      const x = poseData[poseOffset] ?? 0;
+      const y = poseData[poseOffset + 1] ?? 0;
+      features[i * 2] = x;
+      features[i * 2 + 1] = y;
+      // Update carry-forward buffer
+      if (lastKnown) {
+        lastKnown[i * 2] = x;
+        lastKnown[i * 2 + 1] = y;
+      }
+    } else if (lastKnown) {
+      // Use last-known-good position
+      features[i * 2] = lastKnown[i * 2];
+      features[i * 2 + 1] = lastKnown[i * 2 + 1];
     }
-    // Below threshold: leave as 0
+    // No lastKnown and below threshold: stays 0
   }
 
   return features;

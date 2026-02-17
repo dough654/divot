@@ -19,7 +19,6 @@ import {
   classifyWindow,
   compileWeights,
   extractClassifierFeatures,
-  FEATURE_CONFIDENCE_THRESHOLD,
   type CompiledWeights,
 } from '@/src/utils/swing-classifier';
 import { SWING_CLASSIFIER_WEIGHTS, WEIGHTS_ARE_TRAINED } from '@/src/utils/swing-classifier-weights';
@@ -45,7 +44,7 @@ const getJointConfidences = (rawPoseData: readonly number[]): string => {
   return CLASSIFIER_JOINT_INDICES.map((jointIdx, i) => {
     const confidence = rawPoseData[jointIdx * 3 + 2];
     const label = JOINT_LABELS[i];
-    const flag = confidence < FEATURE_CONFIDENCE_THRESHOLD ? '!' : ' ';
+    const flag = confidence < 0.3 ? '!' : ' ';
     return `${label}=${confidence.toFixed(2)}${flag}`;
   }).join(' ');
 };
@@ -215,8 +214,6 @@ export type UseSwingClassifierOptions = {
   enabled: boolean;
   /** Raw pose data from usePoseDetection (72-element array, 24 joints x 3). */
   rawPoseData: readonly number[] | null;
-  /** Flip x-coordinates to compensate for front camera mirror. */
-  mirrorX?: boolean;
   /** Called when a swing is detected (backswing started). */
   onSwingStarted?: () => void;
   /** Called when the swing ends. */
@@ -260,7 +257,6 @@ export type UseSwingClassifierReturn = {
 export const useSwingClassifier = ({
   enabled,
   rawPoseData,
-  mirrorX = false,
   onSwingStarted,
   onSwingEnded,
 }: UseSwingClassifierOptions): UseSwingClassifierReturn => {
@@ -277,6 +273,9 @@ export const useSwingClassifier = ({
   const frameCountRef = useRef(0);
   const windowFilledRef = useRef(false);
 
+  // Carry-forward buffer: holds last confident position for each joint (8 joints x 2 = 16)
+  const lastKnownRef = useRef(new Float32Array(16));
+
   // Stable callback refs
   const onSwingStartedRef = useRef(onSwingStarted);
   const onSwingEndedRef = useRef(onSwingEnded);
@@ -291,6 +290,7 @@ export const useSwingClassifier = ({
       classifierOutputRef.current = null;
       frameCountRef.current = 0;
       windowFilledRef.current = false;
+      lastKnownRef.current.fill(0);
     }
   }, [enabled]);
 
@@ -298,16 +298,12 @@ export const useSwingClassifier = ({
   useEffect(() => {
     if (!enabled || !rawPoseData || rawPoseData.length < 72) return;
 
-    // Extract 8-joint features (16 values)
-    const features = extractClassifierFeatures(rawPoseData, [...CLASSIFIER_JOINT_INDICES]);
-
-    // Front camera delivers mirrored frames — flip x so the CNN sees
-    // the same spatial pattern as rear camera DTL training data.
-    if (mirrorX) {
-      for (let i = 0; i < features.length; i += 2) {
-        if (features[i] !== 0) features[i] = 1.0 - features[i];
-      }
-    }
+    // Extract 8-joint features (16 values) with carry-forward for low-confidence joints
+    const features = extractClassifierFeatures(
+      rawPoseData,
+      [...CLASSIFIER_JOINT_INDICES],
+      lastKnownRef.current,
+    );
 
     // Push to sliding window
     const buffer = windowBufferRef.current;
@@ -394,7 +390,7 @@ export const useSwingClassifier = ({
           break;
       }
     }
-  }, [enabled, rawPoseData, mirrorX, compiledWeights]);
+  }, [enabled, rawPoseData, compiledWeights]);
 
   const currentState = stateRef.current;
   const currentOutput = classifierOutputRef.current;

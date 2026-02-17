@@ -105,7 +105,6 @@ export default function CameraScreen() {
     format: visionFormat,
     actualFps: recordingFps,
     hasCameraPermission,
-    isFrontCamera,
     error: visionCameraError,
     toggleCamera,
   } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps });
@@ -156,7 +155,6 @@ export default function CameraScreen() {
   const classifierResult = useSwingClassifier({
     enabled: useClassifier,
     rawPoseData: rawPoseData ?? null,
-    mirrorX: isFrontCamera,
     onSwingStarted: useCallback(() => {
       const accepted = swingStartRef.current?.();
       if (accepted !== false) playSwingStart();
