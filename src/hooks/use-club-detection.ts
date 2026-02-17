@@ -86,6 +86,14 @@ export const useClubDetection = ({
           setCameraAspectRatio(data[9] / data[10]);
         }
 
+        if (__DEV__) {
+          const frameDims = data.length >= 11 ? `${data[9]}×${data[10]}` : 'N/A';
+          console.log(
+            `[ClubDetect] raw=[${data.slice(0, 9).map(v => v.toFixed(3)).join(', ')}]` +
+            ` frame=${frameDims}`,
+          );
+        }
+
         // Model keypoint indices: 0=head, 1=shaftMid, 2=grip
         // (confirmed via on-device testing — index 0 is at the bottom
         // near the ground, index 2 is at the top near the hands)

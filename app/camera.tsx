@@ -30,7 +30,6 @@ import {
 } from '@/src/components/recording';
 import { usePoseDetection } from '@/src/hooks/use-pose-detection';
 import { useClubDetection } from '@/src/hooks/use-club-detection';
-import type { ClubKeypoints } from '@/src/hooks/use-club-detection';
 import { useSwingFeedback } from '@/src/hooks/use-swing-feedback';
 import { useMotionDetection } from '@/src/hooks/use-motion-detection';
 import { useAudioMetering } from '@/src/hooks/use-audio-metering';
@@ -198,28 +197,8 @@ export default function CameraScreen() {
     prevIsStillRef.current = isStill;
   }, [isStill, playAddressReady]);
 
-  // Club detection — runs only during confirmed stillness, at low fps
-  const { clubKeypoints, cameraAspectRatio } = useClubDetection({ enabled: autoDetectEnabled && isStill });
-
-  // Persist the last detected club keypoints so the plane line stays
-  // visible after stillness exits (during takeaway). Clear on new stillness cycle
-  // or when auto-detect is toggled off.
-  const lastClubKeypointsRef = useRef<ClubKeypoints | null>(null);
-  useEffect(() => {
-    if (clubKeypoints) {
-      lastClubKeypointsRef.current = clubKeypoints;
-    }
-  }, [clubKeypoints]);
-
-  // Clear persisted club keypoints when auto-detect is disabled
-  useEffect(() => {
-    if (!autoDetectEnabled) {
-      lastClubKeypointsRef.current = null;
-    }
-  }, [autoDetectEnabled]);
-
-  // The club keypoints to render: live during stillness, persisted after
-  const displayClubKeypoints = clubKeypoints ?? lastClubKeypointsRef.current;
+  // Club detection — runs continuously when auto-detect is enabled (like pose)
+  const { clubKeypoints, cameraAspectRatio } = useClubDetection({ enabled: autoDetectEnabled });
 
   // Keep recording fps ref in sync for async callbacks
   useEffect(() => {
@@ -753,7 +732,7 @@ export default function CameraScreen() {
                 poseDetectionEnabled={poseDetectionEnabled}
                 poseOverlayVisible={poseDetectionEnabled}
                 poseData={rawPoseData}
-                clubDetectionEnabled={autoDetectEnabled && isStill}
+                clubDetectionEnabled={autoDetectEnabled}
                 frameDiffEnabled={useMotionDetect}
               />
             ) : (
@@ -763,9 +742,9 @@ export default function CameraScreen() {
                 </Text>
               </View>
             )}
-            {autoDetectEnabled && displayClubKeypoints && (
+            {autoDetectEnabled && clubKeypoints && (
               <ClubPlaneLineOverlay
-                clubKeypoints={displayClubKeypoints}
+                clubKeypoints={clubKeypoints}
                 visible={true}
               />
             )}
