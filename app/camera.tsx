@@ -52,6 +52,7 @@ import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
 import { saveClip } from '@/src/services/recording/clip-storage';
 import { useSessionLifecycle } from '@/src/hooks/use-session-lifecycle';
 import { useRollingRecorder } from '@/src/hooks/use-rolling-recorder';
+import { useSwingRecorder } from '@/src/hooks/use-swing-recorder';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { formatRoomCode, resolveNetworkTransport } from '@/src/utils';
 import type { ConnectionStep, ConnectionRequest } from '@/src/types';
@@ -152,17 +153,16 @@ export default function CameraScreen() {
   });
 
   // Classifier-based swing detection (new)
+  // Recording is handled by useSwingRecorder watching detectionState — callbacks are audio-only
   const classifierResult = useSwingClassifier({
     enabled: useClassifier,
     rawPoseData: rawPoseData ?? null,
     motionMagnitude: motionMagnitude ?? null,
     onSwingStarted: useCallback(() => {
-      const accepted = swingStartRef.current?.();
-      if (accepted !== false) playSwingStart();
+      playSwingStart();
     }, [playSwingStart]),
     onSwingEnded: useCallback((durationMs: number) => {
       playSwingEnd();
-      swingEndRef.current?.();
       if (__DEV__) {
         console.log('[Camera] Classifier swing ended:', durationMs, 'ms');
       }
@@ -282,8 +282,8 @@ export default function CameraScreen() {
     activeSessionIdRef.current = activeSession?.id ?? null;
   }, [activeSession]);
 
-  // Rolling buffer recorder for auto-detect mode — only active when in address position
-  const rollingRecorderEnabled = autoDetectEnabled && isStill && cameraState === 'previewing';
+  // Rolling buffer recorder — only for motion detection path (classifier uses swing recorder)
+  const rollingRecorderEnabled = useMotionDetect && isStill && cameraState === 'previewing';
   const handleRollingClipSaved = useCallback((clip: Clip) => {
     if (clip.sessionId) {
       tagClip(clip.id);
@@ -301,6 +301,27 @@ export default function CameraScreen() {
     sessionId: activeSession?.id ?? null,
     onClipSaved: handleRollingClipSaved,
     onError: handleRollingError,
+  });
+
+  // Swing recorder — classifier-driven, watches detectionState directly
+  const swingRecorderEnabled = useClassifier && cameraState === 'previewing';
+  const handleSwingClipSaved = useCallback((clip: Clip) => {
+    if (clip.sessionId) {
+      tagClip(clip.id);
+    }
+    showToast(`Swing captured (${clip.duration}s)`, { variant: 'success' });
+  }, [tagClip, showToast]);
+  const handleSwingError = useCallback((error: string) => {
+    showToast(`Recording Error: ${error}`, { variant: 'error' });
+  }, [showToast]);
+  const swingRecorder = useSwingRecorder({
+    recorderRef,
+    enabled: swingRecorderEnabled,
+    detectionState: classifierResult.debugInfo.detectionState,
+    recordingFps,
+    sessionId: activeSession?.id ?? null,
+    onClipSaved: handleSwingClipSaved,
+    onError: handleSwingError,
   });
 
   // Connection analytics (GOL-76) — camera doesn't know the discovery method
@@ -551,8 +572,9 @@ export default function CameraScreen() {
       return;
     }
 
-    // Suspend rolling recorder so it doesn't fight with manual recording
+    // Suspend auto-recorders so they don't fight with manual recording
     rollingRecorder.suspend();
+    swingRecorder.suspend();
 
     setRecordingError(null);
     setLastRecordedClip(null);
@@ -590,7 +612,7 @@ export default function CameraScreen() {
         showToast(`Recording Error: ${errorMsg}`, { variant: 'error' });
       },
     });
-  }, [rollingRecorder]);
+  }, [rollingRecorder, swingRecorder]);
 
   // Stop recording
   const handleStopRecording = useCallback(async () => {
@@ -603,14 +625,14 @@ export default function CameraScreen() {
     }
   }, []);
 
-  // Wire swing auto-detection refs to rolling recorder (auto-detect) or direct recording (fallback)
-  // Rolling recorder uses fixed-window capture — only swing detection matters, not swing end
-  swingStartRef.current = rollingRecorderEnabled
-    ? rollingRecorder.notifySwingDetected
-    : handleStartRecording;
-  swingEndRef.current = rollingRecorderEnabled
-    ? () => {} // fixed-window capture ignores swing end
-    : handleStopRecording;
+  // Wire swing auto-detection refs — only for motion detection path
+  // Classifier path uses useSwingRecorder which watches detectionState directly
+  swingStartRef.current = useMotionDetect
+    ? (rollingRecorderEnabled ? rollingRecorder.notifySwingDetected : handleStartRecording)
+    : null;
+  swingEndRef.current = useMotionDetect
+    ? (rollingRecorderEnabled ? () => {} : handleStopRecording)
+    : null;
 
   const handleRecordPress = useCallback(() => {
     if (isRecording) {
@@ -646,8 +668,9 @@ export default function CameraScreen() {
       setLastRecordedClip(null);
       setCameraState('previewing');
       rollingRecorder.resume();
+      swingRecorder.resume();
     }
-  }, [syncProgress.state, rollingRecorder]);
+  }, [syncProgress.state, rollingRecorder, swingRecorder]);
 
   // Record again from reviewing state
   const handleRecordAgain = useCallback(() => {
@@ -655,7 +678,8 @@ export default function CameraScreen() {
     setRecordingError(null);
     setCameraState('previewing');
     rollingRecorder.resume();
-  }, [rollingRecorder]);
+    swingRecorder.resume();
+  }, [rollingRecorder, swingRecorder]);
 
   const showVisionCamera = visionDevice && hasCameraPermission;
   const currentError = visionCameraError || recordingError || streamError;
@@ -860,7 +884,7 @@ export default function CameraScreen() {
 
             <Pressable
               style={[styles.reviewPill, styles.reviewPillDismiss]}
-              onPress={() => { setLastRecordedClip(null); setCameraState('previewing'); rollingRecorder.resume(); }}
+              onPress={() => { setLastRecordedClip(null); setCameraState('previewing'); rollingRecorder.resume(); swingRecorder.resume(); }}
               accessibilityRole="button"
               accessibilityLabel="Discard recording"
             >
