@@ -271,16 +271,16 @@ const FRESH_STATE: StateMachineState = {
 };
 
 describe('nextState (state machine)', () => {
-  it('idle → address after 5 address frames', () => {
-    const { state } = feedFrames(FRESH_STATE, 'address', 4);
+  it('idle → address after 10 address frames', () => {
+    const { state } = feedFrames(FRESH_STATE, 'address', 9);
     expect(state.detectionState).toBe('idle');
 
-    const { state: after5 } = feedFrames(FRESH_STATE, 'address', 5);
-    expect(after5.detectionState).toBe('address');
+    const { state: after10 } = feedFrames(FRESH_STATE, 'address', 10);
+    expect(after10.detectionState).toBe('address');
   });
 
   it('address → swinging after 2 backswing frames', () => {
-    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 10);
     expect(inAddress.detectionState).toBe('address');
 
     const { state: after1 } = feedFrames(inAddress, 'backswing', 1);
@@ -292,7 +292,7 @@ describe('nextState (state machine)', () => {
   });
 
   it('address → swinging works for ANY swing phase, not just backswing', () => {
-    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 10);
 
     for (const phase of ['downswing', 'impact', 'follow_through', 'finish'] as SwingPhase[]) {
       const { state } = feedFrames(inAddress, phase, 2);
@@ -301,7 +301,7 @@ describe('nextState (state machine)', () => {
   });
 
   it('stays swinging through phase changes (backswing → downswing → impact)', () => {
-    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 10);
     let { state } = feedFrames(inAddress, 'backswing', 2);
     expect(state.detectionState).toBe('swinging');
 
@@ -319,7 +319,7 @@ describe('nextState (state machine)', () => {
   });
 
   it('swinging → idle after 8 consecutive idle frames (emits swingEnded)', () => {
-    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 10);
     const { state: swinging } = feedFrames(inAddress, 'backswing', 2, 0.9, 1000);
     expect(swinging.detectionState).toBe('swinging');
 
@@ -338,7 +338,7 @@ describe('nextState (state machine)', () => {
   });
 
   it('mid-swing idle frames (< 8) do not reset', () => {
-    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 10);
     const { state: swinging } = feedFrames(inAddress, 'backswing', 2);
 
     // 5 idle frames then back to swinging — should stay swinging
@@ -350,7 +350,7 @@ describe('nextState (state machine)', () => {
   });
 
   it('timeout: 10 idle frames from address resets to idle (no swingEnded)', () => {
-    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 10);
     expect(inAddress.detectionState).toBe('address');
 
     const { state: reset, events } = feedFrames(inAddress, 'idle', 10);
@@ -360,7 +360,7 @@ describe('nextState (state machine)', () => {
   });
 
   it('timeout: 10 idle frames from swinging emits swingEnded', () => {
-    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 10);
     const { state: swinging } = feedFrames(inAddress, 'backswing', 2, 0.9, 1000);
 
     const { state: reset, events } = feedFrames(swinging, 'idle', 10, 0.9, 2000);
@@ -376,7 +376,7 @@ describe('nextState (state machine)', () => {
   });
 
   it('swingStarted event emitted on address → swinging transition', () => {
-    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 5);
+    const { state: inAddress } = feedFrames(FRESH_STATE, 'address', 10);
     const { events } = feedFrames(inAddress, 'backswing', 2, 0.9, 5000);
     const startEvent = events.find(e => e?.type === 'swingStarted');
     expect(startEvent).toBeDefined();
