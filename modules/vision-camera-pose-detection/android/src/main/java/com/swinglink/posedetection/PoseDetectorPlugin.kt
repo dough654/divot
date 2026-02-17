@@ -85,8 +85,10 @@ class PoseDetectorPlugin(private val appContext: Context) : FrameProcessorPlugin
           rotationDegrees,
         )
 
-        // Front camera preview is mirrored — flip x to match
-        if (mirror && result != null) {
+        // Always flip x-coordinates to match the camera preview:
+        // - Front camera: preview is mirrored (standard selfie behavior)
+        // - Rear camera: buffer rotation inverts the x-axis relative to the preview
+        if (result != null) {
           val flipped = result.toMutableList()
           for (i in flipped.indices step 3) {
             flipped[i] = 1.0 - flipped[i]

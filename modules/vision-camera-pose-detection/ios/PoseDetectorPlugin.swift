@@ -98,8 +98,10 @@ class PoseDetectorPlugin: FrameProcessorPlugin {
         orientation: orientation
       )
 
-      // Front camera preview is mirrored — flip x to match
-      if mirror, let r = result {
+      // Always flip x-coordinates to match the camera preview:
+      // - Front camera: preview is mirrored (standard selfie behavior)
+      // - Rear camera: UIKit's .left rotation inverts the x-axis relative to the preview
+      if let r = result {
         var flipped = r
         for i in stride(from: 0, to: flipped.count, by: 3) {
           flipped[i] = 1.0 - flipped[i]
