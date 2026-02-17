@@ -6,8 +6,10 @@ const DEBOUNCE_MS = 500;
 
 /** Map detection states to human-friendly spoken labels. */
 const PHASE_LABELS: Record<string, string> = {
-  // Classifier phases (SwingPhase)
+  // Classifier detection states
   address: 'Address',
+  swinging: 'Swinging',
+  // Classifier phases (SwingPhase) — for raw phase announcements if needed
   backswing: 'Backswing',
   downswing: 'Downswing',
   impact: 'Impact',

@@ -155,6 +155,7 @@ export default function CameraScreen() {
   const classifierResult = useSwingClassifier({
     enabled: useClassifier,
     rawPoseData: rawPoseData ?? null,
+    motionMagnitude: motionMagnitude ?? null,
     onSwingStarted: useCallback(() => {
       const accepted = swingStartRef.current?.();
       if (accepted !== false) playSwingStart();
@@ -173,7 +174,7 @@ export default function CameraScreen() {
     ? classifierResult.isInAddress || classifierResult.isSwinging
     : motionSwingResult.isStill;
   const detectionState = useClassifier
-    ? classifierResult.phase
+    ? classifierResult.debugInfo.detectionState
     : motionSwingResult.detectionState;
 
   // TTS phase announcements for hands-free testing

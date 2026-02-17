@@ -209,11 +209,19 @@ export const nextState = (
 // HOOK
 // ============================================
 
+/** Motion stillness threshold — matches motion-swing-detection.ts */
+const STILLNESS_THRESHOLD = 0.01;
+
+/** Consecutive still frames to enter address (matches motion stillness at ~10Hz). */
+const STILLNESS_FRAMES = 15;
+
 export type UseSwingClassifierOptions = {
   /** Whether the classifier is active. */
   enabled: boolean;
   /** Raw pose data from usePoseDetection (72-element array, 24 joints x 3). */
   rawPoseData: readonly number[] | null;
+  /** Frame-differencing motion magnitude for stillness-based address detection. */
+  motionMagnitude: number | null;
   /** Called when a swing is detected (backswing started). */
   onSwingStarted?: () => void;
   /** Called when the swing ends. */
@@ -257,6 +265,7 @@ export type UseSwingClassifierReturn = {
 export const useSwingClassifier = ({
   enabled,
   rawPoseData,
+  motionMagnitude,
   onSwingStarted,
   onSwingEnded,
 }: UseSwingClassifierOptions): UseSwingClassifierReturn => {
@@ -276,6 +285,13 @@ export const useSwingClassifier = ({
   // Carry-forward buffer: holds last confident position for each joint (8 joints x 2 = 16)
   const lastKnownRef = useRef(new Float32Array(16));
 
+  // Motion-based stillness counter for address detection
+  const stillCountRef = useRef(0);
+
+  // Latest motion magnitude (read inside effect without adding to deps)
+  const motionMagnitudeRef = useRef(motionMagnitude);
+  motionMagnitudeRef.current = motionMagnitude;
+
   // Stable callback refs
   const onSwingStartedRef = useRef(onSwingStarted);
   const onSwingEndedRef = useRef(onSwingEnded);
@@ -291,6 +307,7 @@ export const useSwingClassifier = ({
       frameCountRef.current = 0;
       windowFilledRef.current = false;
       lastKnownRef.current.fill(0);
+      stillCountRef.current = 0;
     }
   }, [enabled]);
 
@@ -337,19 +354,46 @@ export const useSwingClassifier = ({
     const output = classifyWindow(flatWindow, compiledWeights);
     classifierOutputRef.current = output;
 
+    // Hybrid address detection: use motion stillness instead of CNN for idle → address.
+    // The CNN struggles with address detection from selfie camera (arm occlusion), but
+    // reliably detects swing phases once motion starts. Motion stillness fills the gap.
+    const currentMotion = motionMagnitudeRef.current;
+    if (currentMotion !== null) {
+      if (currentMotion < STILLNESS_THRESHOLD) {
+        stillCountRef.current += 1;
+      } else {
+        stillCountRef.current = 0;
+      }
+    }
+
+    // When still enough AND not already swinging, feed synthetic "address" prediction
+    // to the state machine. This keeps us in address (preventing CNN idle from resetting)
+    // until motion starts and the CNN can detect actual swing phases.
+    const isMotionStill = stillCountRef.current >= STILLNESS_FRAMES;
+    const currentDetection = stateRef.current.detectionState;
+    const shouldForceAddress = isMotionStill &&
+      (currentDetection === 'idle' || currentDetection === 'address');
+
+    const effectivePrediction = shouldForceAddress
+      ? { phase: 'address' as SwingPhase, confidence: 0.9, probabilities: output.probabilities }
+      : output;
+
     // Run state machine
     const now = Date.now();
     const prevState = stateRef.current;
-    const { state: newState, event } = nextState(prevState, output, now);
+    const { state: newState, event } = nextState(prevState, effectivePrediction, now);
     stateRef.current = newState;
 
     if (__DEV__) {
+      const motionTag = shouldForceAddress ? ` [MOTION→addr still=${stillCountRef.current}]` : '';
+
       // Log state transitions
       if (newState.detectionState !== prevState.detectionState) {
         console.log(
           `[SwingClassifier] STATE: ${prevState.detectionState} → ${newState.detectionState}` +
-          ` | phase=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%` +
+          ` | cnn=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%` +
           ` | top: ${formatTopPhases(output.probabilities)}` +
+          motionTag +
           `\n  joints: ${getJointConfidences(rawPoseData)}`,
         );
       }
@@ -358,9 +402,11 @@ export const useSwingClassifier = ({
       if (frameCountRef.current % 30 === 0) {
         console.log(
           `[SwingClassifier] tick #${frameCountRef.current}` +
-          ` | state=${newState.detectionState} phase=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%` +
+          ` | state=${newState.detectionState} cnn=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%` +
           ` | top: ${formatTopPhases(output.probabilities)}` +
           ` | pending=${newState.pendingState} confirm=${newState.confirmCount}` +
+          ` | motion=${currentMotion?.toFixed(4) ?? 'n/a'} still=${stillCountRef.current}` +
+          motionTag +
           `\n  joints: ${getJointConfidences(rawPoseData)}`,
         );
       }
