@@ -4,7 +4,6 @@ import os.log
 private let logger = Logger(subsystem: "com.swinglink.analysis", category: "SwingAnalysisModule")
 
 public class SwingAnalysisModule: Module {
-    private let analysisQueue = DispatchQueue(label: "com.swinglink.analysis.pipeline", qos: .userInitiated)
     private var currentPipeline: ShaftDetectionPipeline?
 
     public func definition() -> ModuleDefinition {
@@ -12,7 +11,11 @@ public class SwingAnalysisModule: Module {
 
         Events("onAnalysisProgress")
 
-        AsyncFunction("analyzeClip") { (filePath: String, clipId: String) -> [String: Any] in
+        AsyncFunction("analyzeClip") { [weak self] (filePath: String, clipId: String) -> [String: Any] in
+            guard let self else {
+                throw AnalysisError.cancelled
+            }
+
             logger.info("analyzeClip called: clipId=\(clipId), path=\(filePath)")
 
             // Normalize path to URL
@@ -26,31 +29,22 @@ public class SwingAnalysisModule: Module {
                 url = URL(fileURLWithPath: filePath)
             }
 
-            // Run on background queue
-            return try await withCheckedThrowingContinuation { continuation in
-                self.analysisQueue.async {
-                    do {
-                        let pipeline = try ShaftDetectionPipeline(url: url)
-                        self.currentPipeline = pipeline
+            let pipeline = try ShaftDetectionPipeline(url: url)
+            self.currentPipeline = pipeline
 
-                        pipeline.onProgress = { [weak self] progress, currentFrame, totalFrames in
-                            self?.sendEvent("onAnalysisProgress", [
-                                "progress": progress,
-                                "currentFrame": currentFrame,
-                                "totalFrames": totalFrames,
-                            ])
-                        }
-
-                        let result = try pipeline.run(clipId: clipId)
-                        self.currentPipeline = nil
-                        continuation.resume(returning: result)
-                    } catch {
-                        self.currentPipeline = nil
-                        logger.error("Analysis failed: \(error.localizedDescription)")
-                        continuation.resume(throwing: error)
-                    }
+            pipeline.onProgress = { [weak self] progress, currentFrame, totalFrames in
+                DispatchQueue.main.async {
+                    self?.sendEvent("onAnalysisProgress", [
+                        "progress": progress,
+                        "currentFrame": currentFrame,
+                        "totalFrames": totalFrames,
+                    ])
                 }
             }
+
+            let result = try pipeline.run(clipId: clipId)
+            self.currentPipeline = nil
+            return result
         }
 
         Function("cancelAnalysis") {
