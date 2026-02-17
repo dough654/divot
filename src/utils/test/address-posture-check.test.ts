@@ -32,17 +32,17 @@ const RIGHT_HIP = 9;
  * Helper to build an address pose — all three checks pass:
  * - Shoulders at y=0.30, hips at y=0.60 (torso height 0.30)
  *   75% threshold = 0.30 + 0.75*0.30 = 0.525. Wrists at 0.58 ✓
- * - Shoulders x=0.55, hips x=0.50 → xOffset=0.05 (> 0.03) ✓
- * - Both shoulders at x=0.55 → gap=0.00 (< 0.06) ✓
+ * - Shoulders x=0.57, hips x=0.50 → xOffset=0.07 (> 0.05) ✓
+ * - Both shoulders at x=0.57 → gap=0.00 (< 0.06) ✓
  */
 const makeAddressPose = (overrides: Record<number, { x?: number; y?: number; confidence?: number }> = {}) =>
   makePose({
-    [LEFT_SHOULDER]: { x: 0.55, y: 0.30 },
-    [RIGHT_SHOULDER]: { x: 0.55, y: 0.30 },
+    [LEFT_SHOULDER]: { x: 0.57, y: 0.30 },
+    [RIGHT_SHOULDER]: { x: 0.57, y: 0.30 },
     [LEFT_HIP]: { x: 0.50, y: 0.60 },
     [RIGHT_HIP]: { x: 0.50, y: 0.60 },
-    [LEFT_WRIST]: { x: 0.55, y: 0.58 },
-    [RIGHT_WRIST]: { x: 0.55, y: 0.58 },
+    [LEFT_WRIST]: { x: 0.57, y: 0.58 },
+    [RIGHT_WRIST]: { x: 0.57, y: 0.58 },
     ...overrides,
   });
 
@@ -99,8 +99,10 @@ describe('checkAddressPosture', () => {
 
   it('returns false when wrists low + bend, but shoulders rotated', () => {
     // Everything passes except shoulders are spread apart (rotated toward target)
+    // avg shoulder X = 0.55, hip X = 0.50 → bend offset = 0.05 ✓
+    // gap = 0.20 >> 0.06 ✗
     const pose = makeAddressPose({
-      [LEFT_SHOULDER]: { x: 0.45, y: 0.30 },   // gap = 0.20 >> 0.06
+      [LEFT_SHOULDER]: { x: 0.45, y: 0.30 },
       [RIGHT_SHOULDER]: { x: 0.65, y: 0.30 },
     });
 
@@ -136,11 +138,12 @@ describe('checkAddressPosture', () => {
 
   it('passes shoulder alignment at exactly the threshold (0.06)', () => {
     const pose = makeAddressPose({
-      [LEFT_SHOULDER]: { x: 0.52, y: 0.30 },   // gap = 0.06
+      [LEFT_SHOULDER]: { x: 0.52, y: 0.30 },   // gap = 0.06, avg = 0.55
       [RIGHT_SHOULDER]: { x: 0.58, y: 0.30 },
+      [LEFT_HIP]: { x: 0.50, y: 0.60 },        // offset = 0.05 ✓
+      [RIGHT_HIP]: { x: 0.50, y: 0.60 },
     });
 
-    // Forward bend: avg shoulder X = 0.55, hip X = 0.50 → offset = 0.05 ✓
     const result = checkAddressPosture(pose);
     expect(result.isAddressPosture).toBe(true);
     expect(result.reason).toContain('shoulders aligned');
@@ -148,8 +151,10 @@ describe('checkAddressPosture', () => {
 
   it('fails shoulder alignment just above threshold', () => {
     const pose = makeAddressPose({
-      [LEFT_SHOULDER]: { x: 0.515, y: 0.30 },  // gap = 0.07
+      [LEFT_SHOULDER]: { x: 0.515, y: 0.30 },  // gap = 0.07, avg = 0.55
       [RIGHT_SHOULDER]: { x: 0.585, y: 0.30 },
+      [LEFT_HIP]: { x: 0.50, y: 0.60 },        // offset = 0.05 ✓
+      [RIGHT_HIP]: { x: 0.50, y: 0.60 },
     });
 
     const result = checkAddressPosture(pose);
@@ -159,10 +164,10 @@ describe('checkAddressPosture', () => {
 
   // ── Forward bend thresholds ──
 
-  it('passes forward bend at exactly the threshold (0.03)', () => {
+  it('passes forward bend at exactly the threshold (0.05)', () => {
     const pose = makeAddressPose({
-      [LEFT_SHOULDER]: { x: 0.53, y: 0.30 },
-      [RIGHT_SHOULDER]: { x: 0.53, y: 0.30 },
+      [LEFT_SHOULDER]: { x: 0.55, y: 0.30 },
+      [RIGHT_SHOULDER]: { x: 0.55, y: 0.30 },
       [LEFT_HIP]: { x: 0.50, y: 0.60 },
       [RIGHT_HIP]: { x: 0.50, y: 0.60 },
     });
@@ -173,8 +178,8 @@ describe('checkAddressPosture', () => {
 
   it('fails forward bend just below threshold', () => {
     const pose = makeAddressPose({
-      [LEFT_SHOULDER]: { x: 0.52, y: 0.30 },
-      [RIGHT_SHOULDER]: { x: 0.52, y: 0.30 },
+      [LEFT_SHOULDER]: { x: 0.54, y: 0.30 },
+      [RIGHT_SHOULDER]: { x: 0.54, y: 0.30 },
       [LEFT_HIP]: { x: 0.50, y: 0.60 },
       [RIGHT_HIP]: { x: 0.50, y: 0.60 },
     });

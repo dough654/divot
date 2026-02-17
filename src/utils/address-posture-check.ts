@@ -41,9 +41,10 @@ const WRIST_HEIGHT_RATIO = 0.75;
  * Minimum absolute X offset between shoulders and hips for forward bend
  * detection (normalized coordinates). At address, the golfer tilts forward
  * from the hips so shoulders shift horizontally relative to hips.
- * 0.03 = 3% of frame width — visible spine tilt but forgiving of noise.
+ * 0.05 = 5% of frame width — requires a real forward tilt, rejects
+ * standing upright at a slight camera angle.
  */
-const MIN_FORWARD_BEND_X = 0.03;
+const MIN_FORWARD_BEND_X = 0.05;
 
 /**
  * Maximum X gap between left and right shoulder for the "shoulders aligned

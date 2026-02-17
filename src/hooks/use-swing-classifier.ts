@@ -375,17 +375,20 @@ export const useSwingClassifier = ({
     }
     previousPoseRef.current = rawPoseData;
 
-    // When still enough AND in address posture AND currently idle, feed synthetic
-    // "address" prediction to bootstrap the idle → address transition. The CNN
-    // struggles with address detection from behind, so we use pose stillness + posture
-    // to get INTO address. Once confirmed in address, the CNN runs freely so it can
-    // detect swing phases — even when displacement is small (e.g. filming a screen).
-    // The posture check prevents follow-through holds from triggering false address.
+    // Pose-based address override: the CNN struggles with address detection from
+    // behind, so we use stillness + posture to force address predictions.
+    //
+    // In idle: override gets us INTO address (bootstrap).
+    // In address: override keeps us stable against CNN "idle" noise, BUT we let
+    //   CNN swing predictions through so swings are detected even with small
+    //   displacement (e.g. filming a screen where movements appear smaller).
+    // In swinging: no override — CNN runs freely.
     const isPoseBasedStill = stillCountRef.current >= STILLNESS_FRAMES;
     const postureCheck = checkAddressPosture(rawPoseData);
     const currentDetection = stateRef.current.detectionState;
+    const cnnPredictsSwing = isSwingPhase(output.phase) && output.confidence >= MIN_CONFIDENCE;
     const shouldForceAddress = isPoseBasedStill && postureCheck.isAddressPosture &&
-      currentDetection === 'idle';
+      (currentDetection === 'idle' || (currentDetection === 'address' && !cnnPredictsSwing));
 
     const effectivePrediction = shouldForceAddress
       ? { phase: 'address' as SwingPhase, confidence: 0.9, probabilities: output.probabilities }
