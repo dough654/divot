@@ -3,7 +3,7 @@
  *
  * Distinguishes address position from follow-through hold by checking:
  * 1. Body in frame — at least one knee detected (lower body visible)
- * 2. Wrist height — wrists must be near hip level (bottom 25% of torso)
+ * 2. Wrist height — wrists must be near hip level (bottom 30% of torso)
  * 3. Forward bend — shoulders must be offset in X from hips (spine tilt)
  * 4. Shoulders aligned down the line — shoulders close together in X
  *
@@ -35,29 +35,29 @@ const DEFAULT_MIN_CONFIDENCE = 0.3;
 
 /**
  * Wrist height threshold as a fraction of the shoulder→hip distance.
- * 0.75 means wrists must be at least 75% of the way from shoulders to hips
- * (i.e., in the bottom quarter of the torso, near hip level).
+ * 0.70 means wrists must be at least 70% of the way from shoulders to hips
+ * (i.e., in the bottom 30% of the torso, near hip level).
  */
-const WRIST_HEIGHT_RATIO = 0.75;
+const WRIST_HEIGHT_RATIO = 0.70;
 
 /**
  * Minimum absolute X offset between shoulders and hips for forward bend
  * detection (normalized coordinates). At address, the golfer tilts forward
  * from the hips so shoulders shift horizontally relative to hips.
- * 0.05 = 5% of frame width — requires a real forward tilt, rejects
- * standing upright at a slight camera angle.
+ * 0.03 = 3% of frame width — requires a real forward tilt, tolerates
+ * camera angle variation.
  */
-const MIN_FORWARD_BEND_X = 0.05;
+const MIN_FORWARD_BEND_X = 0.03;
 
 /**
  * Maximum X gap between left and right shoulder for the "shoulders aligned
  * down the line" check. At address, the golfer is side-on to the camera so
  * both shoulders nearly overlap in X. In follow-through, the body has
  * rotated toward the target and the shoulders spread apart horizontally.
- * 0.06 = 6% of frame width — tight enough to reject rotated positions,
- * loose enough to tolerate slight camera angle variation.
+ * 0.10 = 10% of frame width — rejects follow-through rotation (0.13-0.19)
+ * while tolerating pose noise at address (0.01-0.04).
  */
-const MAX_SHOULDER_X_GAP = 0.06;
+const MAX_SHOULDER_X_GAP = 0.10;
 
 type JointCoords = { x: number; y: number };
 
