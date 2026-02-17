@@ -282,9 +282,6 @@ export const useSwingClassifier = ({
   const frameCountRef = useRef(0);
   const windowFilledRef = useRef(false);
 
-  // Carry-forward buffer: holds last confident position for each joint (8 joints x 2 = 16)
-  const lastKnownRef = useRef(new Float32Array(16));
-
   // Motion-based stillness counter for address detection
   const stillCountRef = useRef(0);
 
@@ -306,7 +303,6 @@ export const useSwingClassifier = ({
       classifierOutputRef.current = null;
       frameCountRef.current = 0;
       windowFilledRef.current = false;
-      lastKnownRef.current.fill(0);
       stillCountRef.current = 0;
     }
   }, [enabled]);
@@ -315,12 +311,8 @@ export const useSwingClassifier = ({
   useEffect(() => {
     if (!enabled || !rawPoseData || rawPoseData.length < 72) return;
 
-    // Extract 8-joint features (16 values) with carry-forward for low-confidence joints
-    const features = extractClassifierFeatures(
-      rawPoseData,
-      [...CLASSIFIER_JOINT_INDICES],
-      lastKnownRef.current,
-    );
+    // Extract 8-joint features (16 values) — low-confidence joints zeroed out
+    const features = extractClassifierFeatures(rawPoseData);
 
     // Push to sliding window
     const buffer = windowBufferRef.current;

@@ -403,7 +403,6 @@ export const FEATURE_CONFIDENCE_THRESHOLD = 0.3;
 export const extractClassifierFeatures = (
   poseData: readonly number[],
   classifierJointIndices: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 9],
-  lastKnown?: Float32Array,
 ): Float32Array => {
   const features = new Float32Array(classifierJointIndices.length * 2);
 
@@ -413,21 +412,10 @@ export const extractClassifierFeatures = (
     const confidence = poseData[poseOffset + 2] ?? 0;
 
     if (confidence >= FEATURE_CONFIDENCE_THRESHOLD) {
-      const x = poseData[poseOffset] ?? 0;
-      const y = poseData[poseOffset + 1] ?? 0;
-      features[i * 2] = x;
-      features[i * 2 + 1] = y;
-      // Update carry-forward buffer
-      if (lastKnown) {
-        lastKnown[i * 2] = x;
-        lastKnown[i * 2 + 1] = y;
-      }
-    } else if (lastKnown) {
-      // Use last-known-good position
-      features[i * 2] = lastKnown[i * 2];
-      features[i * 2 + 1] = lastKnown[i * 2 + 1];
+      features[i * 2] = poseData[poseOffset] ?? 0;
+      features[i * 2 + 1] = poseData[poseOffset + 1] ?? 0;
     }
-    // No lastKnown and below threshold: stays 0
+    // Below threshold: stays 0 (matches training preprocessing)
   }
 
   return features;
