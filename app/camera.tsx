@@ -120,14 +120,14 @@ export default function CameraScreen() {
   const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && cameraState === 'previewing';
   const { playSwingStart, playSwingEnd, playAddressReady } = useSwingFeedback({ enabled: autoDetectEnabled });
 
-  // Motion detection — polls native frame diff module
-  const { motionMagnitude } = useMotionDetection({ enabled: autoDetectEnabled });
-
   // Motion-based swing detection state machine (legacy)
   const swingStartRef = useRef<(() => boolean | void) | null>(null);
   const swingEndRef = useRef<(() => void) | null>(null);
   const useClassifier = autoDetectEnabled && settings.swingClassifierEnabled;
   const useMotionDetect = autoDetectEnabled && !settings.swingClassifierEnabled;
+
+  // Motion detection — only needed for the motion detection path (classifier uses pose stillness)
+  const { motionMagnitude } = useMotionDetection({ enabled: useMotionDetect });
 
   // Audio metering — only needed for motion-based detection (classifier uses pose data).
   // Keeping this disabled when using the classifier also avoids iOS routing all audio
@@ -157,7 +157,6 @@ export default function CameraScreen() {
   const classifierResult = useSwingClassifier({
     enabled: useClassifier,
     rawPoseData: rawPoseData ?? null,
-    motionMagnitude: motionMagnitude ?? null,
     onSwingStarted: useCallback(() => {
       playSwingStart();
     }, [playSwingStart]),
@@ -748,7 +747,7 @@ export default function CameraScreen() {
                 poseOverlayVisible={poseDetectionEnabled}
                 poseData={rawPoseData}
                 clubDetectionEnabled={autoDetectEnabled && isStill}
-                frameDiffEnabled={autoDetectEnabled}
+                frameDiffEnabled={useMotionDetect}
               />
             ) : (
               <View style={styles.cameraPlaceholder}>

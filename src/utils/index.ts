@@ -13,3 +13,4 @@ export * from './swing-detection';
 export * from './rolling-recorder-state';
 export * from './skeleton-smoothing';
 export * from './address-detection';
+export * from './pose-stillness';
