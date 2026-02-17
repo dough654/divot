@@ -292,6 +292,11 @@ export const useSwingClassifier = ({
   const frameCountRef = useRef(0);
   const windowFilledRef = useRef(false);
 
+  // Latch: once CNN sees a swing phase while in address, override stays off
+  // for the rest of that address session. Prevents flickering between address
+  // override and CNN predictions that resets the confirmation counter.
+  const swingSeenInAddressRef = useRef(false);
+
   // Pose-based stillness detection — immune to background motion
   const stillCountRef = useRef(0);
   const previousPoseRef = useRef<readonly number[] | null>(null);
@@ -312,6 +317,7 @@ export const useSwingClassifier = ({
       windowFilledRef.current = false;
       stillCountRef.current = 0;
       previousPoseRef.current = null;
+      swingSeenInAddressRef.current = false;
     }
   }, [enabled]);
 
@@ -378,17 +384,30 @@ export const useSwingClassifier = ({
     // Pose-based address override: the CNN struggles with address detection from
     // behind, so we use stillness + posture to force address predictions.
     //
-    // In idle: override gets us INTO address (bootstrap).
-    // In address: override keeps us stable against CNN "idle" noise, BUT we let
-    //   CNN swing predictions through so swings are detected even with small
-    //   displacement (e.g. filming a screen where movements appear smaller).
+    // In idle: override bootstraps us INTO address.
+    // In address: override keeps us stable against CNN "idle" noise. But once the
+    //   CNN sees ANY swing phase, a latch disables the override for the rest of
+    //   this address session. Without the latch, the override flickers on/off each
+    //   frame (CNN predicts swing → off, CNN predicts idle → on), resetting the
+    //   confirmation counter and preventing the 2-consecutive-swing-frames needed
+    //   to transition to swinging.
     // In swinging: no override — CNN runs freely.
     const isPoseBasedStill = stillCountRef.current >= STILLNESS_FRAMES;
     const postureCheck = checkAddressPosture(rawPoseData);
     const currentDetection = stateRef.current.detectionState;
+
+    // Latch: once CNN sees a swing phase in address, stop overriding permanently
     const cnnPredictsSwing = isSwingPhase(output.phase) && output.confidence >= MIN_CONFIDENCE;
+    if (currentDetection === 'address' && cnnPredictsSwing) {
+      swingSeenInAddressRef.current = true;
+    }
+    // Reset latch when we leave address
+    if (currentDetection !== 'address') {
+      swingSeenInAddressRef.current = false;
+    }
+
     const shouldForceAddress = isPoseBasedStill && postureCheck.isAddressPosture &&
-      (currentDetection === 'idle' || (currentDetection === 'address' && !cnnPredictsSwing));
+      (currentDetection === 'idle' || (currentDetection === 'address' && !swingSeenInAddressRef.current));
 
     const effectivePrediction = shouldForceAddress
       ? { phase: 'address' as SwingPhase, confidence: 0.9, probabilities: output.probabilities }

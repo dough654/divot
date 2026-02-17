@@ -2,7 +2,7 @@
  * Address posture validation using pose joint positions.
  *
  * Distinguishes address position from follow-through hold by checking:
- * 1. Body in frame — at least one shoulder + one hip detected
+ * 1. Body in frame — at least one knee detected (lower body visible)
  * 2. Wrist height — wrists must be near hip level (bottom 25% of torso)
  * 3. Forward bend — shoulders must be offset in X from hips (spine tilt)
  * 4. Shoulders aligned down the line — shoulders close together in X
@@ -23,6 +23,8 @@ const JOINT = {
   rightWrist: 7,
   leftHip: 8,
   rightHip: 9,
+  leftKnee: 10,
+  rightKnee: 11,
 } as const;
 
 /** Values per joint: x, y, confidence. */
@@ -90,8 +92,8 @@ const avg = (values: number[]): number | null =>
  *
  * Four conditions must all pass:
  *
- * 1. **Body in frame**: At least one shoulder and one hip must be detected.
- *    Rejects when the golfer is too close to the camera (lower body cut off).
+ * 1. **Body in frame**: At least one knee must be detected. Knees drop out
+ *    of frame much sooner than hips when the golfer approaches the camera.
  *
  * 2. **Wrists near hip level**: Wrists must be in the bottom 25% of the
  *    torso (between 75% and 100% of the shoulder→hip distance). At address,
@@ -125,6 +127,8 @@ export const checkAddressPosture = (
   const rightHip = getJoint(poseData, JOINT.rightHip, minConfidence);
   const leftWrist = getJoint(poseData, JOINT.leftWrist, minConfidence);
   const rightWrist = getJoint(poseData, JOINT.rightWrist, minConfidence);
+  const leftKnee = getJoint(poseData, JOINT.leftKnee, minConfidence);
+  const rightKnee = getJoint(poseData, JOINT.rightKnee, minConfidence);
 
   const shoulderXValues = [leftShoulder, rightShoulder].filter(Boolean).map(j => j!.x);
   const shoulderYValues = [leftShoulder, rightShoulder].filter(Boolean).map(j => j!.y);
@@ -180,17 +184,18 @@ export const checkAddressPosture = (
       : `shoulders rotated (gap=${shoulderXGap.toFixed(3)})`;
   }
 
-  // ── Check 4: Body in frame (shoulders + hips visible) ──
+  // ── Check 4: Body in frame (knees visible) ──
   // When the golfer is too close to the camera (e.g., walking back to pick
-  // it up), the lower body is cut off and hips aren't detected. Require at
-  // least one shoulder AND one hip to be tracked — this is a hard gate, not
-  // a soft fallback, because we need the torso visible to trust the other checks.
-  const hasShoulders = shoulderYValues.length > 0;
-  const hasHips = hipYValues.length > 0;
-  const bodyInFrame = hasShoulders && hasHips;
+  // it up), the lower body is cut off. Hips stay in frame for a long time,
+  // so we use knees as the gate — they drop out of frame much sooner.
+  // Requires at least one knee to be detected. Note: knee detection can be
+  // flaky at address (side-view occlusion), but at least one of two should
+  // be tracked at proper filming distance.
+  const hasKnees = leftKnee !== null || rightKnee !== null;
+  const bodyInFrame = hasKnees;
   const bodyReason = bodyInFrame
-    ? 'body in frame'
-    : `body not in frame (shoulders=${hasShoulders} hips=${hasHips})`;
+    ? 'knees in frame'
+    : 'knees not in frame';
 
   // All four must pass
   const isAddressPosture = wristsLow && hasBend && shouldersAligned && bodyInFrame;

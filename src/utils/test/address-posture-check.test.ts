@@ -27,6 +27,8 @@ const LEFT_WRIST = 6;
 const RIGHT_WRIST = 7;
 const LEFT_HIP = 8;
 const RIGHT_HIP = 9;
+const LEFT_KNEE = 10;
+const RIGHT_KNEE = 11;
 
 /**
  * Helper to build an address pose — all three checks pass:
@@ -189,41 +191,27 @@ describe('checkAddressPosture', () => {
     expect(result.reason).toContain('too upright');
   });
 
-  // ── Body in frame ──
+  // ── Body in frame (knees) ──
 
-  it('returns false when hips not in frame (too close to camera)', () => {
+  it('returns false when knees not in frame (too close to camera)', () => {
     const pose = makeAddressPose({
-      [LEFT_HIP]: { confidence: 0.1 },
-      [RIGHT_HIP]: { confidence: 0.1 },
+      [LEFT_KNEE]: { confidence: 0.1 },
+      [RIGHT_KNEE]: { confidence: 0.1 },
     });
 
     const result = checkAddressPosture(pose);
     expect(result.isAddressPosture).toBe(false);
-    expect(result.reason).toContain('body not in frame');
+    expect(result.reason).toContain('knees not in frame');
   });
 
-  it('returns false when shoulders not in frame', () => {
+  it('passes body-in-frame when only one knee is tracked', () => {
     const pose = makeAddressPose({
-      [LEFT_SHOULDER]: { confidence: 0.1 },
-      [RIGHT_SHOULDER]: { confidence: 0.1 },
+      [LEFT_KNEE]: { confidence: 0.1 },  // excluded
+      [RIGHT_KNEE]: { y: 0.80 },         // tracked
     });
 
     const result = checkAddressPosture(pose);
-    expect(result.isAddressPosture).toBe(false);
-    expect(result.reason).toContain('body not in frame');
-  });
-
-  it('returns false when no torso joints detected at all', () => {
-    const pose = makeAddressPose({
-      [LEFT_SHOULDER]: { confidence: 0.1 },
-      [RIGHT_SHOULDER]: { confidence: 0.1 },
-      [LEFT_HIP]: { confidence: 0.1 },
-      [RIGHT_HIP]: { confidence: 0.1 },
-    });
-
-    const result = checkAddressPosture(pose);
-    expect(result.isAddressPosture).toBe(false);
-    expect(result.reason).toContain('body not in frame');
+    expect(result.isAddressPosture).toBe(true);
   });
 
   // ── Graceful fallbacks (partial joints within body-in-frame) ──
@@ -234,8 +222,7 @@ describe('checkAddressPosture', () => {
       [RIGHT_WRIST]: { confidence: 0.1 },
     });
 
-    // Body in frame (shoulders + hips present) ✓
-    // Wrist check skipped → default true
+    // Knees default to present ✓, wrist check skipped → default true
     const result = checkAddressPosture(pose);
     expect(result.isAddressPosture).toBe(true);
   });
@@ -245,7 +232,7 @@ describe('checkAddressPosture', () => {
       [RIGHT_SHOULDER]: { confidence: 0.1 },
     });
 
-    // Body in frame: left shoulder + hips → ✓
+    // Knees default to present ✓
     // Forward bend uses one shoulder + hips → still works
     // Shoulder alignment skipped (need both) → default true
     const result = checkAddressPosture(pose);
@@ -262,12 +249,14 @@ describe('checkAddressPosture', () => {
       [RIGHT_HIP]: { x: 0.50, y: 0.60, confidence: 0.5 },
       [LEFT_WRIST]: { x: 0.57, y: 0.58, confidence: 0.5 },
       [RIGHT_WRIST]: { x: 0.57, y: 0.58, confidence: 0.5 },
+      [LEFT_KNEE]: { y: 0.80, confidence: 0.5 },
+      [RIGHT_KNEE]: { y: 0.80, confidence: 0.5 },
     });
 
-    // Threshold 0.6 excludes all joints → body not in frame → false
+    // Threshold 0.6 excludes all joints → knees not in frame → false
     const strict = checkAddressPosture(pose, 0.6);
     expect(strict.isAddressPosture).toBe(false);
-    expect(strict.reason).toContain('body not in frame');
+    expect(strict.reason).toContain('knees not in frame');
 
     // Threshold 0.4 includes all → proper checks → true
     const lenient = checkAddressPosture(pose, 0.4);
