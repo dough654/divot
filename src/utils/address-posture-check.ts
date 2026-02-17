@@ -4,12 +4,11 @@
  * Distinguishes address position from follow-through hold by checking:
  * 1. Wrist height — wrists must be near hip level (bottom 25% of torso)
  * 2. Forward bend — shoulders must be offset in X from hips (spine tilt)
+ * 3. Shoulders aligned down the line — shoulders close together in X
  *
- * At address: wrists hang at hip level, torso tilted forward from hips.
- * In follow-through: wrists are up near chest/shoulder, torso more upright.
- *
- * Camera is behind the golfer looking down the line, so the forward
- * bend is visible as a horizontal (X) offset between shoulders and hips.
+ * Camera is behind the golfer looking down the line:
+ * - At address: side-on, wrists at hips, forward tilt, shoulders stacked.
+ * - In follow-through: rotated toward target, wrists high, shoulders spread.
  *
  * Used alongside stillness detection to prevent false address triggers
  * when the golfer holds their follow-through.
@@ -46,6 +45,16 @@ const WRIST_HEIGHT_RATIO = 0.75;
  */
 const MIN_FORWARD_BEND_X = 0.03;
 
+/**
+ * Maximum X gap between left and right shoulder for the "shoulders aligned
+ * down the line" check. At address, the golfer is side-on to the camera so
+ * both shoulders nearly overlap in X. In follow-through, the body has
+ * rotated toward the target and the shoulders spread apart horizontally.
+ * 0.06 = 6% of frame width — tight enough to reject rotated positions,
+ * loose enough to tolerate slight camera angle variation.
+ */
+const MAX_SHOULDER_X_GAP = 0.06;
+
 type JointCoords = { x: number; y: number };
 
 export type AddressPostureResult = {
@@ -77,7 +86,7 @@ const avg = (values: number[]): number | null =>
 /**
  * Check whether the current pose is a plausible address position.
  *
- * Two conditions must both pass:
+ * Three conditions must all pass:
  *
  * 1. **Wrists near hip level**: Wrists must be in the bottom 25% of the
  *    torso (between 75% and 100% of the shoulder→hip distance). At address,
@@ -89,7 +98,12 @@ const avg = (values: number[]): number | null =>
  *    so shoulders are displaced toward the ball. In follow-through, the
  *    torso is more upright with shoulders roughly above hips.
  *
- * Either check is skipped when its required joints are missing (falls back
+ * 3. **Shoulders aligned down the line**: Left and right shoulders must be
+ *    close together in X. At address the golfer is side-on, so shoulders
+ *    nearly overlap. In follow-through the body has rotated toward the
+ *    target, spreading the shoulders apart horizontally.
+ *
+ * Each check is skipped when its required joints are missing (falls back
  * to true for that check — doesn't block address detection).
  *
  * @param poseData - 72-element array (24 joints x 3: x, y, confidence)
@@ -149,13 +163,26 @@ export const checkAddressPosture = (
       : `too upright (xOffset=${xOffset.toFixed(3)})`;
   }
 
-  // Both must pass
-  const isAddressPosture = wristsLow && hasBend;
+  // ── Check 3: Shoulders aligned down the line ──
+  let shouldersAligned = true; // default: don't block if we can't check
+  let alignReason = 'need both shoulders';
+
+  if (leftShoulder !== null && rightShoulder !== null) {
+    const shoulderXGap = Math.abs(leftShoulder.x - rightShoulder.x);
+    shouldersAligned = shoulderXGap <= MAX_SHOULDER_X_GAP;
+    alignReason = shouldersAligned
+      ? `shoulders aligned (gap=${shoulderXGap.toFixed(3)})`
+      : `shoulders rotated (gap=${shoulderXGap.toFixed(3)})`;
+  }
+
+  // All three must pass
+  const isAddressPosture = wristsLow && hasBend && shouldersAligned;
   const reasons: string[] = [];
   if (!wristsLow) reasons.push(wristReason);
   if (!hasBend) reasons.push(bendReason);
+  if (!shouldersAligned) reasons.push(alignReason);
   const reason = isAddressPosture
-    ? [wristReason, bendReason].join('; ')
+    ? [wristReason, bendReason, alignReason].join('; ')
     : reasons.join('; ');
 
   return { isAddressPosture, reason };

@@ -29,10 +29,11 @@ const LEFT_HIP = 8;
 const RIGHT_HIP = 9;
 
 /**
- * Helper to build an address pose (wrists at hip level, forward bend).
- * Shoulders at y=0.30, hips at y=0.60 (torso height 0.30).
- * 75% threshold = 0.30 + 0.75 * 0.30 = 0.525.
- * Shoulders x=0.55, hips x=0.50 → xOffset=0.05 (> 0.03 threshold).
+ * Helper to build an address pose — all three checks pass:
+ * - Shoulders at y=0.30, hips at y=0.60 (torso height 0.30)
+ *   75% threshold = 0.30 + 0.75*0.30 = 0.525. Wrists at 0.58 ✓
+ * - Shoulders x=0.55, hips x=0.50 → xOffset=0.05 (> 0.03) ✓
+ * - Both shoulders at x=0.55 → gap=0.00 (< 0.06) ✓
  */
 const makeAddressPose = (overrides: Record<number, { x?: number; y?: number; confidence?: number }> = {}) =>
   makePose({
@@ -46,44 +47,44 @@ const makeAddressPose = (overrides: Record<number, { x?: number; y?: number; con
   });
 
 /**
- * Helper to build a follow-through pose (wrists high, upright torso).
- * Same shoulder/hip Y, but wrists at chest level and no X offset.
+ * Helper to build a follow-through pose — all three checks fail:
+ * - Wrists at chest level (y=0.40, above 75% threshold of 0.525)
+ * - Shoulders at x=0.50, hips at x=0.50 → no X offset (upright)
+ * - Shoulders spread: left x=0.42, right x=0.58 → gap=0.16 (> 0.06)
  */
 const makeFollowThroughPose = (overrides: Record<number, { x?: number; y?: number; confidence?: number }> = {}) =>
   makePose({
-    [LEFT_SHOULDER]: { x: 0.50, y: 0.30 },
-    [RIGHT_SHOULDER]: { x: 0.50, y: 0.30 },
+    [LEFT_SHOULDER]: { x: 0.42, y: 0.30 },
+    [RIGHT_SHOULDER]: { x: 0.58, y: 0.30 },
     [LEFT_HIP]: { x: 0.50, y: 0.60 },
     [RIGHT_HIP]: { x: 0.50, y: 0.60 },
-    [LEFT_WRIST]: { x: 0.50, y: 0.40 },   // chest level — above 75% threshold
+    [LEFT_WRIST]: { x: 0.50, y: 0.40 },
     [RIGHT_WRIST]: { x: 0.50, y: 0.40 },
     ...overrides,
   });
 
 describe('checkAddressPosture', () => {
-  // ── Happy path: address position ──
+  // ── Happy path ──
 
-  it('returns true for a proper address pose (wrists low + forward bend)', () => {
+  it('returns true for a proper address pose (wrists low + bend + aligned)', () => {
     const result = checkAddressPosture(makeAddressPose());
 
     expect(result.isAddressPosture).toBe(true);
     expect(result.reason).toContain('wrists near hips');
     expect(result.reason).toContain('forward bend');
+    expect(result.reason).toContain('shoulders aligned');
   });
 
   // ── Follow-through rejection ──
 
-  it('returns false for follow-through (wrists high + upright)', () => {
+  it('returns false for follow-through (wrists high + upright + rotated)', () => {
     const result = checkAddressPosture(makeFollowThroughPose());
 
     expect(result.isAddressPosture).toBe(false);
     expect(result.reason).toContain('wrists too high');
-    expect(result.reason).toContain('too upright');
   });
 
   it('returns false when wrists are at stomach level (above 75% threshold)', () => {
-    // Shoulders at 0.30, hips at 0.60, threshold = 0.525
-    // Wrists at 0.50 (stomach) — below midpoint but above 75% threshold
     const pose = makeAddressPose({
       [LEFT_WRIST]: { x: 0.55, y: 0.50 },
       [RIGHT_WRIST]: { x: 0.55, y: 0.50 },
@@ -96,8 +97,20 @@ describe('checkAddressPosture', () => {
 
   // ── Each check independently ──
 
-  it('returns false when wrists are low but torso is upright (no bend)', () => {
-    // Wrists at hip level but shoulders directly above hips (x=0.50)
+  it('returns false when wrists low + bend, but shoulders rotated', () => {
+    // Everything passes except shoulders are spread apart (rotated toward target)
+    const pose = makeAddressPose({
+      [LEFT_SHOULDER]: { x: 0.45, y: 0.30 },   // gap = 0.20 >> 0.06
+      [RIGHT_SHOULDER]: { x: 0.65, y: 0.30 },
+    });
+
+    const result = checkAddressPosture(pose);
+    expect(result.isAddressPosture).toBe(false);
+    expect(result.reason).toContain('shoulders rotated');
+  });
+
+  it('returns false when wrists low + aligned, but no forward bend', () => {
+    // Shoulders directly above hips (x=0.50)
     const pose = makeAddressPose({
       [LEFT_SHOULDER]: { x: 0.50, y: 0.30 },
       [RIGHT_SHOULDER]: { x: 0.50, y: 0.30 },
@@ -108,8 +121,7 @@ describe('checkAddressPosture', () => {
     expect(result.reason).toContain('too upright');
   });
 
-  it('returns false when there is forward bend but wrists are high', () => {
-    // Good X offset but wrists at shoulder level
+  it('returns false when bend + aligned, but wrists high', () => {
     const pose = makeAddressPose({
       [LEFT_WRIST]: { x: 0.55, y: 0.30 },
       [RIGHT_WRIST]: { x: 0.55, y: 0.30 },
@@ -120,7 +132,32 @@ describe('checkAddressPosture', () => {
     expect(result.reason).toContain('wrists too high');
   });
 
-  // ── Forward bend threshold ──
+  // ── Shoulder alignment thresholds ──
+
+  it('passes shoulder alignment at exactly the threshold (0.06)', () => {
+    const pose = makeAddressPose({
+      [LEFT_SHOULDER]: { x: 0.52, y: 0.30 },   // gap = 0.06
+      [RIGHT_SHOULDER]: { x: 0.58, y: 0.30 },
+    });
+
+    // Forward bend: avg shoulder X = 0.55, hip X = 0.50 → offset = 0.05 ✓
+    const result = checkAddressPosture(pose);
+    expect(result.isAddressPosture).toBe(true);
+    expect(result.reason).toContain('shoulders aligned');
+  });
+
+  it('fails shoulder alignment just above threshold', () => {
+    const pose = makeAddressPose({
+      [LEFT_SHOULDER]: { x: 0.515, y: 0.30 },  // gap = 0.07
+      [RIGHT_SHOULDER]: { x: 0.585, y: 0.30 },
+    });
+
+    const result = checkAddressPosture(pose);
+    expect(result.isAddressPosture).toBe(false);
+    expect(result.reason).toContain('shoulders rotated');
+  });
+
+  // ── Forward bend thresholds ──
 
   it('passes forward bend at exactly the threshold (0.03)', () => {
     const pose = makeAddressPose({
@@ -149,51 +186,47 @@ describe('checkAddressPosture', () => {
 
   // ── Graceful fallbacks ──
 
-  it('skips wrist check when no wrists are tracked (passes by default)', () => {
+  it('skips wrist check when no wrists tracked', () => {
     const pose = makeAddressPose({
       [LEFT_WRIST]: { confidence: 0.1 },
       [RIGHT_WRIST]: { confidence: 0.1 },
     });
 
     const result = checkAddressPosture(pose);
-    // Forward bend still passes, wrist check skipped → true
     expect(result.isAddressPosture).toBe(true);
   });
 
-  it('skips forward bend check when shoulders missing (passes by default)', () => {
+  it('skips all checks when shoulders + hips missing', () => {
     const pose = makeAddressPose({
       [LEFT_SHOULDER]: { confidence: 0.1 },
       [RIGHT_SHOULDER]: { confidence: 0.1 },
-      [LEFT_WRIST]: { x: 0.55, y: 0.62 },   // at/below hip level (0.60)
-      [RIGHT_WRIST]: { x: 0.55, y: 0.62 },
-    });
-
-    // Wrists at 0.62 >= hips at 0.60 → fallback wrist check passes
-    // Forward bend skipped (no shoulders for X) → passes by default
-    const result = checkAddressPosture(pose);
-    expect(result.isAddressPosture).toBe(true);
-  });
-
-  it('skips forward bend check when hips missing (passes by default)', () => {
-    const pose = makeAddressPose({
       [LEFT_HIP]: { confidence: 0.1 },
       [RIGHT_HIP]: { confidence: 0.1 },
     });
 
-    // Wrist check: no hips + no shoulders→hip range → skipped (default true)
-    // Forward bend: no hips → skipped (default true)
     const result = checkAddressPosture(pose);
     expect(result.isAddressPosture).toBe(true);
   });
 
-  it('skips wrist check when shoulders missing but uses hip fallback', () => {
-    // No shoulders → wrist check falls back to wrists-at/below-hips
+  it('skips shoulder alignment when only one shoulder tracked', () => {
+    const pose = makeAddressPose({
+      [RIGHT_SHOULDER]: { confidence: 0.1 },
+    });
+
+    // Wrist check uses one shoulder + hips → still works
+    // Forward bend uses one shoulder X + hip X → still works
+    // Shoulder alignment skipped (need both) → passes by default
+    const result = checkAddressPosture(pose);
+    expect(result.isAddressPosture).toBe(true);
+  });
+
+  it('uses hip fallback for wrist check when shoulders missing', () => {
     const pose = makePose({
       [LEFT_SHOULDER]: { confidence: 0.1 },
       [RIGHT_SHOULDER]: { confidence: 0.1 },
       [LEFT_HIP]: { x: 0.50, y: 0.60 },
       [RIGHT_HIP]: { x: 0.50, y: 0.60 },
-      [LEFT_WRIST]: { y: 0.40 },   // above hips
+      [LEFT_WRIST]: { y: 0.40 },
       [RIGHT_WRIST]: { y: 0.40 },
     });
 
@@ -214,27 +247,25 @@ describe('checkAddressPosture', () => {
       [RIGHT_WRIST]: { x: 0.55, y: 0.58, confidence: 0.5 },
     });
 
-    // Threshold 0.6 excludes all joints → both checks skipped → true
+    // Threshold 0.6 excludes all joints → all checks skipped → true
     const strict = checkAddressPosture(pose, 0.6);
     expect(strict.isAddressPosture).toBe(true);
 
-    // Threshold 0.4 includes all → proper address check → true
+    // Threshold 0.4 includes all → proper checks → true
     const lenient = checkAddressPosture(pose, 0.4);
     expect(lenient.isAddressPosture).toBe(true);
     expect(lenient.reason).toContain('wrists near hips');
   });
 
-  // ── Asymmetric / partial joints ──
+  // ── Multiple failing reasons ──
 
-  it('works with one shoulder and one hip', () => {
-    const pose = makeAddressPose({
-      [RIGHT_SHOULDER]: { confidence: 0.1 },
-      [LEFT_HIP]: { confidence: 0.1 },
-    });
+  it('reports all failing reasons when multiple checks fail', () => {
+    const result = checkAddressPosture(makeFollowThroughPose());
 
-    // Uses left shoulder (x=0.55) and right hip (x=0.50) → xOffset=0.05 ✓
-    // Uses left shoulder (y=0.30) and right hip (y=0.60) → threshold=0.525, wrists at 0.58 ✓
-    const result = checkAddressPosture(pose);
-    expect(result.isAddressPosture).toBe(true);
+    expect(result.isAddressPosture).toBe(false);
+    // Follow-through should fail wrist height, forward bend, and shoulder alignment
+    expect(result.reason).toContain('wrists too high');
+    expect(result.reason).toContain('too upright');
+    expect(result.reason).toContain('shoulders rotated');
   });
 });
