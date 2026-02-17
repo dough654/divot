@@ -375,16 +375,17 @@ export const useSwingClassifier = ({
     }
     previousPoseRef.current = rawPoseData;
 
-    // When still enough AND in address posture AND not already swinging, feed synthetic
-    // "address" prediction to the state machine. This keeps us in address (preventing CNN
-    // idle from resetting) until motion starts and the CNN can detect actual swing phases.
-    // The posture check prevents follow-through holds (wrists above shoulders) from
-    // triggering false address detection even though the golfer is perfectly still.
+    // When still enough AND in address posture AND currently idle, feed synthetic
+    // "address" prediction to bootstrap the idle → address transition. The CNN
+    // struggles with address detection from behind, so we use pose stillness + posture
+    // to get INTO address. Once confirmed in address, the CNN runs freely so it can
+    // detect swing phases — even when displacement is small (e.g. filming a screen).
+    // The posture check prevents follow-through holds from triggering false address.
     const isPoseBasedStill = stillCountRef.current >= STILLNESS_FRAMES;
     const postureCheck = checkAddressPosture(rawPoseData);
     const currentDetection = stateRef.current.detectionState;
     const shouldForceAddress = isPoseBasedStill && postureCheck.isAddressPosture &&
-      (currentDetection === 'idle' || currentDetection === 'address');
+      currentDetection === 'idle';
 
     const effectivePrediction = shouldForceAddress
       ? { phase: 'address' as SwingPhase, confidence: 0.9, probabilities: output.probabilities }
