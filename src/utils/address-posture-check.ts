@@ -1,12 +1,15 @@
 /**
  * Address posture validation using pose joint positions.
  *
- * Distinguishes address position from follow-through hold (or other
- * non-address still positions) by checking wrist height relative to
- * the torso midpoint (halfway between shoulders and hips).
+ * Distinguishes address position from follow-through hold by checking:
+ * 1. Wrist height — wrists must be near hip level (bottom 25% of torso)
+ * 2. Forward bend — shoulders must be offset in X from hips (spine tilt)
  *
- * At address, wrists hang at hip level — well below the torso midpoint.
- * In follow-through, wrists are up near shoulder level — above the midpoint.
+ * At address: wrists hang at hip level, torso tilted forward from hips.
+ * In follow-through: wrists are up near chest/shoulder, torso more upright.
+ *
+ * Camera is behind the golfer looking down the line, so the forward
+ * bend is visible as a horizontal (X) offset between shoulders and hips.
  *
  * Used alongside stillness detection to prevent false address triggers
  * when the golfer holds their follow-through.
@@ -28,6 +31,23 @@ const STRIDE = 3;
 /** Default minimum confidence to include a joint. */
 const DEFAULT_MIN_CONFIDENCE = 0.3;
 
+/**
+ * Wrist height threshold as a fraction of the shoulder→hip distance.
+ * 0.75 means wrists must be at least 75% of the way from shoulders to hips
+ * (i.e., in the bottom quarter of the torso, near hip level).
+ */
+const WRIST_HEIGHT_RATIO = 0.75;
+
+/**
+ * Minimum absolute X offset between shoulders and hips for forward bend
+ * detection (normalized coordinates). At address, the golfer tilts forward
+ * from the hips so shoulders shift horizontally relative to hips.
+ * 0.03 = 3% of frame width — visible spine tilt but forgiving of noise.
+ */
+const MIN_FORWARD_BEND_X = 0.03;
+
+type JointCoords = { x: number; y: number };
+
 export type AddressPostureResult = {
   /** Whether the pose looks like a plausible address position. */
   isAddressPosture: boolean;
@@ -36,18 +56,18 @@ export type AddressPostureResult = {
 };
 
 /**
- * Extract a joint's Y coordinate and confidence from the pose array.
+ * Extract a joint's X, Y coordinates from the pose array.
  * Returns null if confidence is below threshold.
  */
-const getJointY = (
+const getJoint = (
   poseData: readonly number[],
   jointIndex: number,
   minConfidence: number,
-): number | null => {
+): JointCoords | null => {
   const offset = jointIndex * STRIDE;
   const confidence = poseData[offset + 2];
   if (confidence < minConfidence) return null;
-  return poseData[offset + 1]; // y coordinate
+  return { x: poseData[offset], y: poseData[offset + 1] };
 };
 
 /** Average an array of numbers, or return null if empty. */
@@ -57,16 +77,20 @@ const avg = (values: number[]): number | null =>
 /**
  * Check whether the current pose is a plausible address position.
  *
- * Computes the torso midpoint (average of shoulder Y and hip Y) and
- * checks that wrists are below it (greater Y in screen coordinates).
- * At address, wrists hang at hip level — well below midpoint. In a
- * follow-through hold, wrists are near shoulder level — above midpoint.
+ * Two conditions must both pass:
  *
- * Falls back gracefully:
- * - If hips are missing, uses shoulders only (original check).
- * - If shoulders are missing but hips available, uses hips only.
- * - If neither shoulders nor hips are tracked, returns true (don't block).
- * - If wrists aren't tracked, returns true (don't block).
+ * 1. **Wrists near hip level**: Wrists must be in the bottom 25% of the
+ *    torso (between 75% and 100% of the shoulder→hip distance). At address,
+ *    arms hang down with wrists at hip level. In follow-through, wrists
+ *    are up at chest/shoulder height.
+ *
+ * 2. **Forward bend**: Shoulders must have a meaningful horizontal (X)
+ *    offset from hips. At address, the golfer tilts forward from the hips
+ *    so shoulders are displaced toward the ball. In follow-through, the
+ *    torso is more upright with shoulders roughly above hips.
+ *
+ * Either check is skipped when its required joints are missing (falls back
+ * to true for that check — doesn't block address detection).
  *
  * @param poseData - 72-element array (24 joints x 3: x, y, confidence)
  * @param minConfidence - Minimum joint confidence to include (default 0.3)
@@ -75,62 +99,64 @@ export const checkAddressPosture = (
   poseData: readonly number[],
   minConfidence: number = DEFAULT_MIN_CONFIDENCE,
 ): AddressPostureResult => {
-  // Collect confident joint Y values
-  const shoulderYValues: number[] = [];
-  const leftShoulderY = getJointY(poseData, JOINT.leftShoulder, minConfidence);
-  if (leftShoulderY !== null) shoulderYValues.push(leftShoulderY);
-  const rightShoulderY = getJointY(poseData, JOINT.rightShoulder, minConfidence);
-  if (rightShoulderY !== null) shoulderYValues.push(rightShoulderY);
+  // Extract confident joints
+  const leftShoulder = getJoint(poseData, JOINT.leftShoulder, minConfidence);
+  const rightShoulder = getJoint(poseData, JOINT.rightShoulder, minConfidence);
+  const leftHip = getJoint(poseData, JOINT.leftHip, minConfidence);
+  const rightHip = getJoint(poseData, JOINT.rightHip, minConfidence);
+  const leftWrist = getJoint(poseData, JOINT.leftWrist, minConfidence);
+  const rightWrist = getJoint(poseData, JOINT.rightWrist, minConfidence);
 
-  const hipYValues: number[] = [];
-  const leftHipY = getJointY(poseData, JOINT.leftHip, minConfidence);
-  if (leftHipY !== null) hipYValues.push(leftHipY);
-  const rightHipY = getJointY(poseData, JOINT.rightHip, minConfidence);
-  if (rightHipY !== null) hipYValues.push(rightHipY);
+  const shoulderXValues = [leftShoulder, rightShoulder].filter(Boolean).map(j => j!.x);
+  const shoulderYValues = [leftShoulder, rightShoulder].filter(Boolean).map(j => j!.y);
+  const hipXValues = [leftHip, rightHip].filter(Boolean).map(j => j!.x);
+  const hipYValues = [leftHip, rightHip].filter(Boolean).map(j => j!.y);
+  const wristYValues = [leftWrist, rightWrist].filter(Boolean).map(j => j!.y);
 
-  const wristYValues: number[] = [];
-  const leftWristY = getJointY(poseData, JOINT.leftWrist, minConfidence);
-  if (leftWristY !== null) wristYValues.push(leftWristY);
-  const rightWristY = getJointY(poseData, JOINT.rightWrist, minConfidence);
-  if (rightWristY !== null) wristYValues.push(rightWristY);
-
-  // Need at least one wrist to check
-  if (wristYValues.length === 0) {
-    return { isAddressPosture: true, reason: 'insufficient joints (no wrists)' };
-  }
-
+  const avgShoulderX = avg(shoulderXValues);
   const avgShoulderY = avg(shoulderYValues);
+  const avgHipX = avg(hipXValues);
   const avgHipY = avg(hipYValues);
-  const avgWristY = avg(wristYValues)!; // guaranteed non-null from check above
+  const avgWristY = avg(wristYValues);
 
-  // Compute the reference Y threshold — the torso midpoint between shoulders and hips.
-  // Screen coordinates: Y increases downward.
-  let referenceY: number | null = null;
-  let referenceLabel: string;
+  // ── Check 1: Wrists near hip level ──
+  let wristsLow = true; // default: don't block if we can't check
+  let wristReason = 'no wrist/torso data';
 
-  if (avgShoulderY !== null && avgHipY !== null) {
-    // Both available — use midpoint of torso
-    referenceY = (avgShoulderY + avgHipY) / 2;
-    referenceLabel = 'torso midpoint';
-  } else if (avgShoulderY !== null) {
-    // Hips missing — fall back to shoulders only
-    referenceY = avgShoulderY;
-    referenceLabel = 'shoulders';
-  } else if (avgHipY !== null) {
-    // Shoulders missing — fall back to hips only
-    referenceY = avgHipY;
-    referenceLabel = 'hips';
-  } else {
-    return { isAddressPosture: true, reason: 'insufficient joints (no torso)' };
+  if (avgWristY !== null && avgShoulderY !== null && avgHipY !== null) {
+    // Screen coords: Y increases downward. Threshold is 75% of the way from shoulders to hips.
+    const torsoHeight = avgHipY - avgShoulderY;
+    const wristThresholdY = avgShoulderY + WRIST_HEIGHT_RATIO * torsoHeight;
+    wristsLow = avgWristY > wristThresholdY;
+    wristReason = wristsLow
+      ? `wrists near hips (wristY=${avgWristY.toFixed(3)} threshold=${wristThresholdY.toFixed(3)})`
+      : `wrists too high (wristY=${avgWristY.toFixed(3)} threshold=${wristThresholdY.toFixed(3)})`;
+  } else if (avgWristY !== null && avgHipY !== null) {
+    // No shoulders — check wrists are at or below hip level
+    wristsLow = avgWristY >= avgHipY;
+    wristReason = wristsLow ? 'wrists at/below hips' : 'wrists above hips';
   }
 
-  // Wrists must be below (greater Y) the reference point
-  if (avgWristY > referenceY) {
-    return { isAddressPosture: true, reason: `wrists below ${referenceLabel}` };
+  // ── Check 2: Forward bend (shoulder-hip X offset) ──
+  let hasBend = true; // default: don't block if we can't check
+  let bendReason = 'no shoulder/hip X data';
+
+  if (avgShoulderX !== null && avgHipX !== null) {
+    const xOffset = Math.abs(avgShoulderX - avgHipX);
+    hasBend = xOffset >= MIN_FORWARD_BEND_X;
+    bendReason = hasBend
+      ? `forward bend detected (xOffset=${xOffset.toFixed(3)})`
+      : `too upright (xOffset=${xOffset.toFixed(3)})`;
   }
 
-  return {
-    isAddressPosture: false,
-    reason: `wrists above ${referenceLabel} (wristY=${avgWristY.toFixed(3)} ref=${referenceY.toFixed(3)})`,
-  };
+  // Both must pass
+  const isAddressPosture = wristsLow && hasBend;
+  const reasons: string[] = [];
+  if (!wristsLow) reasons.push(wristReason);
+  if (!hasBend) reasons.push(bendReason);
+  const reason = isAddressPosture
+    ? [wristReason, bendReason].join('; ')
+    : reasons.join('; ');
+
+  return { isAddressPosture, reason };
 };
