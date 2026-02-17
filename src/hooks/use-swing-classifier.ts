@@ -444,12 +444,17 @@ export const useSwingClassifier = ({
     }
 
     // Effective prediction priority:
-    // 1. rotationSwingConfirmed → force 'backswing' (triggers address→swinging)
-    // 2. backswingDetected && !followThrough → force 'address' (prevent idle timeout)
-    // 3. shouldForceAddress (still + posture) → force 'address' (normal override)
-    // 4. else → raw CNN output
+    // 1. swinging → force 'backswing' (only cooldown timer exits swinging)
+    // 2. rotationSwingConfirmed → force 'backswing' (triggers address→swinging)
+    // 3. backswingDetected && !followThrough → force 'address' (prevent idle timeout)
+    // 4. shouldForceAddress (still + posture) → force 'address' (normal override)
+    // 5. else → raw CNN output
     let effectivePrediction: ClassifierOutput;
-    if (rotationSwingConfirmed) {
+    if (currentDetection === 'swinging') {
+      // Keep state machine in swinging — CNN can't accumulate idle frames.
+      // The cooldown timer (SWING_COOLDOWN_MS) is the sole exit path.
+      effectivePrediction = { phase: 'backswing' as SwingPhase, confidence: 0.9, probabilities: output.probabilities };
+    } else if (rotationSwingConfirmed) {
       effectivePrediction = { phase: 'backswing' as SwingPhase, confidence: 0.9, probabilities: output.probabilities };
     } else if (rotationActiveRef.current && rotationStateRef.current.backswingDetected) {
       effectivePrediction = { phase: 'address' as SwingPhase, confidence: 0.9, probabilities: output.probabilities };
