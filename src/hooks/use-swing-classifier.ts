@@ -70,7 +70,7 @@ const MIN_CONFIDENCE = 0.3;
 
 /** Frames required to confirm each transition. */
 const CONFIRMATION = {
-  address: 5,   // idle → address
+  address: 10,  // idle → address (~1s at 10Hz after stillness confirmed)
   swinging: 2,  // address → swinging (any swing phase)
   idle: 8,      // swinging → idle (forgiving — survives mid-swing misclassifications)
   timeout: 10,  // safety reset from any non-idle state

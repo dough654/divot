@@ -189,19 +189,31 @@ describe('checkAddressPosture', () => {
     expect(result.reason).toContain('too upright');
   });
 
-  // ── Graceful fallbacks ──
+  // ── Body in frame ──
 
-  it('skips wrist check when no wrists tracked', () => {
+  it('returns false when hips not in frame (too close to camera)', () => {
     const pose = makeAddressPose({
-      [LEFT_WRIST]: { confidence: 0.1 },
-      [RIGHT_WRIST]: { confidence: 0.1 },
+      [LEFT_HIP]: { confidence: 0.1 },
+      [RIGHT_HIP]: { confidence: 0.1 },
     });
 
     const result = checkAddressPosture(pose);
-    expect(result.isAddressPosture).toBe(true);
+    expect(result.isAddressPosture).toBe(false);
+    expect(result.reason).toContain('body not in frame');
   });
 
-  it('skips all checks when shoulders + hips missing', () => {
+  it('returns false when shoulders not in frame', () => {
+    const pose = makeAddressPose({
+      [LEFT_SHOULDER]: { confidence: 0.1 },
+      [RIGHT_SHOULDER]: { confidence: 0.1 },
+    });
+
+    const result = checkAddressPosture(pose);
+    expect(result.isAddressPosture).toBe(false);
+    expect(result.reason).toContain('body not in frame');
+  });
+
+  it('returns false when no torso joints detected at all', () => {
     const pose = makeAddressPose({
       [LEFT_SHOULDER]: { confidence: 0.1 },
       [RIGHT_SHOULDER]: { confidence: 0.1 },
@@ -209,6 +221,21 @@ describe('checkAddressPosture', () => {
       [RIGHT_HIP]: { confidence: 0.1 },
     });
 
+    const result = checkAddressPosture(pose);
+    expect(result.isAddressPosture).toBe(false);
+    expect(result.reason).toContain('body not in frame');
+  });
+
+  // ── Graceful fallbacks (partial joints within body-in-frame) ──
+
+  it('skips wrist check when no wrists tracked', () => {
+    const pose = makeAddressPose({
+      [LEFT_WRIST]: { confidence: 0.1 },
+      [RIGHT_WRIST]: { confidence: 0.1 },
+    });
+
+    // Body in frame (shoulders + hips present) ✓
+    // Wrist check skipped → default true
     const result = checkAddressPosture(pose);
     expect(result.isAddressPosture).toBe(true);
   });
@@ -218,43 +245,29 @@ describe('checkAddressPosture', () => {
       [RIGHT_SHOULDER]: { confidence: 0.1 },
     });
 
-    // Wrist check uses one shoulder + hips → still works
-    // Forward bend uses one shoulder X + hip X → still works
-    // Shoulder alignment skipped (need both) → passes by default
+    // Body in frame: left shoulder + hips → ✓
+    // Forward bend uses one shoulder + hips → still works
+    // Shoulder alignment skipped (need both) → default true
     const result = checkAddressPosture(pose);
     expect(result.isAddressPosture).toBe(true);
-  });
-
-  it('uses hip fallback for wrist check when shoulders missing', () => {
-    const pose = makePose({
-      [LEFT_SHOULDER]: { confidence: 0.1 },
-      [RIGHT_SHOULDER]: { confidence: 0.1 },
-      [LEFT_HIP]: { x: 0.50, y: 0.60 },
-      [RIGHT_HIP]: { x: 0.50, y: 0.60 },
-      [LEFT_WRIST]: { y: 0.40 },
-      [RIGHT_WRIST]: { y: 0.40 },
-    });
-
-    const result = checkAddressPosture(pose);
-    expect(result.isAddressPosture).toBe(false);
-    expect(result.reason).toContain('wrists above hips');
   });
 
   // ── Custom confidence threshold ──
 
   it('uses custom confidence threshold', () => {
     const pose = makeAddressPose({
-      [LEFT_SHOULDER]: { x: 0.55, y: 0.30, confidence: 0.5 },
-      [RIGHT_SHOULDER]: { x: 0.55, y: 0.30, confidence: 0.5 },
+      [LEFT_SHOULDER]: { x: 0.57, y: 0.30, confidence: 0.5 },
+      [RIGHT_SHOULDER]: { x: 0.57, y: 0.30, confidence: 0.5 },
       [LEFT_HIP]: { x: 0.50, y: 0.60, confidence: 0.5 },
       [RIGHT_HIP]: { x: 0.50, y: 0.60, confidence: 0.5 },
-      [LEFT_WRIST]: { x: 0.55, y: 0.58, confidence: 0.5 },
-      [RIGHT_WRIST]: { x: 0.55, y: 0.58, confidence: 0.5 },
+      [LEFT_WRIST]: { x: 0.57, y: 0.58, confidence: 0.5 },
+      [RIGHT_WRIST]: { x: 0.57, y: 0.58, confidence: 0.5 },
     });
 
-    // Threshold 0.6 excludes all joints → all checks skipped → true
+    // Threshold 0.6 excludes all joints → body not in frame → false
     const strict = checkAddressPosture(pose, 0.6);
-    expect(strict.isAddressPosture).toBe(true);
+    expect(strict.isAddressPosture).toBe(false);
+    expect(strict.reason).toContain('body not in frame');
 
     // Threshold 0.4 includes all → proper checks → true
     const lenient = checkAddressPosture(pose, 0.4);
