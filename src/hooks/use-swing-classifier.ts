@@ -214,12 +214,17 @@ export const nextState = (
  *  0.02 = 2% of frame dimension — forgiving of per-frame joint jitter. */
 const POSE_STILLNESS_THRESHOLD = 0.02;
 
+/** Pose displacement threshold for definite movement (normalized coordinates).
+ *  Above this = real body movement (swing, walk, fidget), hard-resets the
+ *  stillness counter so the CNN can immediately classify swing phases. */
+const POSE_MOVEMENT_THRESHOLD = 0.05;
+
 /** Still-frame count required to enter address (~10Hz → ~1.5s). */
 const STILLNESS_FRAMES = 15;
 
-/** Counter penalty per non-still frame (leaky bucket).
- *  At decay=3, one jittery frame costs 3 still frames of progress,
- *  but doesn't zero out 14 frames of accumulated evidence. */
+/** Counter penalty per non-still frame in the ambiguous zone (leaky bucket).
+ *  Displacement between STILLNESS and MOVEMENT thresholds — could be jitter
+ *  or minor fidgeting. Decay drains slowly to avoid false resets. */
 const STILLNESS_DECAY = 3;
 
 export type UseSwingClassifierOptions = {
@@ -359,8 +364,11 @@ export const useSwingClassifier = ({
       poseDisplacement = displacementResult.displacement;
       if (isPoseStill(displacementResult, POSE_STILLNESS_THRESHOLD)) {
         stillCountRef.current += 1;
+      } else if (displacementResult.jointCount >= 4 && poseDisplacement >= POSE_MOVEMENT_THRESHOLD) {
+        // Definite movement — hard reset so CNN can classify swing phases immediately
+        stillCountRef.current = 0;
       } else {
-        // Leaky bucket — occasional jittery frames don't destroy accumulated evidence
+        // Ambiguous zone (jitter or insufficient joints) — leaky decay
         stillCountRef.current = Math.max(0, stillCountRef.current - STILLNESS_DECAY);
       }
     }
