@@ -26,6 +26,7 @@ import type {
   SwingPhase,
   ClassifierOutput,
   SwingClassifierEvent,
+  SwingAnalyticsSnapshot,
 } from '@/src/types/swing-classifier';
 import {
   SWING_PHASES,
@@ -263,6 +264,8 @@ export type UseSwingClassifierReturn = {
   isModelTrained: boolean;
   /** Latest classifier output (for debug overlay). */
   classifierOutput: ClassifierOutput | null;
+  /** Snapshot of state at the most recent transition (null when no transition this frame). */
+  analyticsSnapshot: SwingAnalyticsSnapshot | null;
   /** Debug info for the overlay. */
   debugInfo: {
     phase: SwingPhase;
@@ -309,6 +312,10 @@ export const useSwingClassifier = ({
   const rotationStateRef = useRef<RotationTrackingState>({ ...INITIAL_ROTATION_STATE });
   const rotationActiveRef = useRef(false);
 
+  // Analytics snapshot refs
+  const analyticsSnapshotRef = useRef<SwingAnalyticsSnapshot | null>(null);
+  const framesInCurrentStateRef = useRef(0);
+
   // Pose-based stillness detection — immune to background motion
   const stillCountRef = useRef(0);
   const previousPoseRef = useRef<readonly number[] | null>(null);
@@ -331,6 +338,8 @@ export const useSwingClassifier = ({
       previousPoseRef.current = null;
       rotationStateRef.current = { ...INITIAL_ROTATION_STATE };
       rotationActiveRef.current = false;
+      analyticsSnapshotRef.current = null;
+      framesInCurrentStateRef.current = 0;
     }
   }, [enabled]);
 
@@ -360,6 +369,8 @@ export const useSwingClassifier = ({
     }
 
     frameCountRef.current += 1;
+    framesInCurrentStateRef.current += 1;
+    analyticsSnapshotRef.current = null;
 
     // Flatten window: (30, 16) -> Float32Array of 480
     const windowSize = DEFAULT_CLASSIFIER_CONFIG.windowSize;
@@ -490,6 +501,44 @@ export const useSwingClassifier = ({
       }
     }
 
+    // Build analytics snapshot at state transitions
+    if (newState.detectionState !== prevState.detectionState) {
+      const transitionMap: Record<string, SwingAnalyticsSnapshot['transition']> = {
+        'idle_address': 'idle_to_address',
+        'address_swinging': 'address_to_swinging',
+        'swinging_idle': 'swinging_to_idle',
+        'address_idle': 'address_to_idle',
+      };
+      const transitionKey = `${prevState.detectionState}_${newState.detectionState}`;
+      const transition = transitionMap[transitionKey];
+
+      if (transition) {
+        // Determine swing exit reason for swinging→idle transitions
+        let swingExitReason: SwingAnalyticsSnapshot['swingExitReason'] = null;
+        let swingDurationMs: number | null = null;
+        if (prevState.detectionState === 'swinging' && prevState.swingStartTimestamp) {
+          swingDurationMs = now - prevState.swingStartTimestamp;
+          // If the event is swingEnded, it was either cooldown or timeout
+          swingExitReason = event?.type === 'swingEnded' ? 'cooldown_timer' : 'timeout_reset';
+        }
+
+        analyticsSnapshotRef.current = {
+          transition,
+          timestamp: now,
+          frameCount: frameCountRef.current,
+          rotationState: { ...rotationStateRef.current },
+          stillnessFrameCount: stillCountRef.current,
+          postureCheckPassed: postureCheck.isAddressPosture,
+          cnnPhase: output.phase,
+          cnnConfidence: output.confidence,
+          swingDurationMs,
+          swingExitReason,
+          framesInPreviousState: framesInCurrentStateRef.current,
+        };
+        framesInCurrentStateRef.current = 0;
+      }
+    }
+
     stateRef.current = newState;
 
     if (__DEV__) {
@@ -556,6 +605,7 @@ export const useSwingClassifier = ({
     isSwinging: currentState.detectionState === 'swinging',
     isModelTrained: WEIGHTS_ARE_TRAINED,
     classifierOutput: currentOutput,
+    analyticsSnapshot: analyticsSnapshotRef.current,
     debugInfo: {
       phase: currentState.rawPhase,
       confidence: currentOutput?.confidence ?? 0,

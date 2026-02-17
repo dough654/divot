@@ -157,6 +157,8 @@ describe('updateRotationTracking', () => {
       backswingSign: 1,
       backswingTimestamp: t0,
       followThroughDetected: false,
+      peakAbsDelta: 0.12,
+      followThroughDelta: 0,
     };
 
     it('does not detect follow-through when delta is on same side as backswing', () => {
@@ -191,6 +193,7 @@ describe('updateRotationTracking', () => {
       const negBackswing: RotationTrackingState = {
         ...afterBackswing,
         backswingSign: -1,
+        peakAbsDelta: 0.12,
       };
       const positiveFollow = baseline + FOLLOW_THROUGH_ROTATION_THRESHOLD + 0.01;
       const result = updateRotationTracking(negBackswing, validSample(positiveFollow), t0 + 500);
@@ -267,6 +270,8 @@ describe('updateRotationTracking', () => {
         backswingSign: 1,
         backswingTimestamp: t0,
         followThroughDetected: false,
+        peakAbsDelta: 0.12,
+        followThroughDelta: 0,
       };
 
       const expired = t0 + ROTATION_TIMEOUT_MS;
@@ -283,6 +288,8 @@ describe('updateRotationTracking', () => {
         backswingSign: 1,
         backswingTimestamp: t0,
         followThroughDetected: false,
+        peakAbsDelta: 0.12,
+        followThroughDelta: 0,
       };
 
       const notExpired = t0 + ROTATION_TIMEOUT_MS - 1;
@@ -305,10 +312,61 @@ describe('updateRotationTracking', () => {
         backswingSign: 1,
         backswingTimestamp: t0,
         followThroughDetected: false,
+        peakAbsDelta: 0.12,
+        followThroughDelta: 0,
       };
       const result = updateRotationTracking(afterBackswing, invalidSample(), t0 + 100);
       expect(result.state).toBe(afterBackswing);
       expect(result.swingConfirmed).toBe(false);
+    });
+  });
+
+  describe('telemetry fields — peakAbsDelta and followThroughDelta', () => {
+    it('tracks peak absolute delta across multiple frames', () => {
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Small delta
+      const r1 = updateRotationTracking(state, validSample(baseline + 0.03), t);
+      expect(r1.state.peakAbsDelta).toBeCloseTo(0.03);
+      state = r1.state;
+      t += 100;
+
+      // Larger delta — peak should update
+      const r2 = updateRotationTracking(state, validSample(baseline + 0.12), t);
+      expect(r2.state.peakAbsDelta).toBeCloseTo(0.12);
+      state = r2.state;
+      t += 100;
+
+      // Smaller delta — peak should NOT decrease
+      const r3 = updateRotationTracking(state, validSample(baseline + 0.05), t);
+      expect(r3.state.peakAbsDelta).toBeCloseTo(0.12);
+    });
+
+    it('captures followThroughDelta at the moment follow-through is confirmed', () => {
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Backswing
+      const r1 = updateRotationTracking(state, validSample(baseline + 0.15), t);
+      expect(r1.state.backswingDetected).toBe(true);
+      expect(r1.state.followThroughDelta).toBe(0);
+      state = r1.state;
+      t += 100;
+
+      // Follow-through confirmation at |delta| = 0.10
+      const followDiff = baseline - 0.10;
+      const r2 = updateRotationTracking(state, validSample(followDiff), t);
+      expect(r2.swingConfirmed).toBe(true);
+      expect(r2.state.followThroughDelta).toBeCloseTo(0.10);
+      // peakAbsDelta should be the backswing peak (0.15 > 0.10)
+      expect(r2.state.peakAbsDelta).toBeCloseTo(0.15);
+    });
+
+    it('resets both fields when tracking restarts', () => {
+      const state = startRotationTracking(0.05);
+      expect(state.peakAbsDelta).toBe(0);
+      expect(state.followThroughDelta).toBe(0);
     });
   });
 
@@ -320,6 +378,8 @@ describe('updateRotationTracking', () => {
         backswingSign: 1,
         backswingTimestamp: t0,
         followThroughDetected: true,
+        peakAbsDelta: 0.15,
+        followThroughDelta: 0.10,
       };
 
       const r1 = updateRotationTracking(confirmed, validSample(baseline + 0.05), t0 + 100);

@@ -24,3 +24,5 @@ export * from './use-video-zoom';
 // Import directly: import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 // use-swing-classifier excluded from barrel — depends on pose detection native module
 // Import directly: import { useSwingClassifier } from '@/src/hooks/use-swing-classifier';
+// use-swing-detection-analytics excluded from barrel — depends on posthog-react-native (native dep)
+// Import directly: import { useSwingDetectionAnalytics } from '@/src/hooks/use-swing-detection-analytics';

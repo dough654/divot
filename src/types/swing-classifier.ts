@@ -1,3 +1,5 @@
+import type { RotationTrackingState } from '@/src/utils/shoulder-rotation';
+
 /** Swing phases detected by the 1D CNN classifier. */
 export type SwingPhase =
   | 'idle'
@@ -80,3 +82,30 @@ export const CLASSIFIER_JOINT_INDICES = [
 export type SwingClassifierEvent =
   | { type: 'swingStarted'; timestamp: number }
   | { type: 'swingEnded'; timestamp: number; durationMs: number };
+
+/** Snapshot captured at each state machine transition for analytics. */
+export type SwingAnalyticsSnapshot = {
+  /** Which transition occurred. */
+  transition: 'idle_to_address' | 'address_to_swinging' | 'swinging_to_idle' | 'address_to_idle';
+  /** Timestamp of the transition. */
+  timestamp: number;
+  /** Total frames processed since classifier started. */
+  frameCount: number;
+  /** Rotation tracking state at the moment of transition (cloned before reset). */
+  rotationState: RotationTrackingState | null;
+  /** Number of consecutive still frames at transition. */
+  stillnessFrameCount: number;
+  /** Whether posture check passed at transition. */
+  postureCheckPassed: boolean;
+  /** Raw CNN phase at transition time. */
+  cnnPhase: SwingPhase;
+  /** Raw CNN confidence at transition time. */
+  cnnConfidence: number;
+  /** Duration in ms if exiting swinging state, null otherwise. */
+  swingDurationMs: number | null;
+  /** How the swinging state was exited. */
+  swingExitReason: 'cooldown_timer' | 'timeout_reset' | null;
+  /** Frames spent in the state we're leaving. */
+  framesInPreviousState: number;
+};
+

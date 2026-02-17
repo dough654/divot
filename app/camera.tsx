@@ -36,6 +36,7 @@ import { useMotionDetection } from '@/src/hooks/use-motion-detection';
 import { useAudioMetering } from '@/src/hooks/use-audio-metering';
 import { useMotionSwingDetection } from '@/src/hooks/use-motion-swing-detection';
 import { useSwingClassifier } from '@/src/hooks/use-swing-classifier';
+import { useSwingDetectionAnalytics } from '@/src/hooks/use-swing-detection-analytics';
 import { usePhaseAnnouncer } from '@/src/hooks/use-phase-announcer';
 import { useSignaling } from '@/src/hooks/use-signaling';
 import { useWebRTCConnection } from '@/src/hooks/use-webrtc-connection';
@@ -166,6 +167,12 @@ export default function CameraScreen() {
         console.log('[Camera] Classifier swing ended:', durationMs, 'ms');
       }
     }, [playSwingEnd]),
+  });
+
+  // Swing detection analytics — telemetry for rotation thresholds and session health
+  useSwingDetectionAnalytics({
+    enabled: useClassifier,
+    analyticsSnapshot: classifierResult.analyticsSnapshot,
   });
 
   // Unified interface — pick from classifier or motion

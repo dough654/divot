@@ -57,6 +57,10 @@ export type RotationTrackingState = {
   backswingTimestamp: number | null;
   /** Whether follow-through was detected (swing confirmed). */
   followThroughDetected: boolean;
+  /** Running maximum of |delta from baseline| across all samples (for telemetry). */
+  peakAbsDelta: number;
+  /** |delta from baseline| at the moment follow-through was confirmed (for telemetry). */
+  followThroughDelta: number;
 };
 
 export type RotationTrackingResult = {
@@ -73,6 +77,8 @@ export const INITIAL_ROTATION_STATE: RotationTrackingState = {
   backswingSign: 0,
   backswingTimestamp: null,
   followThroughDetected: false,
+  peakAbsDelta: 0,
+  followThroughDelta: 0,
 };
 
 // ============================================
@@ -118,6 +124,8 @@ export const startRotationTracking = (baselineDiff: number): RotationTrackingSta
   backswingSign: 0,
   backswingTimestamp: null,
   followThroughDetected: false,
+  peakAbsDelta: 0,
+  followThroughDelta: 0,
 });
 
 /**
@@ -148,6 +156,10 @@ export const updateRotationTracking = (
   }
 
   const delta = sample.diff - state.baselineDiff;
+  const absDelta = Math.abs(delta);
+
+  // Track running peak |delta| for telemetry
+  const peakAbsDelta = Math.max(state.peakAbsDelta, absDelta);
 
   // Check timeout: if backswing detected but no follow-through within timeout, reset
   if (
@@ -163,31 +175,34 @@ export const updateRotationTracking = (
 
   // Phase 1: detect backswing
   if (!state.backswingDetected) {
-    if (Math.abs(delta) >= BACKSWING_ROTATION_THRESHOLD) {
+    if (absDelta >= BACKSWING_ROTATION_THRESHOLD) {
       return {
         state: {
           ...state,
           backswingDetected: true,
           backswingSign: delta > 0 ? 1 : -1,
           backswingTimestamp: timestamp,
+          peakAbsDelta,
         },
         swingConfirmed: false,
       };
     }
-    return { state, swingConfirmed: false };
+    return { state: { ...state, peakAbsDelta }, swingConfirmed: false };
   }
 
   // Phase 2: detect follow-through (opposite direction from backswing)
   const isOppositeSign = state.backswingSign > 0 ? delta < 0 : delta > 0;
-  if (isOppositeSign && Math.abs(delta) >= FOLLOW_THROUGH_ROTATION_THRESHOLD) {
+  if (isOppositeSign && absDelta >= FOLLOW_THROUGH_ROTATION_THRESHOLD) {
     return {
       state: {
         ...state,
         followThroughDetected: true,
+        peakAbsDelta,
+        followThroughDelta: absDelta,
       },
       swingConfirmed: true,
     };
   }
 
-  return { state, swingConfirmed: false };
+  return { state: { ...state, peakAbsDelta }, swingConfirmed: false };
 };
