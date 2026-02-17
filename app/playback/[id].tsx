@@ -115,7 +115,7 @@ export default function PlaybackScreen() {
         }}
       />
       <View style={styles.container}>
-        <VideoPlayer uri={clip.path} clipId={clip.id} isLandscape={isLandscape} />
+        <VideoPlayer uri={clip.path} clipId={clip.id} clipPath={clip.path} isLandscape={isLandscape} />
       </View>
     </>
   );

@@ -1,5 +1,5 @@
 import { StyleSheet, View, Text, Pressable, Image, Alert, Platform } from 'react-native';
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -8,7 +8,10 @@ import Slider from '@react-native-community/slider';
 import { DrawingOverlay } from '@/src/components/annotation/drawing-overlay';
 import { StaticAnnotationOverlay } from '@/src/components/annotation/static-annotation-overlay';
 import { DrawingToolbar } from '@/src/components/annotation/drawing-toolbar';
+import { ShaftOverlay } from '@/src/components/playback/shaft-overlay';
 import { useDrawing } from '@/src/hooks/use-drawing';
+import { useSwingAnalysis } from '@/src/hooks/use-swing-analysis';
+import { findNearestShaftFrame } from '@/src/utils/shaft-frame-lookup';
 import { captureAnnotatedFrame, saveBase64ImageToGallery } from '@/src/services/annotation/frame-capture';
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
@@ -25,6 +28,8 @@ export type VideoPlayerProps = {
   loop?: boolean;
   /** Clip ID for persisting annotations. Enables drawing when provided. */
   clipId?: string;
+  /** File path to the clip (needed for swing analysis). Falls back to uri. */
+  clipPath?: string;
   /** Whether the device is currently in landscape orientation. */
   isLandscape?: boolean;
 };
@@ -54,6 +59,7 @@ export const VideoPlayer = ({
   onPlaybackEnd,
   loop = false,
   clipId,
+  clipPath,
   isLandscape = false,
 }: VideoPlayerProps) => {
   const videoRef = useRef<Video>(null);
@@ -86,6 +92,53 @@ export const VideoPlayer = ({
 
   const drawingEnabled = !!clipId;
   const drawing = useDrawing({ clipId: clipId ?? '' });
+
+  // Swing analysis
+  const analysisEnabled = !!clipId;
+  const analysis = useSwingAnalysis({
+    clipId: clipId ?? '',
+    clipPath: clipPath ?? uri,
+  });
+  const [showShaftOverlay, setShowShaftOverlay] = useState(false);
+  const [showTracePath, setShowTracePath] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+
+  // Look up the current shaft frame based on playback position
+  const currentShaft = useMemo(() => {
+    if (!showShaftOverlay || !analysis.result) return null;
+    return findNearestShaftFrame(analysis.result.frames, position);
+  }, [showShaftOverlay, analysis.result, position]);
+
+  // Frames up to the current position (for trace path)
+  const traceFrames = useMemo(() => {
+    if (!showTracePath || !analysis.result) return [];
+    return analysis.result.frames.filter((f) => f.timestampMs <= position);
+  }, [showTracePath, analysis.result, position]);
+
+  const handleAnalyzePress = useCallback(() => {
+    if (analysis.status === 'analyzing') {
+      analysis.cancel();
+    } else if (analysis.result) {
+      // Toggle overlay visibility
+      setShowShaftOverlay((prev) => !prev);
+    } else {
+      analysis.analyze();
+    }
+  }, [analysis]);
+
+  const handleAnalyzeLongPress = useCallback(() => {
+    if (analysis.result && showShaftOverlay) {
+      setShowTracePath((prev) => !prev);
+    }
+  }, [analysis.result, showShaftOverlay]);
+
+  // Auto-show overlay when analysis completes
+  useEffect(() => {
+    if (analysis.status === 'complete' && analysis.result) {
+      setShowShaftOverlay(true);
+    }
+  }, [analysis.status]);
 
   // Auto-hide controls in landscape when playing
   const resetHideTimer = useCallback(() => {
@@ -401,6 +454,8 @@ export const VideoPlayer = ({
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
           containerSize.current = { width, height };
+          setContainerWidth(width);
+          setContainerHeight(height);
         }}
       >
         <Video
@@ -438,6 +493,19 @@ export const VideoPlayer = ({
             onLineStart={drawing.startLine}
             onLineMove={drawing.addPoint}
             onLineEnd={drawing.endLine}
+          />
+        )}
+
+        {/* Shaft detection overlay */}
+        {showShaftOverlay && !isSaving && containerWidth > 0 && analysis.result && (
+          <ShaftOverlay
+            currentShaft={currentShaft}
+            allShaftResults={traceFrames}
+            showTracePath={showTracePath}
+            containerWidth={containerWidth}
+            containerHeight={containerHeight}
+            videoWidth={analysis.result.analysisResolution.width}
+            videoHeight={analysis.result.analysisResolution.height}
           />
         )}
 
@@ -498,6 +566,23 @@ export const VideoPlayer = ({
           </View>
         )}
 
+        {/* Analysis progress overlay */}
+        {analysis.status === 'analyzing' && (
+          <View style={themedStyles.analysisOverlay}>
+            <Text style={themedStyles.analysisText}>
+              analyzing... {Math.round(analysis.progress * 100)}%
+            </Text>
+            <Pressable
+              style={themedStyles.analysisCancelButton}
+              onPress={analysis.cancel}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel analysis"
+            >
+              <Text style={themedStyles.analysisCancelText}>cancel</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Landscape overlay controls */}
         {controlsOverlay && controlsVisible && (
           <View style={themedStyles.controlsOverlay}>
@@ -544,6 +629,21 @@ export const VideoPlayer = ({
                   accessibilityState={{ selected: isDrawMode }}
                 >
                   <Ionicons name="pencil" size={18} color={isDrawMode ? theme.colors.text : '#fff'} />
+                </Pressable>
+              )}
+              {analysisEnabled && (
+                <Pressable
+                  style={[themedStyles.drawButton, showShaftOverlay && themedStyles.drawButtonActive]}
+                  onPress={handleAnalyzePress}
+                  onLongPress={handleAnalyzeLongPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={analysis.result ? 'Toggle shaft overlay' : 'Analyze swing'}
+                >
+                  <Ionicons
+                    name="analytics-outline"
+                    size={18}
+                    color={showShaftOverlay ? theme.colors.text : '#fff'}
+                  />
                 </Pressable>
               )}
             </View>
@@ -642,6 +742,25 @@ export const VideoPlayer = ({
                   name="pencil"
                   size={18}
                   color={isDrawMode ? theme.colors.text : theme.colors.textTertiary}
+                />
+              </Pressable>
+            )}
+            {analysisEnabled && (
+              <Pressable
+                style={[
+                  themedStyles.drawButton,
+                  showShaftOverlay && themedStyles.drawButtonActive,
+                ]}
+                onPress={handleAnalyzePress}
+                onLongPress={handleAnalyzeLongPress}
+                accessibilityRole="button"
+                accessibilityLabel={analysis.result ? 'Toggle shaft overlay' : 'Analyze swing'}
+                accessibilityHint={analysis.result ? 'Show or hide the club shaft tracking' : 'Analyze the swing to detect club shaft positions'}
+              >
+                <Ionicons
+                  name="analytics-outline"
+                  size={18}
+                  color={showShaftOverlay ? theme.colors.text : theme.colors.textTertiary}
                 />
               </Pressable>
             )}
@@ -820,5 +939,31 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontFamily: theme.fontFamily.bodySemiBold,
     color: theme.colors.text,
     fontSize: 15,
+  },
+  analysisOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  analysisText: {
+    fontFamily: theme.fontFamily.mono,
+    color: '#fff',
+    fontSize: 15,
+    textTransform: 'lowercase' as const,
+    fontVariant: ['tabular-nums' as const],
+  },
+  analysisCancelButton: {
+    marginTop: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: theme.borderRadius.sm,
+  },
+  analysisCancelText: {
+    fontFamily: theme.fontFamily.bodySemiBold,
+    color: '#fff',
+    fontSize: 13,
+    textTransform: 'lowercase' as const,
   },
 }));

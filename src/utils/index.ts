@@ -17,3 +17,5 @@ export * from './pose-stillness';
 export * from './address-posture-check';
 export * from './auth-validation';
 export * from './shoulder-rotation';
+export * from './shaft-frame-lookup';
+export * from './contain-rect';

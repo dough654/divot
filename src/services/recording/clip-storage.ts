@@ -3,6 +3,7 @@ import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Clip, ClipMetadata } from '@/src/types/recording';
 import { deleteAnnotations } from '@/src/services/annotation/annotation-storage';
+import { deleteAnalysis } from '@/src/services/analysis/analysis-storage';
 import { removeClipFromSession } from '@/src/services/session/session-storage';
 
 const CLIPS_DIR_NAME = 'clips';
@@ -166,8 +167,9 @@ export const deleteClip = async (clipId: string): Promise<boolean> => {
     console.error('Failed to delete clip file:', err);
   }
 
-  // Delete associated annotations
+  // Delete associated annotations and analysis
   deleteAnnotations(clipId);
+  deleteAnalysis(clipId);
 
   // Remove from any session
   await removeClipFromSession(clipId);
@@ -258,6 +260,7 @@ export const clearAllClips = async (): Promise<void> => {
       console.error('Failed to delete clip file:', err);
     }
     deleteAnnotations(clip.id);
+    deleteAnalysis(clip.id);
   }
 
   // Clear metadata
