@@ -34,6 +34,13 @@ import {
 } from '@/src/types/swing-classifier';
 import { computePoseDisplacement, isPoseStill } from '@/src/utils/pose-stillness';
 import { checkAddressPosture } from '@/src/utils/address-posture-check';
+import {
+  computeShoulderDiff,
+  startRotationTracking,
+  updateRotationTracking,
+  INITIAL_ROTATION_STATE,
+  type RotationTrackingState,
+} from '@/src/utils/shoulder-rotation';
 
 // ============================================
 // DEBUG LOGGING
@@ -298,10 +305,9 @@ export const useSwingClassifier = ({
   const frameCountRef = useRef(0);
   const windowFilledRef = useRef(false);
 
-  // Latch: once CNN sees a swing phase while in address, override stays off
-  // for the rest of that address session. Prevents flickering between address
-  // override and CNN predictions that resets the confirmation counter.
-  const swingSeenInAddressRef = useRef(false);
+  // Shoulder rotation tracking for two-phase swing detection
+  const rotationStateRef = useRef<RotationTrackingState>({ ...INITIAL_ROTATION_STATE });
+  const rotationActiveRef = useRef(false);
 
   // Pose-based stillness detection — immune to background motion
   const stillCountRef = useRef(0);
@@ -323,7 +329,8 @@ export const useSwingClassifier = ({
       windowFilledRef.current = false;
       stillCountRef.current = 0;
       previousPoseRef.current = null;
-      swingSeenInAddressRef.current = false;
+      rotationStateRef.current = { ...INITIAL_ROTATION_STATE };
+      rotationActiveRef.current = false;
     }
   }, [enabled]);
 
@@ -389,35 +396,68 @@ export const useSwingClassifier = ({
 
     // Pose-based address override: the CNN struggles with address detection from
     // behind, so we use stillness + posture to force address predictions.
-    //
-    // In idle: override bootstraps us INTO address.
-    // In address: override keeps us stable against CNN "idle" noise. But once the
-    //   CNN sees ANY swing phase, a latch disables the override for the rest of
-    //   this address session. Without the latch, the override flickers on/off each
-    //   frame (CNN predicts swing → off, CNN predicts idle → on), resetting the
-    //   confirmation counter and preventing the 2-consecutive-swing-frames needed
-    //   to transition to swinging.
-    // In swinging: no override — CNN runs freely.
+    // No latch — always override in idle and address when still + posture OK.
+    // Shoulder rotation tracking handles the address→swinging transition instead.
     const isPoseBasedStill = stillCountRef.current >= STILLNESS_FRAMES;
     const postureCheck = checkAddressPosture(rawPoseData);
     const currentDetection = stateRef.current.detectionState;
 
-    // Latch: once CNN sees a swing phase in address, stop overriding permanently
-    const cnnPredictsSwing = isSwingPhase(output.phase) && output.confidence >= MIN_CONFIDENCE;
-    if (currentDetection === 'address' && cnnPredictsSwing) {
-      swingSeenInAddressRef.current = true;
-    }
-    // Reset latch when we leave address
-    if (currentDetection !== 'address') {
-      swingSeenInAddressRef.current = false;
-    }
-
     const shouldForceAddress = isPoseBasedStill && postureCheck.isAddressPosture &&
-      (currentDetection === 'idle' || (currentDetection === 'address' && !swingSeenInAddressRef.current));
+      (currentDetection === 'idle' || currentDetection === 'address');
 
-    const effectivePrediction = shouldForceAddress
-      ? { phase: 'address' as SwingPhase, confidence: 0.9, probabilities: output.probabilities }
-      : output;
+    // Shoulder rotation tracking: start when entering address, update each frame
+    const shoulderSample = computeShoulderDiff(rawPoseData);
+
+    // Start tracking when we first enter address
+    if (currentDetection === 'address' && !rotationActiveRef.current) {
+      rotationStateRef.current = startRotationTracking(shoulderSample.diff);
+      rotationActiveRef.current = true;
+    }
+
+    // Reset tracking when we leave address (back to idle or forward to swinging)
+    if (currentDetection !== 'address') {
+      rotationActiveRef.current = false;
+      rotationStateRef.current = { ...INITIAL_ROTATION_STATE };
+    }
+
+    // Update rotation tracking each frame while in address
+    let rotationSwingConfirmed = false;
+    if (rotationActiveRef.current) {
+      const now = Date.now();
+      const rotResult = updateRotationTracking(rotationStateRef.current, shoulderSample, now);
+      rotationStateRef.current = rotResult.state;
+      rotationSwingConfirmed = rotResult.swingConfirmed;
+    }
+
+    if (__DEV__ && currentDetection === 'address') {
+      const rotState = rotationStateRef.current;
+      const relDiff = shoulderSample.valid
+        ? (shoulderSample.diff - rotState.baselineDiff).toFixed(4)
+        : 'N/A';
+      const bsTag = rotState.backswingDetected ? 'BS' : '--';
+      console.log(
+        `[SwingClassifier] ADDR frame: [${bsTag}] relDiff=${relDiff}` +
+        ` | cnn=${output.phase} conf=${(output.confidence * 100).toFixed(0)}%` +
+        ` | still=${stillCountRef.current} posture=${postureCheck.isAddressPosture}` +
+        ` | pending=${stateRef.current.pendingState} confirm=${stateRef.current.confirmCount}`,
+      );
+    }
+
+    // Effective prediction priority:
+    // 1. rotationSwingConfirmed → force 'backswing' (triggers address→swinging)
+    // 2. backswingDetected && !followThrough → force 'address' (prevent idle timeout)
+    // 3. shouldForceAddress (still + posture) → force 'address' (normal override)
+    // 4. else → raw CNN output
+    let effectivePrediction: ClassifierOutput;
+    if (rotationSwingConfirmed) {
+      effectivePrediction = { phase: 'backswing' as SwingPhase, confidence: 0.9, probabilities: output.probabilities };
+    } else if (rotationActiveRef.current && rotationStateRef.current.backswingDetected) {
+      effectivePrediction = { phase: 'address' as SwingPhase, confidence: 0.9, probabilities: output.probabilities };
+    } else if (shouldForceAddress) {
+      effectivePrediction = { phase: 'address' as SwingPhase, confidence: 0.9, probabilities: output.probabilities };
+    } else {
+      effectivePrediction = output;
+    }
 
     // Run state machine
     const now = Date.now();
