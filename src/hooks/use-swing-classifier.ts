@@ -119,11 +119,11 @@ const INITIAL_STATE: StateMachineState = {
  * Pure state machine transition function.
  *
  * Collapses the CNN's 7-phase output into 3 detection states:
- *   idle → address (5 frames) → swinging (2 frames) → idle (8 frames)
+ *   idle → address (10 frames) → swinging (2 frames) → idle
  *
- * Mid-swing phase changes (backswing→downswing→impact etc.) are ignored —
- * all count as "swinging". A stray idle prediction during a swing won't
- * reset unless 8 consecutive idle frames are seen.
+ * The primary exit from swinging is stillness-based (handled in the hook
+ * effect, not here). The CNN idle exit (8 frames) and timeout (10 frames)
+ * remain as fallback paths.
  */
 export const nextState = (
   state: StateMachineState,
@@ -222,6 +222,20 @@ const POSE_MOVEMENT_THRESHOLD = 0.05;
 
 /** Still-frame count required to enter address (~10Hz → ~1.5s). */
 const STILLNESS_FRAMES = 15;
+
+/** Minimum time in swinging state before allowing stillness-based exit (ms).
+ *  Prevents exiting on a brief pause mid-swing. A full swing + follow-through
+ *  hold takes at least 2-3 seconds. */
+const MIN_SWING_DURATION_MS = 3000;
+
+/** Maximum time in swinging state before forcing exit (ms).
+ *  Safety valve — if stillness never returns (golfer walks away, detection
+ *  lost), force reset so the system doesn't get stuck in swinging forever. */
+const MAX_SWING_DURATION_MS = 15000;
+
+/** Still-frame count required to exit swinging (~10Hz → ~0.5s).
+ *  Shorter than address entry — we just need to know motion stopped. */
+const SWING_EXIT_STILLNESS = 5;
 
 /** Counter penalty per non-still frame in the ambiguous zone (leaky bucket).
  *  Displacement between STILLNESS and MOVEMENT thresholds — could be jitter
@@ -416,7 +430,36 @@ export const useSwingClassifier = ({
     // Run state machine
     const now = Date.now();
     const prevState = stateRef.current;
-    const { state: newState, event } = nextState(prevState, effectivePrediction, now);
+    let { state: newState, event } = nextState(prevState, effectivePrediction, now);
+
+    // Stillness-based exit from swinging: once the golfer stops moving after
+    // a minimum swing duration, reset to idle. The CNN's idle prediction is
+    // unreliable, so we use the same pose stillness mechanism that drives
+    // address detection. The recording post-roll handles clip completion
+    // independently — this just cycles the state machine for the next swing.
+    if (newState.detectionState === 'swinging' && newState.swingStartTimestamp) {
+      const swingDuration = now - newState.swingStartTimestamp;
+      const stillnessExit = swingDuration >= MIN_SWING_DURATION_MS &&
+        stillCountRef.current >= SWING_EXIT_STILLNESS;
+      const timeoutExit = swingDuration >= MAX_SWING_DURATION_MS;
+
+      if (stillnessExit || timeoutExit) {
+        if (__DEV__) {
+          const reason = timeoutExit ? 'TIMEOUT' : 'STILLNESS';
+          console.log(
+            `[SwingClassifier] ${reason} EXIT: swinging → idle after ${swingDuration}ms` +
+            ` | still=${stillCountRef.current}/${SWING_EXIT_STILLNESS}`,
+          );
+        }
+        event = {
+          type: 'swingEnded',
+          timestamp: now,
+          durationMs: swingDuration,
+        };
+        newState = { ...INITIAL_STATE, rawPhase: newState.rawPhase };
+      }
+    }
+
     stateRef.current = newState;
 
     if (__DEV__) {
