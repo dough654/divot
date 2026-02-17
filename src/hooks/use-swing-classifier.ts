@@ -33,6 +33,7 @@ import {
   CLASSIFIER_JOINT_INDICES,
 } from '@/src/types/swing-classifier';
 import { computePoseDisplacement, isPoseStill } from '@/src/utils/pose-stillness';
+import { checkAddressPosture } from '@/src/utils/address-posture-check';
 
 // ============================================
 // DEBUG LOGGING
@@ -374,12 +375,15 @@ export const useSwingClassifier = ({
     }
     previousPoseRef.current = rawPoseData;
 
-    // When still enough AND not already swinging, feed synthetic "address" prediction
-    // to the state machine. This keeps us in address (preventing CNN idle from resetting)
-    // until motion starts and the CNN can detect actual swing phases.
+    // When still enough AND in address posture AND not already swinging, feed synthetic
+    // "address" prediction to the state machine. This keeps us in address (preventing CNN
+    // idle from resetting) until motion starts and the CNN can detect actual swing phases.
+    // The posture check prevents follow-through holds (wrists above shoulders) from
+    // triggering false address detection even though the golfer is perfectly still.
     const isPoseBasedStill = stillCountRef.current >= STILLNESS_FRAMES;
+    const postureCheck = checkAddressPosture(rawPoseData);
     const currentDetection = stateRef.current.detectionState;
-    const shouldForceAddress = isPoseBasedStill &&
+    const shouldForceAddress = isPoseBasedStill && postureCheck.isAddressPosture &&
       (currentDetection === 'idle' || currentDetection === 'address');
 
     const effectivePrediction = shouldForceAddress
@@ -393,7 +397,8 @@ export const useSwingClassifier = ({
     stateRef.current = newState;
 
     if (__DEV__) {
-      const motionTag = shouldForceAddress ? ` [POSE→addr still=${stillCountRef.current}]` : '';
+      const postureTag = postureCheck.isAddressPosture ? '' : ` [posture:${postureCheck.reason}]`;
+      const motionTag = shouldForceAddress ? ` [POSE→addr still=${stillCountRef.current}]` : postureTag;
 
       // Log state transitions
       if (newState.detectionState !== prevState.detectionState) {
