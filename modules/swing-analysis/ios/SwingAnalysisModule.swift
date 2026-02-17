@@ -11,11 +11,7 @@ public class SwingAnalysisModule: Module {
 
         Events("onAnalysisProgress")
 
-        AsyncFunction("analyzeClip") { [weak self] (filePath: String, clipId: String) -> [String: Any] in
-            guard let self else {
-                throw AnalysisError.cancelled
-            }
-
+        AsyncFunction("analyzeClip") { (filePath: String, clipId: String) -> [String: Any] in
             logger.info("analyzeClip called: clipId=\(clipId), path=\(filePath)")
 
             // Normalize path to URL
