@@ -1,0 +1,35 @@
+{
+  "name": "divot-api",
+  "version": "1.0.0",
+  "description": "Divot API server — Hono + Turso + Drizzle",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "fly:deploy": "fly deploy",
+    "fly:logs": "fly logs"
+  },
+  "dependencies": {
+    "@clerk/backend": "^1.21.0",
+    "@hono/node-server": "^1.13.0",
+    "@libsql/client": "^0.14.0",
+    "drizzle-orm": "^0.38.0",
+    "hono": "^4.7.0",
+    "ulidx": "^2.4.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "drizzle-kit": "^0.30.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
