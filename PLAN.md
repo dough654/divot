@@ -1,4 +1,4 @@
-# SwingLink AI - Implementation Plan
+# Divot AI - Implementation Plan
 
 ## Overview
 P2P video streaming app for golfers using React Native + Expo. Two devices connect directly: one acts as the camera (filming the swing), the other as the viewer (coach or self-review).
@@ -30,7 +30,7 @@ P2P video streaming app for golfers using React Native + Expo. Two devices conne
 ## Project Structure
 
 ```
-swing-app/
+divot/
 ├── app/                          # Expo Router screens
 │   ├── _layout.tsx               # Root layout
 │   ├── index.tsx                 # Home (role selection)
@@ -152,7 +152,7 @@ CAMERA DEVICE                              VIEWER DEVICE
 **Goal**: Working app shell with camera preview
 
 1. **Scaffold project**
-   - `npx create-expo-app@latest swing-app --template tabs`
+   - `npx create-expo-app@latest divot --template tabs`
    - Install: `react-native-webrtc`, `@config-plugins/react-native-webrtc`, `expo-dev-client`, `socket.io-client`
    - Also: `react-native-zeroconf`, `expo-camera`, `react-native-qrcode-svg`
    - Configure `app.config.ts` with WebRTC plugin
@@ -320,8 +320,8 @@ CAMERA DEVICE                              VIEWER DEVICE
 
 ```bash
 # Initial setup (mobile app)
-npx create-expo-app@latest swing-app --template tabs
-cd swing-app
+npx create-expo-app@latest divot --template tabs
+cd divot
 npx expo install react-native-webrtc @config-plugins/react-native-webrtc
 npx expo install expo-dev-client socket.io-client
 npx expo install react-native-zeroconf expo-camera react-native-qrcode-svg
@@ -337,7 +337,7 @@ npx eas build --platform ios --profile development
 npx expo start --dev-client
 
 # Install APK on Android
-adb install path/to/swinglink.apk
+adb install path/to/divot.apk
 
 # Signaling server setup
 cd server

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-  namespace = "com.swinglink.posedetection"
+  namespace = "com.divotgolf.posedetection"
   compileSdk = 35
 
   defaultConfig {

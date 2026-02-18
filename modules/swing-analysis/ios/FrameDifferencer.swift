@@ -1,7 +1,7 @@
 import CoreGraphics
 import os.log
 
-private let logger = Logger(subsystem: "com.swinglink.analysis", category: "FrameDifferencer")
+private let logger = Logger(subsystem: "com.divotgolf.analysis", category: "FrameDifferencer")
 
 /// Computes motion masks by differencing consecutive grayscale frames.
 final class FrameDifferencer {

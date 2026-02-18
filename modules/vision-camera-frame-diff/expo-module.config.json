@@ -4,6 +4,6 @@
     "modules": ["VisionCameraFrameDiffModule"]
   },
   "android": {
-    "modules": ["com.swinglink.framediff.VisionCameraFrameDiffModule"]
+    "modules": ["com.divotgolf.framediff.VisionCameraFrameDiffModule"]
   }
 }

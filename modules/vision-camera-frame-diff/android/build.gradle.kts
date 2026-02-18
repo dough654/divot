@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-  namespace = "com.swinglink.framediff"
+  namespace = "com.divotgolf.framediff"
   compileSdk = 35
 
   defaultConfig {

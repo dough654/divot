@@ -18,7 +18,7 @@ import VisionCamera
 class PoseDetectorPlugin: FrameProcessorPlugin {
 
   private let detector = MediaPipePoseDetector()
-  private let detectionQueue = DispatchQueue(label: "com.swinglink.posedetection", qos: .userInitiated)
+  private let detectionQueue = DispatchQueue(label: "com.divotgolf.posedetection", qos: .userInitiated)
   private var detectionInProgress = false
 
   // Thread-safe storage for latest pose result.

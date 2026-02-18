@@ -2,7 +2,7 @@ import CoreMedia
 import Foundation
 import os.log
 
-private let logger = Logger(subsystem: "com.swinglink.analysis", category: "ShaftDetectionPipeline")
+private let logger = Logger(subsystem: "com.divotgolf.analysis", category: "ShaftDetectionPipeline")
 
 /// Result dictionary keys matching the TypeScript SwingAnalysisResult type.
 typealias AnalysisResultDict = [String: Any]

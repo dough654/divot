@@ -1,6 +1,6 @@
-# SwingLink Documentation
+# Divot Documentation
 
-Technical documentation for SwingLink's architecture, design decisions, and subsystems.
+Technical documentation for Divot's architecture, design decisions, and subsystems.
 
 ## Architecture
 

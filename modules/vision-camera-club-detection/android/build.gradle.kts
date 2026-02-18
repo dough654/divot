@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-  namespace = "com.swinglink.clubdetection"
+  namespace = "com.divotgolf.clubdetection"
   compileSdk = 35
 
   defaultConfig {

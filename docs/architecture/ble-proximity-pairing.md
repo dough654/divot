@@ -46,7 +46,7 @@ The key insight: **tiers 1-3 all start the same way from the user's perspective*
 **Viewer side:**
 
 1. User opens viewer screen
-2. App starts BLE scanning for nearby SwingLink cameras
+2. App starts BLE scanning for nearby Divot cameras
 3. Nearby devices appear as tappable cards above the QR viewfinder:
 
 ```
@@ -198,7 +198,7 @@ BLE advertisements are limited in size (~31 bytes legacy, larger with extended a
 
 | Field | Size | Description |
 |-------|------|-------------|
-| Service UUID | 2 bytes | 16-bit SwingLink service identifier |
+| Service UUID | 2 bytes | 16-bit Divot service identifier |
 | Platform | 1 byte | `0x01` = iOS, `0x02` = Android |
 | Room code | 6 bytes | ASCII room code characters |
 | Flags | 1 byte | Version, status bits |
@@ -212,15 +212,15 @@ BLE advertisements are limited in size (~31 bytes legacy, larger with extended a
 
 ### Native Modules Required
 
-**iOS — `SwingLinkBLE` + `SwingLinkMultipeer`:**
+**iOS — `DivotBLE` + `DivotMultipeer`:**
 
-- `SwingLinkBLE`: CoreBluetooth — BLE advertising and scanning (shared cross-platform behavior)
-- `SwingLinkMultipeer`: MultipeerConnectivity — P2P WiFi session for same-platform signaling relay
+- `DivotBLE`: CoreBluetooth — BLE advertising and scanning (shared cross-platform behavior)
+- `DivotMultipeer`: MultipeerConnectivity — P2P WiFi session for same-platform signaling relay
 
-**Android — `SwingLinkBLE` + `SwingLinkWifiDirect`:**
+**Android — `DivotBLE` + `DivotWifiDirect`:**
 
-- `SwingLinkBLE`: Android BLE API — advertising and scanning (mirrors iOS BLE module behavior)
-- `SwingLinkWifiDirect`: Wi-Fi P2P API — direct WiFi for same-platform signaling relay
+- `DivotBLE`: Android BLE API — advertising and scanning (mirrors iOS BLE module behavior)
+- `DivotWifiDirect`: Wi-Fi P2P API — direct WiFi for same-platform signaling relay
 
 The BLE module can share a common JS interface across platforms. The P2P WiFi modules are platform-specific but implement the same `SignalingChannel` interface on the JS side.
 
@@ -262,7 +262,7 @@ Refactor the existing signaling into a `SignalingChannel` interface without chan
 
 Add BLE advertising (camera) and scanning (viewer) with a cross-platform native module. No P2P WiFi yet — tapping a discovered device just auto-joins via the signaling server using the room code from BLE.
 
-- Build `SwingLinkBLE` native module (iOS + Android)
+- Build `DivotBLE` native module (iOS + Android)
 - Build `useBLEDiscovery` hook
 - Update viewer screen: nearby devices list above QR scanner
 - Update camera screen: BLE advertising on mount
@@ -273,7 +273,7 @@ Add BLE advertising (camera) and scanning (viewer) with a cross-platform native 
 
 Add Multipeer Connectivity for iOS ↔ iOS connections. This enables fully offline pairing.
 
-- Build `SwingLinkMultipeer` native module
+- Build `DivotMultipeer` native module
 - Build `useP2PSignaling` hook (iOS implementation)
 - Build `useAutoConnect` orchestrator that picks server vs P2P based on platform
 - Test offline scenario on two iOS devices
@@ -282,7 +282,7 @@ Add Multipeer Connectivity for iOS ↔ iOS connections. This enables fully offli
 
 Same as Phase 3, but with Wi-Fi Direct for Android ↔ Android.
 
-- Build `SwingLinkWifiDirect` native module
+- Build `DivotWifiDirect` native module
 - Extend `useP2PSignaling` hook with Android implementation
 - Test offline scenario on two Android devices
 

@@ -4,6 +4,6 @@
     "modules": ["VisionCameraClubDetectionModule"]
   },
   "android": {
-    "modules": ["com.swinglink.clubdetection.VisionCameraClubDetectionModule"]
+    "modules": ["com.divotgolf.clubdetection.VisionCameraClubDetectionModule"]
   }
 }

@@ -1,11 +1,11 @@
-# SwingLink MVP Scope
+# Divot MVP Scope
 
 > Approved: 2026-02-06
 > Status: Draft
 
 ## Product Vision
 
-SwingLink is a P2P video streaming app for golfers. Two devices connect directly — one films the swing, the other displays the live feed for a coach or self-review. Record, replay, annotate, and auto-detect swings without cloud infrastructure or third-party video services.
+Divot is a P2P video streaming app for golfers. Two devices connect directly — one films the swing, the other displays the live feed for a coach or self-review. Record, replay, annotate, and auto-detect swings without cloud infrastructure or third-party video services.
 
 **Core differentiator**: Real-time P2P streaming between two devices at the range. No upload-then-review workflow. No cloud dependency for the core experience.
 

@@ -7,9 +7,9 @@ Pod::Spec.new do |s|
   s.version        = '0.1.0'
   s.summary        = 'Bridges VisionCamera frames into a WebRTC video track'
   s.description    = 'Native Expo module that forwards VisionCamera frame processor frames to a WebRTC RTCVideoSource, enabling real-time P2P video streaming without crossing the JS bridge.'
-  s.homepage       = 'https://github.com/swinglink/swing-app'
+  s.homepage       = 'https://github.com/divotgolf/divot'
   s.license        = 'MIT'
-  s.author         = 'SwingLink'
+  s.author         = 'Divot'
   s.source         = { git: '' }
   s.platform       = :ios, '15.1'
   s.swift_version  = '5.9'

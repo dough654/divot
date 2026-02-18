@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["DivotBLEModule"]
+  },
+  "android": {
+    "modules": ["com.divotgolf.ble.DivotBLEModule"]
+  }
+}

@@ -4,6 +4,6 @@
     "modules": ["VisionCameraWebRTCBridgeModule"]
   },
   "android": {
-    "modules": ["com.swinglink.visioncamerawebrtcbridge.VisionCameraWebRTCBridgeModule"]
+    "modules": ["com.divotgolf.visioncamerawebrtcbridge.VisionCameraWebRTCBridgeModule"]
   }
 }

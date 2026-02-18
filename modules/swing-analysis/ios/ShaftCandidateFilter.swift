@@ -1,7 +1,7 @@
 import Foundation
 import os.log
 
-private let logger = Logger(subsystem: "com.swinglink.analysis", category: "ShaftCandidateFilter")
+private let logger = Logger(subsystem: "com.divotgolf.analysis", category: "ShaftCandidateFilter")
 
 /// Result of selecting the best shaft candidate from connected components.
 struct ShaftLineResult {

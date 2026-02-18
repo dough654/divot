@@ -1,13 +1,13 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
-import { SwingLinkMultipeerModule } from '@/modules/swinglink-multipeer/src';
-import { SwingLinkWifiDirectModule } from '@/modules/swinglink-wifi-direct/src';
-import type { MultipeerState, SignalingMessage, P2PInvitation } from '@/modules/swinglink-multipeer/src';
+import { DivotMultipeerModule } from '@/modules/divot-multipeer/src';
+import { DivotWifiDirectModule } from '@/modules/divot-wifi-direct/src';
+import type { MultipeerState, SignalingMessage, P2PInvitation } from '@/modules/divot-multipeer/src';
 import type { SignalingChannel, IceCandidateInfo } from '@/src/types';
 
 const nativeModule = Platform.OS === 'ios'
-  ? SwingLinkMultipeerModule
-  : SwingLinkWifiDirectModule;
+  ? DivotMultipeerModule
+  : DivotWifiDirectModule;
 
 const VIEWER_TIMEOUT_MS = 25_000;
 

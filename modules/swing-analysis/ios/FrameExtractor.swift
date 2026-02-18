@@ -2,7 +2,7 @@ import AVFoundation
 import CoreMedia
 import os.log
 
-private let logger = Logger(subsystem: "com.swinglink.analysis", category: "FrameExtractor")
+private let logger = Logger(subsystem: "com.divotgolf.analysis", category: "FrameExtractor")
 
 /// Extracts individual frames from a video file at precise timestamps.
 final class FrameExtractor {

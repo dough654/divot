@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform, PermissionsAndroid } from 'react-native';
-import { SwingLinkBLEModule } from '../../modules/swinglink-ble';
-import type { DiscoveredDevice } from '../../modules/swinglink-ble';
+import { DivotBLEModule } from '../../modules/divot-ble';
+import type { DiscoveredDevice } from '../../modules/divot-ble';
 
 export type BLEPermissionStatus = 'unknown' | 'granted' | 'denied';
 
@@ -35,7 +35,7 @@ export type UseBLEScanningResult = {
 
 // Expo SDK 52+ — requireNativeModule() returns an object that IS an EventEmitter.
 // Using RN's NativeEventEmitter with an Expo module would silently drop all events.
-const bleModule = SwingLinkBLEModule as unknown as {
+const bleModule = DivotBLEModule as unknown as {
   addListener: (eventName: string, listener: (...args: any[]) => void) => { remove: () => void };
   startAdvertising: (roomCode: string) => void;
   stopAdvertising: () => void;

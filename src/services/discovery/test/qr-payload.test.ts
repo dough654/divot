@@ -70,7 +70,7 @@ describe('encodeQRPayload', () => {
 });
 
 describe('decodeQRPayload', () => {
-  it('returns null for strings without SWINGLINK prefix', () => {
+  it('returns null for strings without DIVOT prefix', () => {
     expect(decodeQRPayload('random-string')).toBeNull();
     expect(decodeQRPayload('http://example.com')).toBeNull();
     expect(decodeQRPayload('')).toBeNull();
@@ -199,7 +199,7 @@ describe('isValidDivotQR', () => {
     expect(isValidDivotQR('https://example.com')).toBe(false);
   });
 
-  it('returns false for malformed SWINGLINK strings', () => {
+  it('returns false for malformed DIVOT strings', () => {
     expect(isValidDivotQR('DIVOT:')).toBe(false);
     expect(isValidDivotQR('DIVOT:invalid')).toBe(false);
   });

@@ -3,9 +3,9 @@ Pod::Spec.new do |s|
   s.version        = '0.2.0'
   s.summary        = 'On-device pose detection via VisionCamera frame processor'
   s.description    = 'Native Expo module that runs MediaPipe Pose Landmarker on VisionCamera frames and returns a flat array of 24 joint positions.'
-  s.homepage       = 'https://github.com/swinglink/swing-app'
+  s.homepage       = 'https://github.com/divotgolf/divot'
   s.license        = 'MIT'
-  s.author         = 'SwingLink'
+  s.author         = 'Divot'
   s.source         = { git: '' }
   s.platform       = :ios, '15.1'
   s.swift_version  = '5.9'

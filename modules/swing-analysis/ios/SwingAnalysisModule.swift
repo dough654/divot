@@ -1,7 +1,7 @@
 import ExpoModulesCore
 import os.log
 
-private let logger = Logger(subsystem: "com.swinglink.analysis", category: "SwingAnalysisModule")
+private let logger = Logger(subsystem: "com.divotgolf.analysis", category: "SwingAnalysisModule")
 
 public class SwingAnalysisModule: Module {
     private var currentPipeline: ShaftDetectionPipeline?

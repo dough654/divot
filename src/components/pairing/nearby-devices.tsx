@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useThemedStyles, makeThemedStyles } from '../../hooks';
 import type { Theme } from '../../context';
-import type { DiscoveredDevice } from '../../../modules/swinglink-ble';
+import type { DiscoveredDevice } from '../../../modules/divot-ble';
 
 export type NearbyDevicesProps = {
   /** Discovered BLE devices sorted by signal strength. */

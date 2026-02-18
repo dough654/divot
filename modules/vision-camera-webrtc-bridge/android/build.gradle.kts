@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-  namespace = "com.swinglink.visioncamerawebrtcbridge"
+  namespace = "com.divotgolf.visioncamerawebrtcbridge"
   compileSdk = 35
 
   defaultConfig {

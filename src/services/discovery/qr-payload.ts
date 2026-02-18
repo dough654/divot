@@ -58,7 +58,7 @@ const decodeBase64 = (str: string): string => {
 
 /**
  * Encodes a QR code payload into a string for display.
- * Format: SWINGLINK:<base64-encoded-json>
+ * Format: DIVOT:<base64-encoded-json>
  */
 export const encodeQRPayload = (payload: QRCodePayload): string => {
   const data = {

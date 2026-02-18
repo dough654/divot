@@ -4,6 +4,6 @@
     "modules": ["VisionCameraPoseDetectionModule"]
   },
   "android": {
-    "modules": ["com.swinglink.posedetection.VisionCameraPoseDetectionModule"]
+    "modules": ["com.divotgolf.posedetection.VisionCameraPoseDetectionModule"]
   }
 }

@@ -35,8 +35,8 @@ graph TB
     end
 
     subgraph "Native Modules"
-        MPC[swinglink-multipeer<br/><i>iOS MultipeerConnectivity</i>]
-        WD[swinglink-wifi-direct<br/><i>Android Wi-Fi Direct</i>]
+        MPC[divot-multipeer<br/><i>iOS MultipeerConnectivity</i>]
+        WD[divot-wifi-direct<br/><i>Android Wi-Fi Direct</i>]
     end
 
     SERVER[Signaling Server<br/><i>Fly.io · Socket.IO</i>]
@@ -378,7 +378,7 @@ graph TD
     C --> D["createGroup()<br/>→ become Group Owner"]
     D --> E["TcpSignalingServer.start()<br/>on background thread"]
     E --> F["ServerSocket(0)<br/>binds to ephemeral port"]
-    F --> G["ServiceRegistrar.registerService()<br/>DNS-SD: _swinglink-sig._tcp"]
+    F --> G["ServiceRegistrar.registerService()<br/>DNS-SD: _divot-sig._tcp"]
     G --> H["accept() blocks<br/>waiting for viewer"]
     H --> I["Viewer connects<br/>read hello frame"]
     I --> J["Clear soTimeout<br/>(handshake done)"]

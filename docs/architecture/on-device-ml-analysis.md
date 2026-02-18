@@ -4,7 +4,7 @@ Real-time and post-swing analysis using on-device ML models for pose estimation,
 
 ## Problem
 
-SwingLink streams live video between two devices, but the video is passive — users get no automated feedback about their swing. Golfers currently need a coach or trained eye to spot issues like poor posture, incorrect club path, or timing problems. We can add meaningful analysis using models that run directly on the phone.
+Divot streams live video between two devices, but the video is passive — users get no automated feedback about their swing. Golfers currently need a coach or trained eye to spot issues like poor posture, incorrect club path, or timing problems. We can add meaningful analysis using models that run directly on the phone.
 
 ## Design Principles
 

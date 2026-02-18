@@ -29,7 +29,7 @@ import { resolveNetworkTransport } from '@/src/utils';
 import { getBannerDismissed, setBannerDismissed } from '@/src/utils/ble-banner-storage';
 import type { ConnectionStep } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
-import type { DiscoveredDevice } from '@/modules/swinglink-ble';
+import type { DiscoveredDevice } from '@/modules/divot-ble';
 import type { RecoveryAction } from '@/src/utils/error-messages';
 
 export default function ViewerScreen() {

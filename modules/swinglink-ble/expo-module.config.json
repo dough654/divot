@@ -1,9 +1,0 @@
-{
-  "platforms": ["ios", "android"],
-  "ios": {
-    "modules": ["SwingLinkBLEModule"]
-  },
-  "android": {
-    "modules": ["com.swinglink.ble.SwingLinkBLEModule"]
-  }
-}

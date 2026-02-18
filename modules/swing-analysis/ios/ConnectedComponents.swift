@@ -1,6 +1,6 @@
 import os.log
 
-private let logger = Logger(subsystem: "com.swinglink.analysis", category: "ConnectedComponents")
+private let logger = Logger(subsystem: "com.divotgolf.analysis", category: "ConnectedComponents")
 
 /// A connected region of pixels in a binary mask.
 struct Component {

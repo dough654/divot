@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { useP2PSignaling } from './use-p2p-signaling';
-import type { P2PInvitation } from '@/modules/swinglink-multipeer/src';
+import type { P2PInvitation } from '@/modules/divot-multipeer/src';
 import type { SignalingChannel } from '@/src/types';
 
 type UseAutoConnectOptions = {

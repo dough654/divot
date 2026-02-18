@@ -1,6 +1,6 @@
 # P2P Signaling & Server Fallback
 
-WebRTC requires an out-of-band signaling channel to exchange SDP offers/answers and ICE candidates before a media connection can be established. SwingLink supports two signaling transports: **peer-to-peer** (via platform-native frameworks) and **server-relayed** (via Socket.IO). The app automatically selects the best transport and falls back to the server if P2P fails.
+WebRTC requires an out-of-band signaling channel to exchange SDP offers/answers and ICE candidates before a media connection can be established. Divot supports two signaling transports: **peer-to-peer** (via platform-native frameworks) and **server-relayed** (via Socket.IO). The app automatically selects the best transport and falls back to the server if P2P fails.
 
 ## Why Two Transports
 
@@ -31,7 +31,7 @@ type SignalingChannel = {
 
 ## Native Module Interface
 
-Both platform modules (`swinglink-multipeer` on iOS, `swinglink-wifi-direct` on Android) expose the same 5-function, 4-event interface. They're loaded via `requireOptionalNativeModule` and return `null` on the wrong platform or in Expo Go.
+Both platform modules (`divot-multipeer` on iOS, `divot-wifi-direct` on Android) expose the same 5-function, 4-event interface. They're loaded via `requireOptionalNativeModule` and return `null` on the wrong platform or in Expo Go.
 
 ```typescript
 // Identical shape for both modules
@@ -55,8 +55,8 @@ At module scope in `use-p2p-signaling.ts`, the correct module is selected once:
 
 ```typescript
 const nativeModule = Platform.OS === 'ios'
-  ? SwingLinkMultipeerModule
-  : SwingLinkWifiDirectModule;
+  ? DivotMultipeerModule
+  : DivotWifiDirectModule;
 ```
 
 This is a module-level constant — it never changes at runtime and doesn't appear in React dependency arrays.
@@ -176,7 +176,7 @@ The server path uses Socket.IO to relay signaling messages through a lightweight
 
 ### Server URL
 
-Configured via environment variable, defaults to `https://swinglink-signaling.fly.dev`. Socket.IO transports: `['polling', 'websocket']` — polling first for NAT/firewall compatibility.
+Configured via environment variable, defaults to `https://divot-signaling.fly.dev`. Socket.IO transports: `['polling', 'websocket']` — polling first for NAT/firewall compatibility.
 
 ## How Screens Wire It Together
 
@@ -227,7 +227,7 @@ Key interaction: once a transport is locked, auto-reconnection only operates on 
 
 | Case | Behavior |
 |------|----------|
-| Both devices are Android but Wi-Fi is off | `SwingLinkWifiDirectModule` returns `null` or fails discovery → P2P times out → server fallback |
+| Both devices are Android but Wi-Fi is off | `DivotWifiDirectModule` returns `null` or fails discovery → P2P times out → server fallback |
 | Android Location permission denied | Wi-Fi Direct peer discovery won't work → P2P times out → server fallback |
 | Camera on P2P, viewer joins late | Camera is already advertising; viewer starts browsing, finds camera, connects |
 | P2P connected but native channel drops | `onPeerDisconnected` fires → `useAutoReconnect` handles via Scenario A (ICE restart/renegotiation) |
@@ -243,8 +243,8 @@ Key interaction: once a transport is locked, auto-reconnection only operates on 
 | `src/hooks/use-signaling.ts` | Wraps Socket.IO client into a `SignalingChannel` |
 | `src/hooks/use-auto-connect.ts` | Transport selection orchestrator |
 | `src/hooks/use-webrtc-connection.ts` | Consumes `SignalingChannel`, manages `RTCPeerConnection` |
-| `modules/swinglink-multipeer/` | iOS native module (MultipeerConnectivity) |
-| `modules/swinglink-wifi-direct/` | Android native module (Wi-Fi Direct) |
+| `modules/divot-multipeer/` | iOS native module (MultipeerConnectivity) |
+| `modules/divot-wifi-direct/` | Android native module (Wi-Fi Direct) |
 | `server/src/index.ts` | Signaling relay server (~130 lines) |
 | `app/camera.tsx` | Camera screen integration |
 | `app/viewer.tsx` | Viewer screen integration |
