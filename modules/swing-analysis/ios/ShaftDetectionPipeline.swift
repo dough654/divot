@@ -32,11 +32,12 @@ final class ShaftDetectionPipeline {
     func run(clipId: String) throws -> AnalysisResultDict {
         let startTime = CFAbsoluteTimeGetCurrent()
         let totalFrames = extractor.totalFrames
-        let analysisSize = extractor.analysisSize
-        let imageWidth = Int(analysisSize.width)
-        let imageHeight = Int(analysisSize.height)
 
-        logger.info("Starting pipeline: \(totalFrames) frames, \(imageWidth)x\(imageHeight)")
+        // Track actual frame dimensions (may differ from target analysisSize)
+        var imageWidth = 0
+        var imageHeight = 0
+
+        logger.info("Starting pipeline: \(totalFrames) frames")
 
         differencer.reset()
         candidateFilter.reset()
@@ -61,6 +62,15 @@ final class ShaftDetectionPipeline {
                 continue
             }
 
+            // Use actual CGImage dimensions (maximumSize is a hint, not exact)
+            let frameWidth = cgImage.width
+            let frameHeight = cgImage.height
+            if imageWidth == 0 {
+                imageWidth = frameWidth
+                imageHeight = frameHeight
+                logger.info("Actual frame size: \(frameWidth)x\(frameHeight)")
+            }
+
             let timestampMs = CMTimeGetSeconds(actualTime) * 1000.0
 
             // Convert to grayscale
@@ -71,11 +81,11 @@ final class ShaftDetectionPipeline {
                 continue
             }
 
-            // Find connected components
+            // Find connected components using actual frame dimensions
             let components = componentFinder.find(
                 mask: motionMask,
-                width: imageWidth,
-                height: imageHeight
+                width: frameWidth,
+                height: frameHeight
             )
 
             if components.isEmpty { continue }
@@ -87,8 +97,8 @@ final class ShaftDetectionPipeline {
             guard let shaft = candidateFilter.selectBest(
                 components: components,
                 moments: moments,
-                imageWidth: imageWidth,
-                imageHeight: imageHeight
+                imageWidth: frameWidth,
+                imageHeight: frameHeight
             ) else { continue }
 
             let frameResult: [String: Any] = [
