@@ -62,7 +62,7 @@ export default function HomeScreen() {
     >
       <View style={styles.topBar}>
         <Text style={styles.brandMark}>
-          Swing<Text style={styles.brandAccent}>link</Text>
+          div<Text style={styles.brandAccent}>ot</Text>
         </Text>
         <Text style={styles.versionText}>v1.0</Text>
       </View>
