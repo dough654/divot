@@ -7,6 +7,7 @@ loadEnv({ path: '.env.local' });
 export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'Divot',
   slug: 'divot',
+  owner: 'dough654',
   version: '1.0.0',
   orientation: 'default',
   icon: './assets/images/icon.png',
@@ -105,7 +106,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     appEnv: process.env.APP_ENV || 'development',
     posthogApiKey: process.env.POSTHOG_API_KEY || '',
     eas: {
-      projectId: '35da25d9-0965-4058-8a6e-cfe1a9a385d1',
+      projectId: '3fb2e8fb-96ba-4e3c-9b18-f66d7bd227c4',
     },
   },
 });
