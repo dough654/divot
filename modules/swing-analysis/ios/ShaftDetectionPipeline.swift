@@ -11,7 +11,7 @@ typealias AnalysisResultDict = [String: Any]
 final class ShaftDetectionPipeline {
     private let extractor: FrameExtractor
     private let differencer = FrameDifferencer()
-    private let componentFinder = ConnectedComponents(minArea: 20)
+    private let componentFinder = ConnectedComponents(minArea: 10)
     private let momentCalculator = ImageMoments()
     private let candidateFilter = ShaftCandidateFilter()
 
@@ -76,8 +76,8 @@ final class ShaftDetectionPipeline {
             // Convert to grayscale
             let grayscale = differencer.toGrayscale(cgImage)
 
-            // Compute motion mask (nil on first frame)
-            guard let motionMask = differencer.computeMotionMask(grayscale) else {
+            // Compute motion mask (nil until at least one previous frame)
+            guard let motionMask = differencer.computeMotionMask(grayscale, width: frameWidth, height: frameHeight) else {
                 continue
             }
 

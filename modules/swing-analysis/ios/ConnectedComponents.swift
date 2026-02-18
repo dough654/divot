@@ -15,7 +15,7 @@ final class ConnectedComponents {
     /// Minimum number of pixels for a component to be kept.
     private let minArea: Int
 
-    init(minArea: Int = 20) {
+    init(minArea: Int = 10) {
         self.minArea = minArea
     }
 

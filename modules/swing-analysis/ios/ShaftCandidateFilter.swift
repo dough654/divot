@@ -16,9 +16,9 @@ struct ShaftLineResult {
 /// Selects the best shaft-like blob from detected components and tracks it over time.
 final class ShaftCandidateFilter {
     /// Minimum elongation ratio to qualify as a shaft.
-    private let minElongation: Double = 3.0
+    private let minElongation: Double = 2.0
     /// Maximum component area as a fraction of image area.
-    private let maxAreaFraction: Double = 0.05
+    private let maxAreaFraction: Double = 0.15
     /// Scoring weight for elongation quality.
     private let elongationWeight: Double = 0.7
     /// Scoring weight for upper-frame preference (DTL camera angle).

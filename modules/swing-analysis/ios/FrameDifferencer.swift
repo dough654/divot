@@ -3,12 +3,20 @@ import os.log
 
 private let logger = Logger(subsystem: "com.divotgolf.analysis", category: "FrameDifferencer")
 
-/// Computes motion masks by differencing consecutive grayscale frames.
+/// Computes motion masks by differencing grayscale frames, with multi-frame
+/// accumulation and morphological dilation to produce coherent motion blobs.
 final class FrameDifferencer {
-    private var previousGrayscale: [UInt8]?
+    /// Ring buffer of recent grayscale frames for multi-frame accumulation.
+    private var recentFrames: [[UInt8]] = []
+
+    /// Number of previous frames to accumulate motion across.
+    private let accumulationWindow = 3
 
     /// Pixel intensity change threshold (0-255) to count as motion.
-    private let threshold: UInt8 = 30
+    private let threshold: UInt8 = 15
+
+    /// Dilation radius in pixels (connects nearby motion pixels).
+    private let dilationRadius = 2
 
     /// Converts a CGImage to a grayscale byte array using luminance weights.
     func toGrayscale(_ image: CGImage) -> [UInt8] {
@@ -46,34 +54,71 @@ final class FrameDifferencer {
         return grayscale
     }
 
-    /// Computes a binary motion mask by diffing the current grayscale frame
-    /// against the previous one. Returns nil on the first frame (no previous).
-    /// Each pixel in the result is 1 (motion) or 0 (static).
-    func computeMotionMask(_ grayscale: [UInt8]) -> [UInt8]? {
-        defer { previousGrayscale = grayscale }
+    /// Computes a binary motion mask by diffing the current frame against
+    /// recent frames (accumulating motion over a sliding window), then
+    /// dilating to connect nearby motion pixels.
+    /// Returns nil until at least one previous frame is available.
+    func computeMotionMask(_ grayscale: [UInt8], width: Int, height: Int) -> [UInt8]? {
+        defer {
+            recentFrames.append(grayscale)
+            if recentFrames.count > accumulationWindow {
+                recentFrames.removeFirst()
+            }
+        }
 
-        guard let previous = previousGrayscale else {
+        if recentFrames.isEmpty {
             return nil
         }
 
-        guard previous.count == grayscale.count else {
-            logger.warning("Frame size mismatch: \(previous.count) vs \(grayscale.count)")
-            return nil
+        let pixelCount = grayscale.count
+        var mask = [UInt8](repeating: 0, count: pixelCount)
+
+        // Accumulate: OR together diffs against each frame in the window
+        for previous in recentFrames {
+            guard previous.count == pixelCount else { continue }
+            for i in 0..<pixelCount {
+                if mask[i] != 0 { continue } // already marked
+                let diff = grayscale[i] > previous[i]
+                    ? grayscale[i] - previous[i]
+                    : previous[i] - grayscale[i]
+                if diff > threshold {
+                    mask[i] = 1
+                }
+            }
         }
 
-        var mask = [UInt8](repeating: 0, count: grayscale.count)
-        for i in 0..<grayscale.count {
-            let diff = grayscale[i] > previous[i]
-                ? grayscale[i] - previous[i]
-                : previous[i] - grayscale[i]
-            mask[i] = diff > threshold ? 1 : 0
+        // Dilate to connect nearby motion pixels
+        return dilate(mask: mask, width: width, height: height, radius: dilationRadius)
+    }
+
+    /// Simple box dilation: for each motion pixel, set all neighbors within
+    /// radius to motion.
+    private func dilate(mask: [UInt8], width: Int, height: Int, radius: Int) -> [UInt8] {
+        var dilated = [UInt8](repeating: 0, count: mask.count)
+
+        for y in 0..<height {
+            for x in 0..<width {
+                if mask[y * width + x] == 0 { continue }
+
+                // Set all pixels in the radius to 1
+                let yMin = max(0, y - radius)
+                let yMax = min(height - 1, y + radius)
+                let xMin = max(0, x - radius)
+                let xMax = min(width - 1, x + radius)
+
+                for dy in yMin...yMax {
+                    for dx in xMin...xMax {
+                        dilated[dy * width + dx] = 1
+                    }
+                }
+            }
         }
 
-        return mask
+        return dilated
     }
 
     /// Resets the differencer state (e.g., between analyses).
     func reset() {
-        previousGrayscale = nil
+        recentFrames.removeAll()
     }
 }
