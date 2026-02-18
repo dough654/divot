@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="editorial">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SwingLink Mockups</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <aside class="sidebar">
+        <div class="brand">Swing<span>Link</span> Mockups</div>
+        <p>
+          Three distinct visual directions for the core pairing + live stream flow.
+          Use the toggles to switch directions, devices, and screens.
+        </p>
+
+        <div class="control-group">
+          <h3>Direction</h3>
+          <div class="controls" id="direction-controls">
+            <button class="control-btn active" data-theme="editorial">Editorial Precision</button>
+            <button class="control-btn" data-theme="instrument">Tech Field Instrument</button>
+            <button class="control-btn" data-theme="organic">Organic Motion</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>Device</h3>
+          <div class="controls" id="device-controls">
+            <button class="control-btn active" data-device="iphone">iPhone 15/16</button>
+            <button class="control-btn" data-device="s22">Galaxy S22 Ultra</button>
+            <button class="control-btn" data-device="ipad">iPad Pro 11"</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>Screen</h3>
+          <div class="controls" id="screen-controls">
+            <button class="control-btn" data-screen="home">Home</button>
+            <button class="control-btn active" data-screen="pairing">Pairing</button>
+            <button class="control-btn" data-screen="camera">Camera</button>
+            <button class="control-btn" data-screen="viewer">Viewer</button>
+            <button class="control-btn" data-screen="status">Connection</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>Scale</h3>
+          <label class="toggle">
+            <input type="checkbox" id="scaleToggle" checked />
+            Fit to viewport (toggle for 1:1)
+          </label>
+        </div>
+      </aside>
+
+      <main class="canvas">
+        <div class="device-stage" id="deviceStage">
+          <div class="device-wrapper" id="deviceWrapper">
+            <section class="device iphone" id="deviceFrame">
+              <div class="screen hidden" data-screen="home">
+                <div class="top-bar">
+                  <div>09:24</div>
+                  <div class="chip">Signed in</div>
+                </div>
+                <div class="header">
+                  <div>
+                    <h1>SwingLink</h1>
+                    <p>P2P Golf Swing Analysis</p>
+                  </div>
+                  <div class="status-chip">Ready to connect</div>
+                </div>
+                <div class="role-list">
+                  <div class="role-item">
+                    <div class="role-icon">🎥</div>
+                    <div>
+                      <div class="role-title">Camera</div>
+                      <div class="role-desc">Film and stream</div>
+                    </div>
+                    <div class="chevron">›</div>
+                  </div>
+                  <div class="role-item">
+                    <div class="role-icon">👁</div>
+                    <div>
+                      <div class="role-title">Viewer</div>
+                      <div class="role-desc">Watch the stream</div>
+                    </div>
+                    <div class="chevron">›</div>
+                  </div>
+                  <div class="role-item">
+                    <div class="role-icon">🎞</div>
+                    <div>
+                      <div class="role-title">My Clips</div>
+                      <div class="role-desc">Recorded swings</div>
+                    </div>
+                    <div class="chevron">›</div>
+                  </div>
+                </div>
+                <div class="settings-row">
+                  <span>⚙</span>
+                  <span>Settings</span>
+                </div>
+              </div>
+              <div class="screen" data-screen="pairing">
+                <div class="top-bar">
+                  <div>09:24</div>
+                  <div class="chip">Secure P2P</div>
+                </div>
+                <div class="preview">
+                  <div class="overlay"></div>
+                  <div class="ribbon"></div>
+                  <div class="streaming-badge">Camera Preview</div>
+                </div>
+                <div class="pairing-panel">
+                <div class="header">
+                  <div>
+                    <h1>Camera setup</h1>
+                    <p>Generate a room code and let the viewer scan to connect.</p>
+                  </div>
+                  <div class="status-chip">Waiting for scan</div>
+                </div>
+                <div class="status-bar">
+                  <div class="status-icon">⟳</div>
+                  Generating session...
+                  <div class="status-quality">
+                    <span class="status-dot"></span>
+                    Local
+                  </div>
+                </div>
+                <div class="grid">
+                  <div class="qr-button">
+                    <div class="scan-box">QR Code</div>
+                    <div class="room-code">G7K‑9L</div>
+                    <div class="metric-label">Room code</div>
+                  </div>
+                  <div class="arm-card">
+                    <strong>Arm Recording</strong>
+                    <span>Preview continues while recording</span>
+                  </div>
+                  <div class="card secondary">
+                    <div class="kpi">
+                      <span>Connection</span>
+                      <strong>Waiting for viewer…</strong>
+                    </div>
+                    <div class="kpi">
+                      <span>Quality preset</span>
+                      <strong>Balanced</strong>
+                    </div>
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="btn">Show QR Code</button>
+                  <button class="btn secondary">Flip Camera</button>
+                </div>
+                </div>
+              </div>
+
+              <div class="screen hidden" data-screen="camera">
+                <div class="top-bar">
+                  <div>Camera Mode</div>
+                  <div class="chip">Connected • 31ms</div>
+                </div>
+                <div class="header">
+                  <div>
+                    <h1>Live swing capture</h1>
+                    <p>Full‑bleed preview with recording, sync, and connection status.</p>
+                  </div>
+                  <div class="status-chip">Streaming</div>
+                </div>
+                <div class="preview">
+                  <div class="overlay"></div>
+                  <div class="ribbon"></div>
+                  <div class="record-indicator">
+                    <span class="record-dot"></span>
+                    REC 00:18
+                  </div>
+                  <div class="streaming-badge">Live · Balanced</div>
+                </div>
+                <div class="record-controls">
+                  <div class="pill">Disarm</div>
+                  <div class="record-ring">
+                    <div class="record-core"></div>
+                  </div>
+                  <div class="pill">Sync Clip</div>
+                </div>
+              </div>
+
+              <div class="screen hidden" data-screen="viewer">
+                <div class="top-bar">
+                  <div>Viewer Mode</div>
+                  <div class="chip">Live • 30ms</div>
+                </div>
+                <div class="header">
+                  <div>
+                    <h1>Scan to connect</h1>
+                    <p>Use the QR scanner or enter the room code manually.</p>
+                  </div>
+                  <div class="status-chip">Scanning</div>
+                </div>
+                <div class="scanner">
+                  <div class="scan-area">
+                    <div class="scan-target">
+                      <div class="scan-corner tl"></div>
+                      <div class="scan-corner tr"></div>
+                      <div class="scan-corner bl"></div>
+                      <div class="scan-corner br"></div>
+                    </div>
+                  </div>
+                  <div class="scanner-instruction">Point at QR code to scan</div>
+                </div>
+                <div class="manual-entry">
+                  <div class="metric-label">Enter Room Code</div>
+                  <div class="code-boxes">
+                    <div class="code-box">G</div>
+                    <div class="code-box">7</div>
+                    <div class="code-box">K</div>
+                    <div class="code-box">9</div>
+                    <div class="code-box">L</div>
+                    <div class="code-box">2</div>
+                  </div>
+                  <button class="btn">Connect</button>
+                </div>
+                <div class="actions">
+                  <button class="btn secondary">Enter Code Manually</button>
+                  <button class="btn">Rescan QR</button>
+                </div>
+              </div>
+
+              <div class="screen hidden" data-screen="status">
+                <div class="top-bar">
+                  <div>Connection</div>
+                  <div class="chip">ICE: Stable</div>
+                </div>
+                <div class="header">
+                  <div>
+                    <h1>Connection status</h1>
+                    <p>Surface the same connection states and recovery actions as the app.</p>
+                  </div>
+                  <div class="status-chip">Reconnecting</div>
+                </div>
+                <div class="status-bar">
+                  <div class="status-icon">⟳</div>
+                  Reconnecting...
+                  <div class="status-quality">
+                    <span class="status-dot"></span>
+                    Fair
+                  </div>
+                </div>
+                <div class="grid">
+                  <div class="error-card">
+                    <div class="metric-label">Connection failed</div>
+                    <div class="notes">Unable to rejoin the room. Make sure both devices are on the same network.</div>
+                    <div class="actions">
+                      <button class="btn">Try Again</button>
+                      <button class="btn secondary">Enter Code</button>
+                    </div>
+                  </div>
+                  <div class="card secondary">
+                    <div class="metric">28ms</div>
+                    <div class="metric-label">Latency</div>
+                    <div class="notes">Live stats from ConnectionStatus + quality hook.</div>
+                  </div>
+                  <div class="card">
+                    <div class="metric">4.6 Mbps</div>
+                    <div class="metric-label">Bitrate</div>
+                    <div class="notes">Adaptive bitrate tuned for motion clarity.</div>
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="btn secondary">Troubleshoot</button>
+                  <button class="btn">Reconnect</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const html = document.documentElement;
+      const directionControls = document.getElementById('direction-controls');
+      const deviceControls = document.getElementById('device-controls');
+      const screenControls = document.getElementById('screen-controls');
+      const deviceFrame = document.getElementById('deviceFrame');
+      const deviceWrapper = document.getElementById('deviceWrapper');
+      const deviceStage = document.getElementById('deviceStage');
+      const scaleToggle = document.getElementById('scaleToggle');
+
+      const setActive = (container, target) => {
+        [...container.querySelectorAll('.control-btn')].forEach(btn => btn.classList.remove('active'));
+        target.classList.add('active');
+      };
+
+      directionControls.addEventListener('click', event => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        setActive(directionControls, button);
+        html.setAttribute('data-theme', button.dataset.theme);
+      });
+
+      deviceControls.addEventListener('click', event => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        setActive(deviceControls, button);
+        deviceFrame.className = `device ${button.dataset.device}`;
+        updateScale();
+      });
+
+      screenControls.addEventListener('click', event => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        setActive(screenControls, button);
+        const target = button.dataset.screen;
+        document.querySelectorAll('.screen').forEach(screen => {
+          screen.classList.toggle('hidden', screen.dataset.screen !== target);
+        });
+      });
+
+      const updateScale = () => {
+        if (!scaleToggle.checked) {
+          deviceWrapper.style.transform = 'scale(1)';
+          return;
+        }
+        const stage = deviceStage.getBoundingClientRect();
+        const frame = deviceFrame.getBoundingClientRect();
+        const scale = Math.min(stage.width / frame.width, stage.height / frame.height, 1);
+        deviceWrapper.style.transform = `scale(${scale})`;
+      };
+
+      scaleToggle.addEventListener('change', updateScale);
+      window.addEventListener('resize', updateScale);
+      updateScale();
+    </script>
+  </body>
+</html>

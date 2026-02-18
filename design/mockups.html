@@ -1,0 +1,2136 @@
+<!DOCTYPE html>
+<html lang="en" data-concept="cadence" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SwingLink — Experimental Design Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700&family=Unbounded:wght@300;400;500;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&family=Darker+Grotesque:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: #07070a;
+  color: #e4e4e7;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at 20% 0%, rgba(232,162,59,0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(255,255,255,0.015) 0%, transparent 50%);
+  pointer-events: none; z-index: 0;
+}
+
+/* PAGE CHROME */
+.page-header {
+  position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  background: rgba(7,7,10,0.85);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 16px 32px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+}
+.page-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+.page-title span { opacity: 0.4; font-weight: 400; }
+.nav-tabs {
+  display: flex; gap: 4px;
+  background: rgba(255,255,255,0.04); border-radius: 10px; padding: 3px;
+}
+.nav-tab {
+  padding: 8px 20px; border-radius: 8px; border: none;
+  background: transparent; color: #71717a;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.nav-tab:hover { color: #a1a1aa; }
+.nav-tab.active { background: rgba(255,255,255,0.1); color: #fff; }
+.controls { display: flex; align-items: center; gap: 12px; }
+.theme-toggle {
+  display: flex; gap: 2px;
+  background: rgba(255,255,255,0.04); border-radius: 8px; padding: 3px;
+}
+.theme-btn {
+  padding: 6px 14px; border-radius: 6px; border: none;
+  background: transparent; color: #71717a;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+.theme-btn.active { background: rgba(255,255,255,0.1); color: #fff; }
+.main-content {
+  position: relative; z-index: 1;
+  max-width: 1500px; margin: 0 auto; padding: 48px 32px 80px;
+}
+.concept-info { margin-bottom: 48px; max-width: 660px; }
+.concept-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 48px; font-weight: 800; letter-spacing: -0.02em;
+  margin-bottom: 12px; line-height: 1;
+}
+.concept-tagline { font-size: 15px; color: #a1a1aa; line-height: 1.7; margin-bottom: 16px; }
+.concept-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.concept-tag {
+  padding: 4px 12px; border-radius: 4px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.06);
+  font-size: 11px; color: #71717a; font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.section-header {
+  font-size: 11px; font-weight: 700; color: #52525b;
+  text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px;
+}
+.screen-gallery { margin-bottom: 64px; }
+.screen-row {
+  display: flex; gap: 32px; overflow-x: auto; padding-bottom: 16px;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.screen-item { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.screen-label {
+  font-size: 11px; font-weight: 600; color: #52525b;
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
+.device-showcase { margin-bottom: 64px; }
+.device-row {
+  display: flex; gap: 40px; align-items: flex-end;
+  justify-content: center; flex-wrap: wrap;
+}
+.device-item { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.device-label {
+  font-size: 10px; font-weight: 700; color: #3f3f46;
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
+
+/* DEVICE FRAMES */
+.phone-frame {
+  position: relative; background: #1a1a1e; border-radius: 44px; padding: 12px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 25px 80px rgba(0,0,0,0.6);
+}
+.phone-frame.iphone { width: 244px; }
+.phone-frame.galaxy { width: 240px; }
+.phone-screen { border-radius: 34px; overflow: hidden; position: relative; }
+.phone-frame.iphone .phone-screen { height: 528px; }
+.phone-frame.galaxy .phone-screen { height: 535px; }
+.phone-frame.iphone .phone-screen::before {
+  content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  width: 90px; height: 28px; background: #000; border-radius: 20px; z-index: 50;
+}
+.phone-frame.galaxy .phone-screen::before {
+  content: ''; position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  width: 10px; height: 10px; background: #000; border-radius: 50%; z-index: 50;
+}
+.tablet-frame {
+  position: relative; background: #1a1a1e; border-radius: 24px; padding: 14px; width: 380px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 25px 80px rgba(0,0,0,0.6);
+}
+.tablet-screen { border-radius: 14px; overflow: hidden; height: 506px; position: relative; }
+
+/* STATUS BAR */
+.status-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 24px 6px; font-size: 11px; font-weight: 600;
+  position: relative; z-index: 40;
+}
+
+/* VISIBILITY */
+.concept-section { display: none; }
+.concept-section.active { display: block; }
+
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+@keyframes breathe { 0%,100%{opacity:0.6} 50%{opacity:1} }
+
+/* =============================================
+   CONCEPT 1: CADENCE
+   Track-listing layout, warm blacks, amber accent.
+   Home = numbered full-width strips.
+   Camera = edge-to-edge viewfinder, floating bar.
+   Clips = horizontal filmstrip.
+   Settings = bare text, no cards.
+   ============================================= */
+
+/* --- CADENCE DARK --- */
+[data-concept="cadence"][data-theme="dark"] .sc {
+  --bg: #0C0B0F; --bg2: #14131A; --surface: #1A1922; --border: #26242E;
+  --text: #F5E6C8; --text2: #9E917A; --text3: #5C5549;
+  --accent: #E8A23B; --accent-dim: rgba(232,162,59,0.12);
+  --danger: #E8453B; --danger-dim: rgba(232,69,59,0.12);
+  --success: #5BC47A; --success-dim: rgba(91,196,122,0.1);
+  --font-d: 'Syne', sans-serif; --font-b: 'Manrope', sans-serif;
+}
+/* --- CADENCE LIGHT --- */
+[data-concept="cadence"][data-theme="light"] .sc {
+  --bg: #F9F5EE; --bg2: #EEEAE2; --surface: #FFFFFF; --border: #DDD8CE;
+  --text: #1A1614; --text2: #7A7168; --text3: #B5ADA2;
+  --accent: #C4841D; --accent-dim: rgba(196,132,29,0.08);
+  --danger: #C93B32; --danger-dim: rgba(201,59,50,0.06);
+  --success: #3A8F52; --success-dim: rgba(58,143,82,0.06);
+  --font-d: 'Syne', sans-serif; --font-b: 'Manrope', sans-serif;
+}
+
+.sc {
+  background: var(--bg); color: var(--text); font-family: var(--font-b);
+  width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+}
+.sc .status-bar { color: var(--text2); }
+
+/* CADENCE HOME */
+.sc-home .home-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 8px 20px 0;
+}
+.sc-home .home-gear { font-size: 18px; color: var(--text3); }
+.sc-home .home-brand {
+  text-align: right; font-family: var(--font-d); font-size: 11px;
+  font-weight: 700; color: var(--text3); letter-spacing: 0.06em;
+  text-transform: uppercase; line-height: 1.2;
+}
+.sc-home .home-brand em {
+  font-style: normal; display: block; color: var(--accent);
+  font-size: 10px; font-weight: 500; letter-spacing: 0.1em; opacity: 0.7;
+}
+.sc-home .strip-list {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; padding: 0 16px; gap: 8px;
+}
+.sc-home .strip {
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 16px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  position: relative; overflow: hidden;
+  transition: all 0.15s;
+}
+.sc-home .strip-num {
+  font-family: var(--font-d); font-size: 32px; font-weight: 800;
+  color: var(--text3); opacity: 0.4; line-height: 1; min-width: 36px;
+}
+.sc-home .strip-body { flex: 1; }
+.sc-home .strip-name {
+  font-family: var(--font-d); font-size: 18px; font-weight: 700;
+  color: var(--text); letter-spacing: -0.01em;
+}
+.sc-home .strip-desc {
+  font-size: 11px; color: var(--text3); margin-top: 2px; font-weight: 400;
+}
+.sc-home .strip-arrow {
+  font-size: 16px; color: var(--accent); font-weight: 700;
+}
+.sc-home .strip.active-strip {
+  border-color: var(--accent); background: var(--accent-dim);
+}
+.sc-home .strip.active-strip .strip-num { color: var(--accent); opacity: 0.6; }
+.sc-home .home-bottom {
+  padding: 12px 20px; display: flex; justify-content: center;
+}
+.sc-home .home-ver {
+  font-size: 9px; color: var(--text3); letter-spacing: 0.1em;
+  text-transform: uppercase; font-weight: 500;
+}
+
+/* CADENCE CAMERA */
+.sc-camera { position: relative; }
+.sc-camera .cam-full {
+  position: absolute; top: 42px; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(170deg, #1a2a15, #080c06, #0a1510);
+  overflow: hidden;
+}
+.sc-camera .cam-full::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 32px, rgba(255,255,255,0.015) 32px, rgba(255,255,255,0.015) 33px),
+    repeating-linear-gradient(90deg, transparent, transparent 32px, rgba(255,255,255,0.015) 32px, rgba(255,255,255,0.015) 33px);
+}
+.sc-camera .cam-pills {
+  position: absolute; top: 52px; left: 12px; right: 12px;
+  display: flex; justify-content: space-between; z-index: 10;
+}
+.sc-camera .cam-pill {
+  padding: 5px 10px; border-radius: 6px;
+  font-size: 9px; font-weight: 600; font-family: var(--font-b);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  display: flex; align-items: center; gap: 4px;
+}
+.sc-camera .cam-pill.conn {
+  background: var(--success-dim); color: var(--success);
+  border: 1px solid rgba(91,196,122,0.15);
+}
+.sc-camera .cam-pill.qual {
+  background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.8);
+}
+.sc-camera .pill-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+}
+.sc-camera .cam-flip {
+  position: absolute; bottom: 80px; right: 16px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 16px; z-index: 10;
+}
+.sc-camera .cam-float-bar {
+  position: absolute; bottom: 12px; left: 12px; right: 12px;
+  background: rgba(12,11,15,0.85); backdrop-filter: blur(16px);
+  border-radius: 14px; padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid rgba(255,255,255,0.06);
+  z-index: 10;
+}
+.sc-camera .bar-left {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.sc-camera .bar-rec {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; color: var(--danger);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.sc-camera .bar-rec-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--danger);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+.sc-camera .bar-room {
+  font-size: 9px; color: var(--text3); font-weight: 500;
+}
+.sc-camera .bar-room strong {
+  color: var(--accent); font-family: var(--font-d); letter-spacing: 2px;
+  font-weight: 700;
+}
+.sc-camera .bar-center {
+  display: flex; align-items: center; gap: 10px;
+}
+.sc-camera .bar-disarm {
+  font-size: 9px; font-weight: 600; color: var(--text2);
+  font-family: var(--font-b); text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 6px 12px;
+  background: rgba(255,255,255,0.06); border-radius: 6px;
+}
+.sc-camera .bar-rec-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid var(--danger); display: flex;
+  align-items: center; justify-content: center;
+}
+.sc-camera .bar-rec-inner {
+  width: 18px; height: 18px; border-radius: 3px; background: var(--danger);
+}
+
+/* CADENCE VIEWER */
+.sc-viewer { position: relative; }
+.sc-viewer .view-stream {
+  position: absolute; top: 42px; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(160deg, #0a0f1a, #050510, #100a1a);
+}
+.sc-viewer .view-live-pill {
+  position: absolute; top: 52px; left: 12px;
+  padding: 5px 10px; border-radius: 6px;
+  font-size: 9px; font-weight: 600; font-family: var(--font-b);
+  background: var(--success-dim); color: var(--success);
+  border: 1px solid rgba(91,196,122,0.15);
+  display: flex; align-items: center; gap: 4px; z-index: 10;
+}
+.sc-viewer .view-hd-pill {
+  position: absolute; top: 52px; right: 12px;
+  padding: 5px 10px; border-radius: 6px;
+  font-size: 9px; font-weight: 600;
+  background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.8);
+  backdrop-filter: blur(12px); z-index: 10;
+}
+.sc-viewer .view-stats {
+  position: absolute; bottom: 12px; left: 12px; right: 12px;
+  background: rgba(12,11,15,0.85); backdrop-filter: blur(16px);
+  border-radius: 12px; padding: 12px 16px;
+  border: 1px solid rgba(255,255,255,0.06); z-index: 10;
+}
+.sc-viewer .stat-row {
+  display: flex; justify-content: space-between;
+  font-size: 10px; padding: 3px 0;
+}
+.sc-viewer .stat-label { color: var(--text3); }
+.sc-viewer .stat-val { color: var(--text); font-weight: 600; }
+
+/* CADENCE CLIPS */
+.sc-clips .clips-hdr {
+  padding: 4px 20px 12px;
+  font-family: var(--font-d); font-size: 22px; font-weight: 700;
+  color: var(--text); display: flex; align-items: center; gap: 8px;
+}
+.sc-clips .clips-hdr .ba { font-size: 18px; color: var(--text3); }
+.sc-clips .clips-count {
+  font-size: 11px; font-weight: 500; color: var(--text3);
+  background: var(--accent-dim); padding: 2px 8px; border-radius: 4px;
+  font-family: var(--font-b);
+}
+.sc-clips .filmstrip {
+  padding: 0 16px; display: flex; gap: 10px; overflow: hidden;
+}
+.sc-clips .film-card {
+  width: 110px; flex-shrink: 0; background: var(--surface);
+  border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
+}
+.sc-clips .film-thumb {
+  height: 70px; background: linear-gradient(135deg, #1a1a2a, #0a0a15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: var(--text3);
+}
+.sc-clips .film-info { padding: 8px; }
+.sc-clips .film-name {
+  font-family: var(--font-d); font-size: 10px; font-weight: 700;
+  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sc-clips .film-meta { font-size: 9px; color: var(--text3); margin-top: 2px; }
+.sc-clips .film-label {
+  font-size: 9px; font-weight: 600; color: var(--text3); padding: 16px 20px 8px;
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+.sc-clips .clip-rows { padding: 0 16px; display: flex; flex-direction: column; gap: 6px; }
+.sc-clips .clip-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px;
+  background: var(--surface); border-radius: 8px; border: 1px solid var(--border);
+}
+.sc-clips .clip-row-num {
+  font-family: var(--font-d); font-size: 16px; font-weight: 800;
+  color: var(--text3); opacity: 0.4; min-width: 20px; text-align: center;
+}
+.sc-clips .clip-row-info { flex: 1; }
+.sc-clips .clip-row-name {
+  font-size: 12px; font-weight: 600; color: var(--text);
+}
+.sc-clips .clip-row-meta { font-size: 9px; color: var(--text3); margin-top: 1px; }
+.sc-clips .clip-row-menu { color: var(--text3); font-size: 14px; padding: 4px; }
+
+/* CADENCE SETTINGS */
+.sc-settings .set-hdr {
+  padding: 4px 20px 16px;
+  font-family: var(--font-d); font-size: 22px; font-weight: 700;
+  color: var(--text); display: flex; align-items: center; gap: 8px;
+}
+.sc-settings .set-hdr .ba { font-size: 18px; color: var(--text3); }
+.sc-settings .set-body { flex: 1; padding: 0 20px; }
+.sc-settings .set-section {
+  font-family: var(--font-d); font-size: 12px; font-weight: 700;
+  color: var(--accent); letter-spacing: 0.04em;
+  margin-bottom: 8px; margin-top: 16px;
+}
+.sc-settings .set-section:first-child { margin-top: 0; }
+.sc-settings .set-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.sc-settings .set-row:last-child { border-bottom: none; }
+.sc-settings .set-name { font-size: 13px; color: var(--text); font-weight: 500; }
+.sc-settings .set-desc { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.sc-settings .set-val { font-size: 11px; color: var(--text2); font-weight: 500; }
+.sc-settings .set-toggle {
+  width: 36px; height: 20px; border-radius: 10px;
+  background: var(--border); position: relative;
+}
+.sc-settings .set-toggle.on { background: var(--accent); }
+.sc-settings .set-toggle-knob {
+  width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  position: absolute; top: 2px; left: 2px;
+}
+.sc-settings .set-toggle.on .set-toggle-knob { left: 18px; }
+.sc-settings .set-themes {
+  display: flex; gap: 4px; margin-top: 6px; margin-bottom: 8px;
+}
+.sc-settings .set-theme-opt {
+  flex: 1; text-align: center; padding: 6px;
+  font-size: 10px; font-weight: 600; border-radius: 6px;
+  color: var(--text3); background: var(--bg2);
+}
+.sc-settings .set-theme-opt.active {
+  background: var(--accent); color: var(--bg);
+}
+.sc-settings .set-danger { color: var(--danger); }
+.sc-settings .set-about {
+  text-align: center; padding: 20px 0 12px;
+}
+.sc-settings .set-about-name {
+  font-family: var(--font-d); font-size: 16px; font-weight: 700; color: var(--text);
+}
+.sc-settings .set-about-ver { font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+
+/* =============================================
+   CONCEPT 2: TERRAIN
+   Outdoor-inspired, asymmetric tile grid.
+   Home = hero statement + uneven 2-col grid.
+   Camera = full screen HUD overlay.
+   Clips = large thumbnail cards.
+   Settings = flat list, wide rows.
+   ============================================= */
+
+/* --- TERRAIN DARK --- */
+[data-concept="terrain"][data-theme="dark"] .st {
+  --bg: #0A100D; --bg2: #111A14; --surface: #162018; --border: #243328;
+  --text: #E8E0D4; --text2: #9A9484; --text3: #5E5B50;
+  --accent: #7FA87F; --accent2: #D4846A; --accent-dim: rgba(127,168,127,0.1);
+  --accent2-dim: rgba(212,132,106,0.1);
+  --danger: #D4846A; --danger-dim: rgba(212,132,106,0.1);
+  --success: #7FA87F; --success-dim: rgba(127,168,127,0.1);
+  --font-d: 'Unbounded', sans-serif; --font-b: 'Nunito Sans', sans-serif;
+}
+/* --- TERRAIN LIGHT --- */
+[data-concept="terrain"][data-theme="light"] .st {
+  --bg: #F4F0EB; --bg2: #E8E3DB; --surface: #FFFFFF; --border: #D8D2C8;
+  --text: #2D2A26; --text2: #706B60; --text3: #ADA89C;
+  --accent: #5A8A5A; --accent2: #C07050; --accent-dim: rgba(90,138,90,0.08);
+  --accent2-dim: rgba(192,112,80,0.06);
+  --danger: #C07050; --danger-dim: rgba(192,112,80,0.06);
+  --success: #5A8A5A; --success-dim: rgba(90,138,90,0.06);
+  --font-d: 'Unbounded', sans-serif; --font-b: 'Nunito Sans', sans-serif;
+}
+
+.st {
+  background: var(--bg); color: var(--text); font-family: var(--font-b);
+  width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+}
+.st .status-bar { color: var(--text2); }
+
+/* TERRAIN HOME */
+.st-home .th-hero {
+  padding: 12px 20px 0;
+}
+.st-home .th-brand {
+  font-family: var(--font-d); font-size: 20px; font-weight: 800;
+  color: var(--text); letter-spacing: -0.02em; line-height: 1.1;
+}
+.st-home .th-brand small {
+  display: block; font-family: var(--font-b); font-size: 11px;
+  font-weight: 400; color: var(--text3); margin-top: 6px;
+  letter-spacing: 0; line-height: 1.4;
+}
+.st-home .th-grid {
+  flex: 1; padding: 16px; display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-rows: 1fr 1fr 0.6fr;
+  gap: 10px;
+}
+.st-home .th-tile {
+  border-radius: 14px; padding: 16px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  position: relative; overflow: hidden;
+}
+.st-home .th-tile-icon {
+  font-size: 28px; margin-bottom: 8px; opacity: 0.8;
+}
+.st-home .th-tile-name {
+  font-family: var(--font-d); font-size: 14px; font-weight: 700;
+  color: var(--text); line-height: 1;
+}
+.st-home .th-tile-desc {
+  font-size: 10px; color: var(--text2); margin-top: 3px; font-weight: 400;
+}
+.st-home .th-tile.cam {
+  grid-row: 1 / 3; background: var(--accent-dim);
+  border: 1px solid rgba(127,168,127,0.15);
+}
+.st-home .th-tile.cam .th-tile-icon { color: var(--accent); }
+.st-home .th-tile.cam::before {
+  content: ''; position: absolute; top: -20px; right: -20px;
+  width: 80px; height: 80px; border-radius: 50%;
+  background: var(--accent); opacity: 0.06;
+}
+.st-home .th-tile.view {
+  background: var(--accent2-dim); border: 1px solid rgba(212,132,106,0.15);
+}
+.st-home .th-tile.view .th-tile-icon { color: var(--accent2); }
+.st-home .th-tile.clips {
+  background: var(--surface); border: 1px solid var(--border);
+}
+.st-home .th-tile.clips .th-tile-icon { color: var(--text2); }
+.st-home .th-tile.settings {
+  grid-column: 1 / 3; background: var(--surface);
+  border: 1px solid var(--border);
+  flex-direction: row; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+}
+.st-home .th-tile.settings .th-tile-name { font-size: 12px; }
+.st-home .th-tile.settings .th-tile-arrow { color: var(--text3); font-size: 14px; }
+
+/* TERRAIN CAMERA */
+.st-camera { position: relative; }
+.st-camera .tc-view {
+  position: absolute; top: 42px; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(160deg, #142018, #080f0a, #0f1a12);
+}
+.st-camera .tc-view::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    linear-gradient(rgba(127,168,127,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(127,168,127,0.03) 1px, transparent 1px);
+  background-size: 33.33% 33.33%;
+}
+.st-camera .tc-hud-tl {
+  position: absolute; top: 54px; left: 14px; z-index: 10;
+}
+.st-camera .tc-badge {
+  padding: 5px 10px; border-radius: 8px;
+  font-size: 9px; font-weight: 600; font-family: var(--font-b);
+  display: flex; align-items: center; gap: 4px;
+}
+.st-camera .tc-badge.conn {
+  background: var(--success-dim); color: var(--success);
+  border: 1px solid rgba(127,168,127,0.15);
+}
+.st-camera .tc-hud-tr {
+  position: absolute; top: 54px; right: 14px; z-index: 10;
+}
+.st-camera .tc-badge.qual {
+  background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.8);
+  backdrop-filter: blur(8px);
+}
+.st-camera .tc-flip {
+  position: absolute; top: 90px; right: 14px; z-index: 10;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px;
+}
+.st-camera .tc-strip {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(10,16,13,0.95));
+  padding: 40px 16px 16px; z-index: 10;
+}
+.st-camera .tc-rec-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.st-camera .tc-rec-info {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 700; color: var(--danger);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.tc-rec-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--danger);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+.st-camera .tc-room {
+  font-size: 10px; color: var(--text3); font-weight: 500;
+}
+.st-camera .tc-room strong {
+  color: var(--accent); font-weight: 700; letter-spacing: 2px;
+  font-family: var(--font-d);
+}
+.st-camera .tc-controls {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+}
+.st-camera .tc-arm {
+  padding: 10px 20px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  font-family: var(--font-b);
+}
+.st-camera .tc-rec-btn {
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 3px solid var(--danger);
+  display: flex; align-items: center; justify-content: center;
+}
+.st-camera .tc-rec-inner {
+  width: 22px; height: 22px; border-radius: 4px; background: var(--danger);
+}
+
+/* TERRAIN VIEWER */
+.st-viewer { position: relative; }
+.st-viewer .tv-stream {
+  position: absolute; top: 42px; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(160deg, #0a1018, #05050f, #180a1a);
+}
+.st-viewer .tv-pill-live {
+  position: absolute; top: 54px; left: 14px; z-index: 10;
+  padding: 5px 10px; border-radius: 8px;
+  font-size: 9px; font-weight: 600;
+  background: var(--success-dim); color: var(--success);
+  border: 1px solid rgba(127,168,127,0.15);
+  display: flex; align-items: center; gap: 4px;
+}
+.st-viewer .tv-pill-hd {
+  position: absolute; top: 54px; right: 14px; z-index: 10;
+  padding: 5px 10px; border-radius: 8px;
+  font-size: 9px; font-weight: 600;
+  background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.8);
+  backdrop-filter: blur(8px);
+}
+.st-viewer .tv-stats {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(10,16,13,0.95));
+  padding: 40px 16px 16px; z-index: 10;
+  display: flex; gap: 12px;
+}
+.st-viewer .tv-stat {
+  flex: 1; background: rgba(255,255,255,0.04);
+  border-radius: 10px; padding: 10px; text-align: center;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.st-viewer .tv-stat-val {
+  font-family: var(--font-d); font-size: 16px; font-weight: 700; color: var(--text);
+}
+.st-viewer .tv-stat-label {
+  font-size: 8px; color: var(--text3); margin-top: 2px;
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+}
+
+/* TERRAIN CLIPS */
+.st-clips .tcl-hdr {
+  padding: 4px 20px 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.st-clips .tcl-hdr .ba { font-size: 16px; color: var(--text3); }
+.st-clips .tcl-title {
+  font-family: var(--font-d); font-size: 18px; font-weight: 700; color: var(--text);
+}
+.st-clips .tcl-grid {
+  flex: 1; padding: 0 14px; display: grid;
+  grid-template-columns: 1fr 1fr; gap: 10px;
+  align-content: start;
+}
+.st-clips .tcl-card {
+  background: var(--surface); border-radius: 12px;
+  overflow: hidden; border: 1px solid var(--border);
+}
+.st-clips .tcl-card-thumb {
+  height: 62px;
+  background: linear-gradient(135deg, #1a2a1a, #0a150a);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: var(--text3); position: relative;
+}
+.st-clips .tcl-card-dur {
+  position: absolute; bottom: 4px; right: 6px;
+  font-size: 9px; font-weight: 700; color: #fff;
+  background: rgba(0,0,0,0.6); padding: 1px 5px; border-radius: 3px;
+}
+.st-clips .tcl-card-info { padding: 8px 10px; }
+.st-clips .tcl-card-name {
+  font-family: var(--font-d); font-size: 10px; font-weight: 600;
+  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.st-clips .tcl-card-meta { font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+/* TERRAIN SETTINGS */
+.st-settings .ts-hdr {
+  padding: 4px 20px 12px; display: flex; align-items: center; gap: 8px;
+}
+.st-settings .ts-hdr .ba { font-size: 16px; color: var(--text3); }
+.st-settings .ts-title {
+  font-family: var(--font-d); font-size: 18px; font-weight: 700; color: var(--text);
+}
+.st-settings .ts-body { flex: 1; padding: 0 16px; }
+.st-settings .ts-section {
+  font-family: var(--font-d); font-size: 9px; font-weight: 700;
+  color: var(--accent); text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 12px 4px 6px;
+}
+.st-settings .ts-card {
+  background: var(--surface); border-radius: 12px;
+  border: 1px solid var(--border); overflow: hidden;
+}
+.st-settings .ts-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px;
+}
+.ts-row-left { display: flex; align-items: center; gap: 10px; }
+.ts-row-icon { font-size: 16px; width: 20px; text-align: center; }
+.ts-row-text {}
+.ts-row-name { font-size: 12px; color: var(--text); font-weight: 500; }
+.ts-row-desc { font-size: 9px; color: var(--text3); margin-top: 1px; }
+.ts-divider { height: 1px; background: var(--border); margin: 0 14px; }
+.ts-toggle {
+  width: 36px; height: 20px; border-radius: 10px;
+  background: var(--border); position: relative;
+}
+.ts-toggle.on { background: var(--accent); }
+.ts-toggle-knob {
+  width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  position: absolute; top: 2px; left: 2px;
+}
+.ts-toggle.on .ts-toggle-knob { left: 18px; }
+.ts-themes { display: flex; gap: 4px; padding: 4px 14px 12px; }
+.ts-theme-opt {
+  flex: 1; text-align: center; padding: 6px;
+  font-size: 10px; font-weight: 600; border-radius: 6px;
+  color: var(--text3); background: var(--bg2);
+}
+.ts-theme-opt.active { background: var(--accent); color: var(--bg); }
+.ts-arrow { font-size: 12px; color: var(--text3); }
+.ts-danger { color: var(--danger); }
+.st-settings .ts-about {
+  margin-top: 12px; text-align: center; padding: 16px;
+  background: var(--surface); border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.st-settings .ts-about-name {
+  font-family: var(--font-d); font-size: 14px; font-weight: 700; color: var(--text);
+}
+.st-settings .ts-about-ver { font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+
+/* =============================================
+   CONCEPT 3: ZERO
+   Purely typographic. No icons (almost). No cards.
+   Everything is text — size, weight, spacing.
+   Home = three massive words. Camera = bare HUD.
+   Clips = text list. Settings = text rows.
+   ============================================= */
+
+/* --- ZERO DARK --- */
+[data-concept="zero"][data-theme="dark"] .sz {
+  --bg: #000000; --bg2: #0A0A0A; --surface: #111; --border: #1A1A1A;
+  --text: #FFFFFF; --text2: #666666; --text3: #333333;
+  --accent: #2D5BFF; --accent-dim: rgba(45,91,255,0.08);
+  --danger: #FF2D2D; --danger-dim: rgba(255,45,45,0.08);
+  --success: #00CC66; --success-dim: rgba(0,204,102,0.08);
+  --font-d: 'Darker Grotesque', sans-serif; --font-b: 'Space Mono', monospace;
+}
+/* --- ZERO LIGHT --- */
+[data-concept="zero"][data-theme="light"] .sz {
+  --bg: #FFFFFF; --bg2: #F5F5F5; --surface: #FAFAFA; --border: #E5E5E5;
+  --text: #000000; --text2: #888888; --text3: #CCCCCC;
+  --accent: #1A3FCC; --accent-dim: rgba(26,63,204,0.06);
+  --danger: #CC1A1A; --danger-dim: rgba(204,26,26,0.06);
+  --success: #009950; --success-dim: rgba(0,153,80,0.06);
+  --font-d: 'Darker Grotesque', sans-serif; --font-b: 'Space Mono', monospace;
+}
+
+.sz {
+  background: var(--bg); color: var(--text); font-family: var(--font-b);
+  width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+}
+.sz .status-bar { color: var(--text2); font-family: var(--font-b); font-size: 10px; }
+
+/* ZERO HOME */
+.sz-home .zh-top {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 4px 20px 0;
+}
+.sz-home .zh-mark {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sz-home .zh-ver {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+}
+.sz-home .zh-words {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; align-items: center; gap: 0;
+  padding: 0 20px;
+}
+.sz-home .zh-word {
+  font-family: var(--font-d); font-weight: 900; text-transform: uppercase;
+  line-height: 0.85; letter-spacing: -0.04em; cursor: pointer;
+  transition: color 0.15s;
+}
+.sz-home .zh-word.w1 { font-size: 52px; color: var(--text); }
+.sz-home .zh-word.w2 { font-size: 52px; color: var(--text2); }
+.sz-home .zh-word.w3 { font-size: 52px; color: var(--text3); }
+.sz-home .zh-word:hover { color: var(--accent); }
+.sz-home .zh-gap { height: 24px; }
+.sz-home .zh-bottom {
+  padding: 12px 20px; text-align: right;
+}
+.sz-home .zh-settings {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  letter-spacing: 0; text-transform: lowercase;
+}
+
+/* ZERO CAMERA */
+.sz-camera { position: relative; }
+.sz-camera .zc-back {
+  position: absolute; top: 44px; left: 20px; z-index: 20;
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sz-camera .zc-view {
+  position: absolute; top: 60px; left: 8px; right: 8px; bottom: 68px;
+  background: #050505; border: 1px solid var(--border);
+}
+.sz-camera .zc-view::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 33.33% 33.33%;
+}
+.sz-camera .zc-conn {
+  position: absolute; top: 8px; left: 8px;
+  font-family: var(--font-b); font-size: 8px; color: var(--success);
+  text-transform: lowercase; z-index: 10;
+}
+.sz-camera .zc-qual {
+  position: absolute; top: 8px; right: 8px;
+  font-family: var(--font-b); font-size: 8px; color: var(--text2);
+  text-transform: lowercase; z-index: 10;
+}
+.sz-camera .zc-flip {
+  position: absolute; bottom: 8px; right: 8px;
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; z-index: 10;
+}
+.sz-camera .zc-bar {
+  position: absolute; bottom: 12px; left: 16px; right: 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  z-index: 20;
+}
+.sz-camera .zc-bar-left {
+  font-family: var(--font-b); font-size: 8px; text-transform: lowercase;
+}
+.sz-camera .zc-disarm { color: var(--text2); }
+.sz-camera .zc-rec-time {
+  color: var(--danger); font-weight: 700; margin-top: 2px;
+  display: flex; align-items: center; gap: 4px;
+}
+.sz-camera .zc-rec-dot {
+  width: 4px; height: 4px; border-radius: 50%; background: var(--danger);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+.sz-camera .zc-rec-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 2px solid var(--danger);
+  display: flex; align-items: center; justify-content: center;
+}
+.sz-camera .zc-rec-inner {
+  width: 16px; height: 16px; border-radius: 2px; background: var(--danger);
+}
+.sz-camera .zc-room {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; text-align: right;
+}
+.sz-camera .zc-room strong {
+  color: var(--accent); font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+
+/* ZERO VIEWER */
+.sz-viewer { position: relative; }
+.sz-viewer .zv-back {
+  position: absolute; top: 44px; left: 20px; z-index: 20;
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sz-viewer .zv-stream {
+  position: absolute; top: 60px; left: 8px; right: 8px; bottom: 68px;
+  background: linear-gradient(160deg, #050510, #020208, #100518);
+  border: 1px solid var(--border);
+}
+.sz-viewer .zv-live {
+  position: absolute; top: 8px; left: 8px;
+  font-family: var(--font-b); font-size: 8px; color: var(--success);
+  text-transform: lowercase; z-index: 10;
+  display: flex; align-items: center; gap: 4px;
+}
+.sz-viewer .zv-live-dot {
+  width: 4px; height: 4px; border-radius: 50%; background: var(--success);
+  animation: breathe 2s ease-in-out infinite;
+}
+.sz-viewer .zv-res {
+  position: absolute; top: 8px; right: 8px;
+  font-family: var(--font-b); font-size: 8px; color: var(--text2);
+  text-transform: lowercase; z-index: 10;
+}
+.sz-viewer .zv-stats {
+  position: absolute; bottom: 14px; left: 16px; right: 16px;
+  display: flex; justify-content: space-between; z-index: 20;
+  font-family: var(--font-b); font-size: 8px; text-transform: lowercase;
+}
+.sz-viewer .zv-stat {}
+.sz-viewer .zv-stat-label { color: var(--text3); }
+.sz-viewer .zv-stat-val { color: var(--text); font-weight: 700; margin-top: 1px; }
+
+/* ZERO CLIPS */
+.sz-clips .zcl-hdr {
+  padding: 4px 20px 0;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.sz-clips .zcl-title {
+  font-family: var(--font-d); font-size: 36px; font-weight: 900;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.03em;
+  line-height: 1;
+}
+.sz-clips .zcl-back {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sz-clips .zcl-count {
+  padding: 0 20px; margin-top: 2px;
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sz-clips .zcl-list {
+  flex: 1; padding: 16px 20px; display: flex; flex-direction: column; gap: 0;
+}
+.sz-clips .zcl-item {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.sz-clips .zcl-item:last-child { border-bottom: none; }
+.sz-clips .zcl-item-name {
+  font-family: var(--font-d); font-size: 18px; font-weight: 700;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.02em;
+}
+.sz-clips .zcl-item-meta {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; text-align: right;
+}
+
+/* ZERO SETTINGS */
+.sz-settings .zs-hdr {
+  padding: 4px 20px 0;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.sz-settings .zs-title {
+  font-family: var(--font-d); font-size: 36px; font-weight: 900;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.03em;
+  line-height: 1;
+}
+.sz-settings .zs-back {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sz-settings .zs-body {
+  flex: 1; padding: 16px 20px; display: flex; flex-direction: column;
+}
+.sz-settings .zs-section-label {
+  font-family: var(--font-b); font-size: 8px; color: var(--accent);
+  text-transform: lowercase; letter-spacing: 0.04em;
+  margin-top: 14px; margin-bottom: 4px;
+}
+.sz-settings .zs-section-label:first-child { margin-top: 0; }
+.sz-settings .zs-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.sz-settings .zs-row:last-child { border-bottom: none; }
+.sz-settings .zs-row-name {
+  font-family: var(--font-d); font-size: 16px; font-weight: 700;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.01em;
+}
+.sz-settings .zs-row-val {
+  font-family: var(--font-b); font-size: 8px; color: var(--text2);
+  text-transform: lowercase;
+}
+.sz-settings .zs-circle {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--text3);
+}
+.sz-settings .zs-circle.on {
+  border-color: var(--accent); background: var(--accent);
+}
+.sz-settings .zs-themes {
+  display: flex; gap: 8px; padding: 4px 0 6px;
+}
+.sz-settings .zs-theme-opt {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; padding: 4px 0;
+}
+.sz-settings .zs-theme-opt.active { color: var(--accent); text-decoration: underline; }
+.sz-settings .zs-row-danger { color: var(--danger); }
+.sz-settings .zs-about {
+  margin-top: auto; text-align: center; padding: 16px 0;
+}
+.sz-settings .zs-about-mark {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+
+/* =============================================
+   CONCEPT 4: STARK
+   Zero's typography & attitude + Cadence's structure.
+   Darker Grotesque display, Space Mono data.
+   Numbered strips with massive type scale.
+   Edge-to-edge camera with monospace HUD.
+   B&W + electric blue. Confident negative space.
+   ============================================= */
+
+/* --- STARK DARK --- */
+[data-concept="stark"][data-theme="dark"] .sk {
+  --bg: #000000; --bg2: #080808; --surface: #0D0D0D; --border: #1A1A1A;
+  --text: #FFFFFF; --text2: #666666; --text3: #333333;
+  --accent: #E5A020; --accent-dim: rgba(229,160,32,0.12);
+  --danger: #FF2D2D; --danger-dim: rgba(255,45,45,0.08);
+  --success: #00CC66; --success-dim: rgba(0,204,102,0.08);
+  --font-d: 'Darker Grotesque', sans-serif; --font-b: 'Manrope', sans-serif;
+}
+/* --- STARK LIGHT --- */
+[data-concept="stark"][data-theme="light"] .sk {
+  --bg: #FFFFFF; --bg2: #F5F5F5; --surface: #FAFAFA; --border: #E0E0E0;
+  --text: #000000; --text2: #777777; --text3: #BBBBBB;
+  --accent: #B8800E; --accent-dim: rgba(184,128,14,0.10);
+  --danger: #CC1A1A; --danger-dim: rgba(204,26,26,0.06);
+  --success: #009950; --success-dim: rgba(0,153,80,0.06);
+  --font-d: 'Darker Grotesque', sans-serif; --font-b: 'Manrope', sans-serif;
+}
+
+.sk {
+  background: var(--bg); color: var(--text); font-family: var(--font-b);
+  width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+}
+.sk .status-bar { color: var(--text2); font-family: var(--font-b); font-size: 10px; }
+
+/* STARK HOME */
+.sk-home .sk-top {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 4px 20px 0;
+}
+.sk-home .sk-mark {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sk-home .sk-ver {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+}
+.sk-home .sk-strips {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; padding: 0 16px; gap: 6px;
+}
+.sk-home .sk-strip {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: 8px;
+  border-bottom: 1px solid var(--border);
+  position: relative; transition: all 0.15s;
+}
+.sk-home .sk-strip:last-child { border-bottom: none; }
+.sk-home .sk-strip-icon {
+  width: 28px; height: 28px; min-width: 28px;
+  color: var(--text3); opacity: 0.6;
+}
+.sk-home .sk-strip-icon svg { width: 100%; height: 100%; }
+.sk-home .sk-strip-body { flex: 1; }
+.sk-home .sk-strip-name {
+  font-family: var(--font-d); font-size: 24px; font-weight: 900;
+  color: var(--text); text-transform: uppercase;
+  letter-spacing: -0.03em; line-height: 1;
+}
+.sk-home .sk-strip-desc {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  margin-top: 4px; text-transform: lowercase;
+}
+.sk-home .sk-strip-arrow {
+  font-family: var(--font-b); font-size: 14px; color: var(--accent);
+}
+.sk-home .sk-strip.active .sk-strip-icon { color: var(--accent); opacity: 0.7; }
+.sk-home .sk-strip.active .sk-strip-name { color: var(--text); }
+.sk-home .sk-strip.active {
+  background: var(--accent-dim); border-color: transparent;
+  border-radius: 10px;
+}
+.sk-home .sk-bottom {
+  padding: 12px 20px; text-align: right;
+}
+.sk-home .sk-settings-link {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+
+/* STARK CAMERA */
+.sk-camera { position: relative; }
+.sk-camera .skc-view {
+  position: absolute; top: 42px; left: 0; right: 0; bottom: 0;
+  background: #030303;
+  overflow: hidden;
+}
+.sk-camera .skc-view::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+  background-size: 33.33% 33.33%;
+}
+.sk-camera .skc-hud-tl {
+  position: absolute; top: 52px; left: 14px; z-index: 10;
+}
+.sk-camera .skc-pill {
+  padding: 5px 10px; border-radius: 6px;
+  font-family: var(--font-b); font-size: 8px;
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  display: flex; align-items: center; gap: 5px;
+  text-transform: lowercase;
+}
+.sk-camera .skc-pill.conn {
+  background: var(--success-dim); color: var(--success);
+  border: 1px solid rgba(0,204,102,0.15);
+}
+.sk-camera .skc-pill-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+}
+.sk-camera .skc-hud-tr {
+  position: absolute; top: 52px; right: 14px; z-index: 10;
+}
+.sk-camera .skc-pill.qual {
+  background: rgba(0,0,0,0.6); color: rgba(255,255,255,0.7);
+}
+.sk-camera .skc-flip {
+  position: absolute; bottom: 84px; right: 14px;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-b); font-size: 8px; color: var(--text2);
+  text-transform: lowercase; z-index: 10;
+}
+.sk-camera .skc-bar {
+  position: absolute; bottom: 10px; left: 10px; right: 10px;
+  background: rgba(0,0,0,0.8); backdrop-filter: blur(16px);
+  border-radius: 12px; padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  border: 1px solid rgba(255,255,255,0.06);
+  z-index: 10;
+}
+.sk-camera .skc-bar-left {
+  display: flex; flex-direction: column; gap: 3px;
+}
+.sk-camera .skc-bar-rec {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--font-b); font-size: 9px; font-weight: 700;
+  color: var(--danger); text-transform: lowercase;
+}
+.sk-camera .skc-bar-rec-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--danger);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+.sk-camera .skc-bar-room {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sk-camera .skc-bar-room strong {
+  color: var(--accent); font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+}
+.sk-camera .skc-bar-center {
+  display: flex; align-items: center; gap: 10px;
+}
+.sk-camera .skc-disarm {
+  font-family: var(--font-b); font-size: 8px; color: var(--text2);
+  text-transform: lowercase; padding: 6px 12px;
+  background: rgba(255,255,255,0.06); border-radius: 6px;
+}
+.sk-camera .skc-rec-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid var(--danger);
+  display: flex; align-items: center; justify-content: center;
+}
+.sk-camera .skc-rec-inner {
+  width: 18px; height: 18px; border-radius: 3px; background: var(--danger);
+}
+
+/* STARK VIEWER */
+.sk-viewer { position: relative; }
+.sk-viewer .skv-stream {
+  position: absolute; top: 42px; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(160deg, #050510, #020208, #100518);
+}
+.sk-viewer .skv-live {
+  position: absolute; top: 52px; left: 14px; z-index: 10;
+  padding: 5px 10px; border-radius: 6px;
+  font-family: var(--font-b); font-size: 8px;
+  background: var(--success-dim); color: var(--success);
+  border: 1px solid rgba(0,204,102,0.15);
+  display: flex; align-items: center; gap: 5px;
+  text-transform: lowercase;
+}
+.sk-viewer .skv-live-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--success);
+  animation: breathe 2s ease-in-out infinite;
+}
+.sk-viewer .skv-res {
+  position: absolute; top: 52px; right: 14px; z-index: 10;
+  padding: 5px 10px; border-radius: 6px;
+  font-family: var(--font-b); font-size: 8px;
+  background: rgba(0,0,0,0.6); color: rgba(255,255,255,0.7);
+  backdrop-filter: blur(12px); text-transform: lowercase;
+}
+.sk-viewer .skv-stats {
+  position: absolute; bottom: 10px; left: 10px; right: 10px;
+  background: rgba(0,0,0,0.8); backdrop-filter: blur(16px);
+  border-radius: 12px; padding: 12px 16px;
+  border: 1px solid rgba(255,255,255,0.06); z-index: 10;
+  display: flex; justify-content: space-between;
+}
+.sk-viewer .skv-stat { text-align: center; flex: 1; }
+.sk-viewer .skv-stat-val {
+  font-family: var(--font-d); font-size: 20px; font-weight: 900;
+  color: var(--text); letter-spacing: -0.02em;
+}
+.sk-viewer .skv-stat-label {
+  font-family: var(--font-b); font-size: 7px; color: var(--text3);
+  text-transform: lowercase; margin-top: 2px;
+}
+
+/* STARK CLIPS */
+.sk-clips .skl-top {
+  padding: 0px 20px 4px;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.sk-clips .skl-title {
+  font-family: var(--font-d); font-size: 32px; font-weight: 900;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.03em;
+  line-height: 1;
+}
+.sk-clips .skl-back {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sk-clips .skl-count {
+  padding: 0 20px; margin-bottom: 8px;
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sk-clips .skl-filmstrip {
+  padding: 0 16px; display: flex; gap: 8px; overflow: hidden;
+  margin-bottom: 12px;
+}
+.sk-clips .skl-film {
+  width: 100px; flex-shrink: 0; background: var(--surface);
+  border: 1px solid var(--border); overflow: hidden;
+}
+.sk-clips .skl-film-thumb {
+  height: 60px; background: linear-gradient(135deg, #0a0a15, #050510);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.sk-clips .skl-film-dur {
+  position: absolute; bottom: 3px; right: 4px;
+  font-family: var(--font-b); font-size: 7px; font-weight: 700;
+  color: #fff; background: rgba(0,0,0,0.7); padding: 1px 4px;
+}
+.sk-clips .skl-film-play {
+  font-size: 14px; color: var(--text3);
+}
+.sk-clips .skl-film-info { padding: 6px 8px; }
+.sk-clips .skl-film-name {
+  font-family: var(--font-d); font-size: 11px; font-weight: 800;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sk-clips .skl-film-meta {
+  font-family: var(--font-b); font-size: 7px; color: var(--text3);
+  text-transform: lowercase; margin-top: 1px;
+}
+.sk-clips .skl-divider {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; padding: 0 20px 6px;
+  border-bottom: 1px solid var(--border); margin: 0 16px;
+  letter-spacing: 0.02em;
+}
+.sk-clips .skl-list {
+  flex: 1; padding: 6px 16px; display: flex; flex-direction: column; gap: 0;
+}
+.sk-clips .skl-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 4px; border-bottom: 1px solid var(--border);
+}
+.sk-clips .skl-item:last-child { border-bottom: none; }
+.sk-clips .skl-item-num {
+  font-family: var(--font-d); font-size: 22px; font-weight: 900;
+  color: var(--text3); min-width: 22px; text-align: center;
+  letter-spacing: -0.04em;
+}
+.sk-clips .skl-item-info { flex: 1; }
+.sk-clips .skl-item-name {
+  font-family: var(--font-d); font-size: 15px; font-weight: 800;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.02em;
+}
+.sk-clips .skl-item-meta {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; margin-top: 1px;
+}
+.sk-clips .skl-item-menu {
+  font-size: 14px; color: var(--text3); padding: 4px;
+}
+
+/* STARK PLAYBACK */
+.sk-playback { position: relative; font-family: var(--font-b); }
+.sk-playback .skp-video {
+  position: absolute; top: 42px; left: 0; right: 0; bottom: 0;
+  background: #030303;
+  display: flex; align-items: center; justify-content: center;
+}
+.sk-playback .skp-video-frame {
+  width: 85%; height: 75%; background: rgba(255,255,255,0.03);
+  border-radius: 4px; position: relative;
+}
+/* annotation line overlaid on video */
+.sk-playback .skp-annotation {
+  position: absolute; top: 35%; left: 15%; width: 55%; height: 2px;
+  background: var(--accent); opacity: 0.8; transform: rotate(-8deg);
+  border-radius: 1px;
+}
+.sk-playback .skp-annotation-dot {
+  position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); top: -2px;
+}
+.sk-playback .skp-annotation-dot.start { left: 0; }
+.sk-playback .skp-annotation-dot.end { right: 0; }
+/* top overlay — title + back */
+.sk-playback .skp-top {
+  position: absolute; top: 42px; left: 0; right: 0; z-index: 10;
+  padding: 12px 14px 24px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
+  display: flex; align-items: center; gap: 10px;
+}
+.sk-playback .skp-back {
+  font-size: 16px; color: rgba(255,255,255,0.8);
+}
+.sk-playback .skp-top-info { flex: 1; }
+.sk-playback .skp-top-title {
+  font-family: var(--font-d); font-size: 18px; font-weight: 900;
+  color: #fff; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1;
+}
+.sk-playback .skp-top-date {
+  font-size: 8px; color: rgba(255,255,255,0.4); margin-top: 2px;
+}
+/* bottom overlay — controls */
+.sk-playback .skp-controls {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+  padding: 24px 14px 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.4) 50%, transparent 100%);
+}
+.sk-playback .skp-time-row {
+  display: flex; justify-content: space-between;
+  font-size: 9px; color: rgba(255,255,255,0.5); margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.sk-playback .skp-scrubber {
+  width: 100%; height: 3px; background: rgba(255,255,255,0.15);
+  border-radius: 2px; position: relative; margin-bottom: 14px;
+}
+.sk-playback .skp-scrubber-fill {
+  width: 35%; height: 100%; background: var(--accent);
+  border-radius: 2px;
+}
+.sk-playback .skp-scrubber-thumb {
+  position: absolute; top: -5px; left: 35%;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); transform: translateX(-50%);
+  box-shadow: 0 0 8px rgba(0,0,0,0.5);
+}
+.sk-playback .skp-buttons {
+  display: flex; justify-content: center; align-items: center; gap: 22px;
+  margin-bottom: 8px;
+}
+.sk-playback .skp-btn-step {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: rgba(255,255,255,0.8);
+}
+.sk-playback .skp-btn-play {
+  width: 50px; height: 50px; border-radius: 50%;
+  background: var(--accent); display: flex;
+  align-items: center; justify-content: center;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.sk-playback .skp-btn-play svg { width: 20px; height: 20px; color: #000; }
+.sk-playback .skp-bottom-row {
+  display: flex; justify-content: center; align-items: center; gap: 10px;
+}
+.sk-playback .skp-speed {
+  font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.8);
+  background: rgba(255,255,255,0.1); backdrop-filter: blur(8px);
+  padding: 4px 12px; border-radius: 12px;
+}
+.sk-playback .skp-draw {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+}
+.sk-playback .skp-draw svg { width: 14px; height: 14px; color: rgba(255,255,255,0.7); }
+
+/* STARK SETTINGS */
+.sk-settings .sks-top {
+  padding: 0px 20px 8px;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.sk-settings .sks-title {
+  font-family: var(--font-d); font-size: 32px; font-weight: 900;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.03em;
+  line-height: 1;
+}
+.sk-settings .sks-back {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+  text-transform: lowercase;
+}
+.sk-settings .sks-body { flex: 1; padding: 0 20px; }
+.sk-settings .sks-section {
+  font-family: var(--font-b); font-size: 8px; color: var(--accent);
+  text-transform: lowercase; letter-spacing: 0.04em;
+  margin-top: 16px; margin-bottom: 6px;
+}
+.sk-settings .sks-section:first-child { margin-top: 0; }
+.sk-settings .sks-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+}
+.sk-settings .sks-row:last-child { border-bottom: none; }
+.sk-settings .sks-row-left {}
+.sk-settings .sks-row-name {
+  font-family: var(--font-d); font-size: 17px; font-weight: 800;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.01em;
+}
+.sk-settings .sks-row-desc {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; margin-top: 1px;
+}
+.sk-settings .sks-toggle {
+  width: 36px; height: 20px; border-radius: 10px;
+  background: var(--border); position: relative;
+}
+.sk-settings .sks-toggle.on { background: var(--accent); }
+.sk-settings .sks-toggle-knob {
+  width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  position: absolute; top: 2px; left: 2px;
+}
+.sk-settings .sks-toggle.on .sks-toggle-knob { left: 18px; }
+.sk-settings .sks-themes {
+  display: flex; gap: 6px; padding: 6px 0 4px;
+}
+.sk-settings .sks-theme-opt {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; padding: 5px 12px;
+  border: 1px solid var(--border);
+}
+.sk-settings .sks-theme-opt.active {
+  color: var(--accent); border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.sk-settings .sks-row-val {
+  font-family: var(--font-b); font-size: 9px; color: var(--text3);
+}
+.sk-settings .sks-danger { color: var(--danger); }
+.sk-settings .sks-about {
+  margin-top: auto; text-align: center; padding: 16px 0;
+}
+.sk-settings .sks-about-name {
+  font-family: var(--font-d); font-size: 20px; font-weight: 900;
+  color: var(--text); text-transform: uppercase; letter-spacing: -0.02em;
+}
+.sk-settings .sks-about-ver {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; margin-top: 2px;
+}
+.sk-settings .sks-about-desc {
+  font-family: var(--font-b); font-size: 8px; color: var(--text3);
+  text-transform: lowercase; margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .page-header { flex-wrap: wrap; gap: 12px; padding: 12px 16px; }
+  .main-content { padding: 24px 16px 48px; }
+  .screen-row { gap: 20px; }
+  .device-row { gap: 24px; }
+}
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <div class="page-title">SwingLink <span>Design Lab</span></div>
+  <nav class="nav-tabs" id="concept-tabs"></nav>
+  <div class="controls">
+    <div class="theme-toggle" id="theme-toggle"></div>
+  </div>
+</header>
+
+<main class="main-content">
+
+<!-- =============================================
+     CADENCE
+     ============================================= -->
+<div class="concept-section active" id="section-cadence">
+  <div class="concept-info">
+    <div class="concept-name">Cadence</div>
+    <div class="concept-tagline">Track-listing energy meets warm metallics. Home screen is numbered strips — like a setlist or workout routine. Camera viewfinder bleeds edge-to-edge with a floating translucent control bar. Clips shown as a horizontal filmstrip. Settings stripped bare — no cards, just text and lines. Warm amber on black velvet.</div>
+    <div class="concept-tags">
+      <span class="concept-tag">Syne + Manrope</span>
+      <span class="concept-tag">Warm black / Amber / Cream</span>
+      <span class="concept-tag">Numbered strips</span>
+      <span class="concept-tag">Edge-to-edge viewfinder</span>
+      <span class="concept-tag">Filmstrip clips</span>
+      <span class="concept-tag">No-card settings</span>
+    </div>
+  </div>
+  <div class="screen-gallery">
+    <div class="section-header">Screens</div>
+    <div class="screen-row">
+
+      <!-- CADENCE HOME -->
+      <div class="screen-item"><div class="screen-label">Home</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sc sc-home">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="home-top">
+          <div class="home-gear">&#9881;</div>
+          <div class="home-brand">Swing<br>Link<em>v1.0</em></div>
+        </div>
+        <div class="strip-list">
+          <div class="strip active-strip">
+            <div class="strip-num">01</div>
+            <div class="strip-body">
+              <div class="strip-name">Camera</div>
+              <div class="strip-desc">Film &amp; stream your swing</div>
+            </div>
+            <div class="strip-arrow">&#8594;</div>
+          </div>
+          <div class="strip">
+            <div class="strip-num">02</div>
+            <div class="strip-body">
+              <div class="strip-name">Viewer</div>
+              <div class="strip-desc">Watch the live stream</div>
+            </div>
+            <div class="strip-arrow">&#8594;</div>
+          </div>
+          <div class="strip">
+            <div class="strip-num">03</div>
+            <div class="strip-body">
+              <div class="strip-name">My Clips</div>
+              <div class="strip-desc">Review recorded swings</div>
+            </div>
+            <div class="strip-arrow">&#8594;</div>
+          </div>
+        </div>
+        <div class="home-bottom"><div class="home-ver">swinglink &middot; peer-to-peer</div></div>
+      </div></div></div></div>
+
+      <!-- CADENCE CAMERA -->
+      <div class="screen-item"><div class="screen-label">Camera</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sc sc-camera">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="cam-full">
+          <div class="cam-pills">
+            <div class="cam-pill conn"><span class="pill-dot"></span> Connected</div>
+            <div class="cam-pill qual">HD &middot; 60fps</div>
+          </div>
+          <div class="cam-flip">&#8635;</div>
+        </div>
+        <div class="cam-float-bar">
+          <div class="bar-left">
+            <div class="bar-rec"><span class="bar-rec-dot"></span> Rec 0:12</div>
+            <div class="bar-room">Room <strong>XK4M7P</strong></div>
+          </div>
+          <div class="bar-center">
+            <div class="bar-disarm">Disarm</div>
+            <div class="bar-rec-btn"><div class="bar-rec-inner"></div></div>
+          </div>
+        </div>
+      </div></div></div></div>
+
+      <!-- CADENCE VIEWER -->
+      <div class="screen-item"><div class="screen-label">Viewer</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sc sc-viewer">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="view-stream"></div>
+        <div class="view-live-pill"><span class="pill-dot" style="background:var(--success)"></span> Live</div>
+        <div class="view-hd-pill">HD &middot; 720p</div>
+        <div class="view-stats">
+          <div class="stat-row"><span class="stat-label">Latency</span><span class="stat-val">42ms</span></div>
+          <div class="stat-row"><span class="stat-label">Bitrate</span><span class="stat-val">2.4 Mbps</span></div>
+          <div class="stat-row"><span class="stat-label">Resolution</span><span class="stat-val">1280&times;720</span></div>
+        </div>
+      </div></div></div></div>
+
+      <!-- CADENCE CLIPS -->
+      <div class="screen-item"><div class="screen-label">Clips</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sc sc-clips">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="clips-hdr"><span class="ba">&#8249;</span> My Clips <span class="clips-count">5</span></div>
+        <div class="filmstrip">
+          <div class="film-card"><div class="film-thumb">&#9654;</div><div class="film-info"><div class="film-name">Driver Front</div><div class="film-meta">0:34 &middot; 60fps</div></div></div>
+          <div class="film-card"><div class="film-thumb">&#9654;</div><div class="film-info"><div class="film-name">Iron 7 Side</div><div class="film-meta">0:22 &middot; 60fps</div></div></div>
+        </div>
+        <div class="film-label">All Recordings</div>
+        <div class="clip-rows">
+          <div class="clip-row"><div class="clip-row-num">1</div><div class="clip-row-info"><div class="clip-row-name">Driver Swing — Front</div><div class="clip-row-meta">0:34 &middot; 24.1 MB &middot; 60fps</div></div><div class="clip-row-menu">&#8942;</div></div>
+          <div class="clip-row"><div class="clip-row-num">2</div><div class="clip-row-info"><div class="clip-row-name">Iron 7 — Side Angle</div><div class="clip-row-meta">0:22 &middot; 15.8 MB &middot; 60fps</div></div><div class="clip-row-menu">&#8942;</div></div>
+          <div class="clip-row"><div class="clip-row-num">3</div><div class="clip-row-info"><div class="clip-row-name">Putting Practice</div><div class="clip-row-meta">1:08 &middot; 48.3 MB &middot; 30fps</div></div><div class="clip-row-menu">&#8942;</div></div>
+          <div class="clip-row"><div class="clip-row-num">4</div><div class="clip-row-info"><div class="clip-row-name">Chip Shot Close-up</div><div class="clip-row-meta">0:18 &middot; 12.2 MB &middot; 60fps</div></div><div class="clip-row-menu">&#8942;</div></div>
+        </div>
+      </div></div></div></div>
+
+      <!-- CADENCE SETTINGS -->
+      <div class="screen-item"><div class="screen-label">Settings</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sc sc-settings">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="set-hdr"><span class="ba">&#8249;</span> Settings</div>
+        <div class="set-body">
+          <div class="set-section">Preferences</div>
+          <div class="set-row"><div><div class="set-name">Haptic Feedback</div><div class="set-desc">Vibration on button presses</div></div><div class="set-toggle on"><div class="set-toggle-knob"></div></div></div>
+          <div class="set-row"><div><div class="set-name">Appearance</div></div></div>
+          <div class="set-themes"><div class="set-theme-opt">System</div><div class="set-theme-opt">Light</div><div class="set-theme-opt active">Dark</div></div>
+          <div class="set-section">Data</div>
+          <div class="set-row"><div class="set-name set-danger">Clear All Clips</div><div class="set-val">&#8250;</div></div>
+          <div class="set-section">Support</div>
+          <div class="set-row"><div class="set-name">Send Feedback</div><div class="set-val">&#8250;</div></div>
+          <div class="set-about">
+            <div class="set-about-name">SwingLink</div>
+            <div class="set-about-ver">Version 1.0.0 &middot; P2P video for golf</div>
+          </div>
+        </div>
+      </div></div></div></div>
+
+    </div>
+  </div>
+
+  <!-- CADENCE DEVICES -->
+  <div class="device-showcase">
+    <div class="section-header">Devices — Home Screen</div>
+    <div class="device-row">
+      <div class="device-item"><div class="device-label">iPhone 16</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sc sc-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="home-top"><div class="home-gear">&#9881;</div><div class="home-brand">Swing<br>Link<em>v1.0</em></div></div><div class="strip-list"><div class="strip active-strip"><div class="strip-num">01</div><div class="strip-body"><div class="strip-name">Camera</div><div class="strip-desc">Film &amp; stream your swing</div></div><div class="strip-arrow">&#8594;</div></div><div class="strip"><div class="strip-num">02</div><div class="strip-body"><div class="strip-name">Viewer</div><div class="strip-desc">Watch the live stream</div></div><div class="strip-arrow">&#8594;</div></div><div class="strip"><div class="strip-num">03</div><div class="strip-body"><div class="strip-name">My Clips</div><div class="strip-desc">Review recorded swings</div></div><div class="strip-arrow">&#8594;</div></div></div><div class="home-bottom"><div class="home-ver">swinglink &middot; peer-to-peer</div></div></div></div></div></div>
+      <div class="device-item"><div class="device-label">Galaxy S22 Ultra</div><div class="phone-frame galaxy"><div class="phone-screen"><div class="sc sc-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="home-top"><div class="home-gear">&#9881;</div><div class="home-brand">Swing<br>Link<em>v1.0</em></div></div><div class="strip-list"><div class="strip active-strip"><div class="strip-num">01</div><div class="strip-body"><div class="strip-name">Camera</div><div class="strip-desc">Film &amp; stream your swing</div></div><div class="strip-arrow">&#8594;</div></div><div class="strip"><div class="strip-num">02</div><div class="strip-body"><div class="strip-name">Viewer</div><div class="strip-desc">Watch the live stream</div></div><div class="strip-arrow">&#8594;</div></div><div class="strip"><div class="strip-num">03</div><div class="strip-body"><div class="strip-name">My Clips</div><div class="strip-desc">Review recorded swings</div></div><div class="strip-arrow">&#8594;</div></div></div><div class="home-bottom"><div class="home-ver">swinglink &middot; peer-to-peer</div></div></div></div></div></div>
+      <div class="device-item"><div class="device-label">iPad</div><div class="tablet-frame"><div class="tablet-screen"><div class="sc sc-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="home-top"><div class="home-gear">&#9881;</div><div class="home-brand">Swing<br>Link<em>v1.0</em></div></div><div class="strip-list"><div class="strip active-strip"><div class="strip-num">01</div><div class="strip-body"><div class="strip-name">Camera</div><div class="strip-desc">Film &amp; stream your swing</div></div><div class="strip-arrow">&#8594;</div></div><div class="strip"><div class="strip-num">02</div><div class="strip-body"><div class="strip-name">Viewer</div><div class="strip-desc">Watch the live stream</div></div><div class="strip-arrow">&#8594;</div></div><div class="strip"><div class="strip-num">03</div><div class="strip-body"><div class="strip-name">My Clips</div><div class="strip-desc">Review recorded swings</div></div><div class="strip-arrow">&#8594;</div></div></div><div class="home-bottom"><div class="home-ver">swinglink &middot; peer-to-peer</div></div></div></div></div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- =============================================
+     TERRAIN
+     ============================================= -->
+<div class="concept-section" id="section-terrain">
+  <div class="concept-info">
+    <div class="concept-name">Terrain</div>
+    <div class="concept-tagline">Outdoor brand energy — sage greens, terracotta accents, earth tones on dark loam. Home screen breaks into an asymmetric tile grid (camera gets a tall tile, viewer and clips share right column). Camera and viewer are full-bleed with gradient fade controls. Clips as a thumbnail grid. Think Patagonia meets TrackMan.</div>
+    <div class="concept-tags">
+      <span class="concept-tag">Unbounded + Nunito Sans</span>
+      <span class="concept-tag">Dark loam / Sage / Terracotta</span>
+      <span class="concept-tag">Asymmetric tile grid</span>
+      <span class="concept-tag">Full-bleed + gradient fade</span>
+      <span class="concept-tag">Thumbnail grid clips</span>
+      <span class="concept-tag">Organic 14px radius</span>
+    </div>
+  </div>
+  <div class="screen-gallery">
+    <div class="section-header">Screens</div>
+    <div class="screen-row">
+
+      <!-- TERRAIN HOME -->
+      <div class="screen-item"><div class="screen-label">Home</div><div class="phone-frame iphone"><div class="phone-screen"><div class="st st-home">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="th-hero">
+          <div class="th-brand">SwingLink<small>Your next session starts here.</small></div>
+        </div>
+        <div class="th-grid">
+          <div class="th-tile cam">
+            <div class="th-tile-icon">&#9898;</div>
+            <div class="th-tile-name">Camera</div>
+            <div class="th-tile-desc">Film &amp; stream</div>
+          </div>
+          <div class="th-tile view">
+            <div class="th-tile-icon">&#9673;</div>
+            <div class="th-tile-name">Viewer</div>
+            <div class="th-tile-desc">Watch live</div>
+          </div>
+          <div class="th-tile clips">
+            <div class="th-tile-icon">&#9654;</div>
+            <div class="th-tile-name">Clips</div>
+            <div class="th-tile-desc">5 recordings</div>
+          </div>
+          <div class="th-tile settings">
+            <div><div class="th-tile-name">Settings</div></div>
+            <div class="th-tile-arrow">&#8250;</div>
+          </div>
+        </div>
+      </div></div></div></div>
+
+      <!-- TERRAIN CAMERA -->
+      <div class="screen-item"><div class="screen-label">Camera</div><div class="phone-frame iphone"><div class="phone-screen"><div class="st st-camera">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="tc-view"></div>
+        <div class="tc-hud-tl"><div class="tc-badge conn"><span class="pill-dot" style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span> Connected</div></div>
+        <div class="tc-hud-tr"><div class="tc-badge qual">HD &middot; 60fps</div></div>
+        <div class="tc-flip">&#8635;</div>
+        <div class="tc-strip">
+          <div class="tc-rec-row">
+            <div class="tc-rec-info"><span class="tc-rec-dot"></span> Rec 0:12</div>
+            <div class="tc-room">Room <strong>XK4M7P</strong></div>
+          </div>
+          <div class="tc-controls">
+            <div class="tc-arm">Disarm</div>
+            <div class="tc-rec-btn"><div class="tc-rec-inner"></div></div>
+          </div>
+        </div>
+      </div></div></div></div>
+
+      <!-- TERRAIN VIEWER -->
+      <div class="screen-item"><div class="screen-label">Viewer</div><div class="phone-frame iphone"><div class="phone-screen"><div class="st st-viewer">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="tv-stream"></div>
+        <div class="tv-pill-live"><span style="width:5px;height:5px;border-radius:50%;background:var(--success);display:inline-block"></span> Live</div>
+        <div class="tv-pill-hd">720p</div>
+        <div class="tv-stats">
+          <div class="tv-stat"><div class="tv-stat-val">42ms</div><div class="tv-stat-label">Latency</div></div>
+          <div class="tv-stat"><div class="tv-stat-val">2.4</div><div class="tv-stat-label">Mbps</div></div>
+          <div class="tv-stat"><div class="tv-stat-val">720p</div><div class="tv-stat-label">Resolution</div></div>
+        </div>
+      </div></div></div></div>
+
+      <!-- TERRAIN CLIPS -->
+      <div class="screen-item"><div class="screen-label">Clips</div><div class="phone-frame iphone"><div class="phone-screen"><div class="st st-clips">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="tcl-hdr"><span class="ba">&#8249;</span> <span class="tcl-title">Clips</span></div>
+        <div class="tcl-grid">
+          <div class="tcl-card"><div class="tcl-card-thumb">&#9654;<span class="tcl-card-dur">0:34</span></div><div class="tcl-card-info"><div class="tcl-card-name">Driver Front</div><div class="tcl-card-meta">24.1 MB &middot; 60fps</div></div></div>
+          <div class="tcl-card"><div class="tcl-card-thumb">&#9654;<span class="tcl-card-dur">0:22</span></div><div class="tcl-card-info"><div class="tcl-card-name">Iron 7 Side</div><div class="tcl-card-meta">15.8 MB &middot; 60fps</div></div></div>
+          <div class="tcl-card"><div class="tcl-card-thumb">&#9654;<span class="tcl-card-dur">1:08</span></div><div class="tcl-card-info"><div class="tcl-card-name">Putting Practice</div><div class="tcl-card-meta">48.3 MB &middot; 30fps</div></div></div>
+          <div class="tcl-card"><div class="tcl-card-thumb">&#9654;<span class="tcl-card-dur">0:18</span></div><div class="tcl-card-info"><div class="tcl-card-name">Chip Shot</div><div class="tcl-card-meta">12.2 MB &middot; 60fps</div></div></div>
+          <div class="tcl-card"><div class="tcl-card-thumb">&#9654;<span class="tcl-card-dur">0:26</span></div><div class="tcl-card-info"><div class="tcl-card-name">Bunker Recovery</div><div class="tcl-card-meta">18.7 MB &middot; 60fps</div></div></div>
+          <div class="tcl-card"><div class="tcl-card-thumb">&#9654;<span class="tcl-card-dur">0:41</span></div><div class="tcl-card-info"><div class="tcl-card-name">Wedge Fade</div><div class="tcl-card-meta">29.5 MB &middot; 60fps</div></div></div>
+        </div>
+      </div></div></div></div>
+
+      <!-- TERRAIN SETTINGS -->
+      <div class="screen-item"><div class="screen-label">Settings</div><div class="phone-frame iphone"><div class="phone-screen"><div class="st st-settings">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="ts-hdr"><span class="ba">&#8249;</span> <span class="ts-title">Settings</span></div>
+        <div class="ts-body">
+          <div class="ts-section">Preferences</div>
+          <div class="ts-card">
+            <div class="ts-row"><div class="ts-row-left"><span class="ts-row-icon">&#9995;</span><div class="ts-row-text"><div class="ts-row-name">Haptic Feedback</div><div class="ts-row-desc">Vibration on presses</div></div></div><div class="ts-toggle on"><div class="ts-toggle-knob"></div></div></div>
+            <div class="ts-divider"></div>
+            <div class="ts-row"><div class="ts-row-left"><span class="ts-row-icon">&#9789;</span><div class="ts-row-text"><div class="ts-row-name">Appearance</div></div></div></div>
+            <div class="ts-themes"><div class="ts-theme-opt">System</div><div class="ts-theme-opt">Light</div><div class="ts-theme-opt active">Dark</div></div>
+          </div>
+          <div class="ts-section">Data</div>
+          <div class="ts-card"><div class="ts-row"><div class="ts-row-left"><span class="ts-row-icon ts-danger">&#128465;</span><div class="ts-row-name ts-danger">Clear All Clips</div></div><span class="ts-arrow">&#8250;</span></div></div>
+          <div class="ts-section">Support</div>
+          <div class="ts-card"><div class="ts-row"><div class="ts-row-left"><span class="ts-row-icon">&#9993;</span><div class="ts-row-name">Send Feedback</div></div><span class="ts-arrow">&#8250;</span></div></div>
+          <div class="ts-about"><div class="ts-about-name">SwingLink</div><div class="ts-about-ver">v1.0.0</div></div>
+        </div>
+      </div></div></div></div>
+
+    </div>
+  </div>
+
+  <!-- TERRAIN DEVICES -->
+  <div class="device-showcase">
+    <div class="section-header">Devices — Home Screen</div>
+    <div class="device-row">
+      <div class="device-item"><div class="device-label">iPhone 16</div><div class="phone-frame iphone"><div class="phone-screen"><div class="st st-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="th-hero"><div class="th-brand">SwingLink<small>Your next session starts here.</small></div></div><div class="th-grid"><div class="th-tile cam"><div class="th-tile-icon">&#9898;</div><div class="th-tile-name">Camera</div><div class="th-tile-desc">Film &amp; stream</div></div><div class="th-tile view"><div class="th-tile-icon">&#9673;</div><div class="th-tile-name">Viewer</div><div class="th-tile-desc">Watch live</div></div><div class="th-tile clips"><div class="th-tile-icon">&#9654;</div><div class="th-tile-name">Clips</div><div class="th-tile-desc">5 recordings</div></div><div class="th-tile settings"><div><div class="th-tile-name">Settings</div></div><div class="th-tile-arrow">&#8250;</div></div></div></div></div></div></div>
+      <div class="device-item"><div class="device-label">Galaxy S22 Ultra</div><div class="phone-frame galaxy"><div class="phone-screen"><div class="st st-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="th-hero"><div class="th-brand">SwingLink<small>Your next session starts here.</small></div></div><div class="th-grid"><div class="th-tile cam"><div class="th-tile-icon">&#9898;</div><div class="th-tile-name">Camera</div><div class="th-tile-desc">Film &amp; stream</div></div><div class="th-tile view"><div class="th-tile-icon">&#9673;</div><div class="th-tile-name">Viewer</div><div class="th-tile-desc">Watch live</div></div><div class="th-tile clips"><div class="th-tile-icon">&#9654;</div><div class="th-tile-name">Clips</div><div class="th-tile-desc">5 recordings</div></div><div class="th-tile settings"><div><div class="th-tile-name">Settings</div></div><div class="th-tile-arrow">&#8250;</div></div></div></div></div></div></div>
+      <div class="device-item"><div class="device-label">iPad</div><div class="tablet-frame"><div class="tablet-screen"><div class="st st-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="th-hero"><div class="th-brand">SwingLink<small>Your next session starts here.</small></div></div><div class="th-grid"><div class="th-tile cam"><div class="th-tile-icon">&#9898;</div><div class="th-tile-name">Camera</div><div class="th-tile-desc">Film &amp; stream</div></div><div class="th-tile view"><div class="th-tile-icon">&#9673;</div><div class="th-tile-name">Viewer</div><div class="th-tile-desc">Watch live</div></div><div class="th-tile clips"><div class="th-tile-icon">&#9654;</div><div class="th-tile-name">Clips</div><div class="th-tile-desc">5 recordings</div></div><div class="th-tile settings"><div><div class="th-tile-name">Settings</div></div><div class="th-tile-arrow">&#8250;</div></div></div></div></div></div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- =============================================
+     ZERO
+     ============================================= -->
+<div class="concept-section" id="section-zero">
+  <div class="concept-info">
+    <div class="concept-name">Zero</div>
+    <div class="concept-tagline">Stripped to nothing. Pure typography — no icons, no cards, no decoration. Home screen is three massive words stacked vertically. Camera is a bare rectangle with monospace labels. Clips are just text. Everything communicated through scale, weight, and negative space. Two colors: black and white. One accent: electric blue. Like if Helmut Lang designed a golf app.</div>
+    <div class="concept-tags">
+      <span class="concept-tag">Darker Grotesque + Space Mono</span>
+      <span class="concept-tag">Pure B&amp;W + electric blue</span>
+      <span class="concept-tag">No icons</span>
+      <span class="concept-tag">No cards</span>
+      <span class="concept-tag">Typography only</span>
+      <span class="concept-tag">Monospace data</span>
+    </div>
+  </div>
+  <div class="screen-gallery">
+    <div class="section-header">Screens</div>
+    <div class="screen-row">
+
+      <!-- ZERO HOME -->
+      <div class="screen-item"><div class="screen-label">Home</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sz sz-home">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="zh-top">
+          <div class="zh-mark">swinglink</div>
+          <div class="zh-ver">v1.0</div>
+        </div>
+        <div class="zh-words">
+          <div class="zh-word w1">Camera</div>
+          <div class="zh-gap"></div>
+          <div class="zh-word w2">Viewer</div>
+          <div class="zh-gap"></div>
+          <div class="zh-word w3">Clips</div>
+        </div>
+        <div class="zh-bottom">
+          <div class="zh-settings">settings &#8594;</div>
+        </div>
+      </div></div></div></div>
+
+      <!-- ZERO CAMERA -->
+      <div class="screen-item"><div class="screen-label">Camera</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sz sz-camera">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="zc-back">&#8592; camera</div>
+        <div class="zc-view">
+          <div class="zc-conn">connected</div>
+          <div class="zc-qual">hd 60fps</div>
+          <div class="zc-flip">flip</div>
+        </div>
+        <div class="zc-bar">
+          <div class="zc-bar-left">
+            <div class="zc-disarm">disarm</div>
+            <div class="zc-rec-time"><span class="zc-rec-dot"></span> rec 0:12</div>
+          </div>
+          <div class="zc-rec-btn"><div class="zc-rec-inner"></div></div>
+          <div class="zc-room">room<br><strong>XK4M7P</strong></div>
+        </div>
+      </div></div></div></div>
+
+      <!-- ZERO VIEWER -->
+      <div class="screen-item"><div class="screen-label">Viewer</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sz sz-viewer">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="zv-back">&#8592; viewer</div>
+        <div class="zv-stream">
+          <div class="zv-live"><span class="zv-live-dot"></span> live</div>
+          <div class="zv-res">1280x720</div>
+        </div>
+        <div class="zv-stats">
+          <div class="zv-stat"><div class="zv-stat-label">latency</div><div class="zv-stat-val">42ms</div></div>
+          <div class="zv-stat"><div class="zv-stat-label">bitrate</div><div class="zv-stat-val">2.4mbps</div></div>
+          <div class="zv-stat"><div class="zv-stat-label">frames</div><div class="zv-stat-val">60fps</div></div>
+        </div>
+      </div></div></div></div>
+
+      <!-- ZERO CLIPS -->
+      <div class="screen-item"><div class="screen-label">Clips</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sz sz-clips">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="zcl-hdr"><div class="zcl-title">Clips</div><div class="zcl-back">&#8592; back</div></div>
+        <div class="zcl-count">5 recordings &middot; 118.1 mb total</div>
+        <div class="zcl-list">
+          <div class="zcl-item"><div class="zcl-item-name">Driver Front</div><div class="zcl-item-meta">0:34<br>24.1mb</div></div>
+          <div class="zcl-item"><div class="zcl-item-name">Iron 7 Side</div><div class="zcl-item-meta">0:22<br>15.8mb</div></div>
+          <div class="zcl-item"><div class="zcl-item-name">Putting</div><div class="zcl-item-meta">1:08<br>48.3mb</div></div>
+          <div class="zcl-item"><div class="zcl-item-name">Chip Shot</div><div class="zcl-item-meta">0:18<br>12.2mb</div></div>
+          <div class="zcl-item"><div class="zcl-item-name">Bunker</div><div class="zcl-item-meta">0:26<br>18.7mb</div></div>
+        </div>
+      </div></div></div></div>
+
+      <!-- ZERO SETTINGS -->
+      <div class="screen-item"><div class="screen-label">Settings</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sz sz-settings">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="zs-hdr"><div class="zs-title">Settings</div><div class="zs-back">&#8592; back</div></div>
+        <div class="zs-body">
+          <div class="zs-section-label">preferences</div>
+          <div class="zs-row"><div class="zs-row-name">Haptics</div><div class="zs-circle on"></div></div>
+          <div class="zs-row"><div class="zs-row-name">Theme</div></div>
+          <div class="zs-themes"><div class="zs-theme-opt">system</div><div class="zs-theme-opt">light</div><div class="zs-theme-opt active">dark</div></div>
+          <div class="zs-section-label">data</div>
+          <div class="zs-row"><div class="zs-row-name zs-row-danger">Clear Clips</div><div class="zs-row-val">&#8594;</div></div>
+          <div class="zs-section-label">support</div>
+          <div class="zs-row"><div class="zs-row-name">Feedback</div><div class="zs-row-val">&#8594;</div></div>
+          <div class="zs-about"><div class="zs-about-mark">swinglink v1.0.0</div></div>
+        </div>
+      </div></div></div></div>
+
+    </div>
+  </div>
+
+  <!-- ZERO DEVICES -->
+  <div class="device-showcase">
+    <div class="section-header">Devices — Home Screen</div>
+    <div class="device-row">
+      <div class="device-item"><div class="device-label">iPhone 16</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sz sz-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="zh-top"><div class="zh-mark">swinglink</div><div class="zh-ver">v1.0</div></div><div class="zh-words"><div class="zh-word w1">Camera</div><div class="zh-gap"></div><div class="zh-word w2">Viewer</div><div class="zh-gap"></div><div class="zh-word w3">Clips</div></div><div class="zh-bottom"><div class="zh-settings">settings &#8594;</div></div></div></div></div></div>
+      <div class="device-item"><div class="device-label">Galaxy S22 Ultra</div><div class="phone-frame galaxy"><div class="phone-screen"><div class="sz sz-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="zh-top"><div class="zh-mark">swinglink</div><div class="zh-ver">v1.0</div></div><div class="zh-words"><div class="zh-word w1">Camera</div><div class="zh-gap"></div><div class="zh-word w2">Viewer</div><div class="zh-gap"></div><div class="zh-word w3">Clips</div></div><div class="zh-bottom"><div class="zh-settings">settings &#8594;</div></div></div></div></div></div>
+      <div class="device-item"><div class="device-label">iPad</div><div class="tablet-frame"><div class="tablet-screen"><div class="sz sz-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="zh-top"><div class="zh-mark">swinglink</div><div class="zh-ver">v1.0</div></div><div class="zh-words"><div class="zh-word w1">Camera</div><div class="zh-gap"></div><div class="zh-word w2">Viewer</div><div class="zh-gap"></div><div class="zh-word w3">Clips</div></div><div class="zh-bottom"><div class="zh-settings">settings &#8594;</div></div></div></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     STARK
+     ============================================= -->
+<div class="concept-section" id="section-stark">
+  <div class="concept-info">
+    <div class="concept-name">Stark</div>
+    <div class="concept-tagline">Zero's typographic confidence married to Cadence's usable structure. Massive Darker Grotesque numbers anchor each strip — you know what's tappable. Monospace data labels give the camera HUD genuine personality without sacrificing legibility. Filmstrip clips stay scannable. Settings are bare text with real toggle controls. Pure B&W with one electric blue accent — no decoration that doesn't earn its place.</div>
+    <div class="concept-tags">
+      <span class="concept-tag">Darker Grotesque + Space Mono</span>
+      <span class="concept-tag">Pure B&amp;W + electric blue</span>
+      <span class="concept-tag">Massive numbered strips</span>
+      <span class="concept-tag">Monospace HUD camera</span>
+      <span class="concept-tag">Filmstrip + numbered list</span>
+      <span class="concept-tag">No-card settings</span>
+    </div>
+  </div>
+  <div class="screen-gallery">
+    <div class="section-header">Screens</div>
+    <div class="screen-row">
+
+      <!-- STARK HOME -->
+      <div class="screen-item"><div class="screen-label">Home</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sk sk-home">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="sk-top">
+          <div class="sk-mark">swinglink</div>
+          <div class="sk-ver">v1.0</div>
+        </div>
+        <div class="sk-strips">
+          <div class="sk-strip active">
+            <div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div>
+            <div class="sk-strip-body">
+              <div class="sk-strip-name">Camera</div>
+              <div class="sk-strip-desc">film &amp; stream your swing</div>
+            </div>
+            <div class="sk-strip-arrow">&#8594;</div>
+          </div>
+          <div class="sk-strip">
+            <div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div class="sk-strip-body">
+              <div class="sk-strip-name">Viewer</div>
+              <div class="sk-strip-desc">watch the live stream</div>
+            </div>
+            <div class="sk-strip-arrow">&#8594;</div>
+          </div>
+          <div class="sk-strip">
+            <div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="8" x2="22" y2="8"/><line x1="2" y1="16" x2="22" y2="16"/><line x1="8" y1="2" x2="8" y2="8"/><line x1="16" y1="2" x2="16" y2="8"/><line x1="8" y1="16" x2="8" y2="22"/><line x1="16" y1="16" x2="16" y2="22"/></svg></div>
+            <div class="sk-strip-body">
+              <div class="sk-strip-name">My Clips</div>
+              <div class="sk-strip-desc">review recorded swings</div>
+            </div>
+            <div class="sk-strip-arrow">&#8594;</div>
+          </div>
+        </div>
+        <div class="sk-bottom">
+          <div class="sk-settings-link">settings &#8594;</div>
+        </div>
+      </div></div></div></div>
+
+      <!-- STARK CAMERA -->
+      <div class="screen-item"><div class="screen-label">Camera</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sk sk-camera">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="skc-view"></div>
+        <div class="skc-hud-tl"><div class="skc-pill conn"><span class="skc-pill-dot"></span> connected</div></div>
+        <div class="skc-hud-tr"><div class="skc-pill qual">hd 60fps</div></div>
+        <div class="skc-flip">flip</div>
+        <div class="skc-bar">
+          <div class="skc-bar-left">
+            <div class="skc-bar-rec"><span class="skc-bar-rec-dot"></span> rec 0:12</div>
+            <div class="skc-bar-room">room <strong>XK4M7P</strong></div>
+          </div>
+          <div class="skc-bar-center">
+            <div class="skc-disarm">disarm</div>
+            <div class="skc-rec-btn"><div class="skc-rec-inner"></div></div>
+          </div>
+        </div>
+      </div></div></div></div>
+
+      <!-- STARK VIEWER -->
+      <div class="screen-item"><div class="screen-label">Viewer</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sk sk-viewer">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="skv-stream"></div>
+        <div class="skv-live"><span class="skv-live-dot"></span> live</div>
+        <div class="skv-res">720p</div>
+        <div class="skv-stats">
+          <div class="skv-stat"><div class="skv-stat-val">42ms</div><div class="skv-stat-label">latency</div></div>
+          <div class="skv-stat"><div class="skv-stat-val">2.4</div><div class="skv-stat-label">mbps</div></div>
+          <div class="skv-stat"><div class="skv-stat-val">720p</div><div class="skv-stat-label">resolution</div></div>
+        </div>
+      </div></div></div></div>
+
+      <!-- STARK CLIPS -->
+      <div class="screen-item"><div class="screen-label">Clips</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sk sk-clips">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="skl-top"><div class="skl-title">Clips</div><div class="skl-back">&#8592; back</div></div>
+        <div class="skl-count">5 recordings &middot; 118.1 mb</div>
+        <div class="skl-filmstrip">
+          <div class="skl-film"><div class="skl-film-thumb"><span class="skl-film-play">&#9654;</span><span class="skl-film-dur">0:34</span></div><div class="skl-film-info"><div class="skl-film-name">Driver</div><div class="skl-film-meta">24.1mb 60fps</div></div></div>
+          <div class="skl-film"><div class="skl-film-thumb"><span class="skl-film-play">&#9654;</span><span class="skl-film-dur">0:22</span></div><div class="skl-film-info"><div class="skl-film-name">Iron 7</div><div class="skl-film-meta">15.8mb 60fps</div></div></div>
+          <div class="skl-film"><div class="skl-film-thumb"><span class="skl-film-play">&#9654;</span><span class="skl-film-dur">1:08</span></div><div class="skl-film-info"><div class="skl-film-name">Putting</div><div class="skl-film-meta">48.3mb 30fps</div></div></div>
+        </div>
+        <div class="skl-divider">all recordings</div>
+        <div class="skl-list">
+          <div class="skl-item"><div class="skl-item-num">1</div><div class="skl-item-info"><div class="skl-item-name">Driver Front</div><div class="skl-item-meta">0:34 &middot; 24.1mb &middot; 60fps</div></div><div class="skl-item-menu">&#8942;</div></div>
+          <div class="skl-item"><div class="skl-item-num">2</div><div class="skl-item-info"><div class="skl-item-name">Iron 7 Side</div><div class="skl-item-meta">0:22 &middot; 15.8mb &middot; 60fps</div></div><div class="skl-item-menu">&#8942;</div></div>
+          <div class="skl-item"><div class="skl-item-num">3</div><div class="skl-item-info"><div class="skl-item-name">Putting</div><div class="skl-item-meta">1:08 &middot; 48.3mb &middot; 30fps</div></div><div class="skl-item-menu">&#8942;</div></div>
+          <div class="skl-item"><div class="skl-item-num">4</div><div class="skl-item-info"><div class="skl-item-name">Chip Shot</div><div class="skl-item-meta">0:18 &middot; 12.2mb &middot; 60fps</div></div><div class="skl-item-menu">&#8942;</div></div>
+        </div>
+      </div></div></div></div>
+
+      <!-- STARK PLAYBACK -->
+      <div class="screen-item"><div class="screen-label">Playback</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sk sk-playback">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="skp-video">
+          <div class="skp-video-frame">
+            <div class="skp-annotation">
+              <div class="skp-annotation-dot start"></div>
+              <div class="skp-annotation-dot end"></div>
+            </div>
+          </div>
+        </div>
+        <div class="skp-top">
+          <div class="skp-back">&#8592;</div>
+          <div class="skp-top-info">
+            <div class="skp-top-title">Driver Swing</div>
+            <div class="skp-top-date">Jan 15, 2025 &middot; 3:42 PM</div>
+          </div>
+        </div>
+        <div class="skp-controls">
+          <div class="skp-time-row"><span>0:12</span><span>0:34</span></div>
+          <div class="skp-scrubber">
+            <div class="skp-scrubber-fill"></div>
+            <div class="skp-scrubber-thumb"></div>
+          </div>
+          <div class="skp-buttons">
+            <div class="skp-btn-step">&#8249;</div>
+            <div class="skp-btn-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l15 8-15 8z"/></svg></div>
+            <div class="skp-btn-step">&#8250;</div>
+          </div>
+          <div class="skp-bottom-row">
+            <div class="skp-speed">0.5x</div>
+            <div class="skp-draw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>
+          </div>
+        </div>
+      </div></div></div></div>
+
+      <!-- STARK SETTINGS -->
+      <div class="screen-item"><div class="screen-label">Settings</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sk sk-settings">
+        <div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div>
+        <div class="sks-top"><div class="sks-title">Settings</div><div class="sks-back">&#8592; back</div></div>
+        <div class="sks-body">
+          <div class="sks-section">preferences</div>
+          <div class="sks-row"><div class="sks-row-left"><div class="sks-row-name">Haptics</div><div class="sks-row-desc">vibration on presses</div></div><div class="sks-toggle on"><div class="sks-toggle-knob"></div></div></div>
+          <div class="sks-row"><div class="sks-row-left"><div class="sks-row-name">Theme</div></div></div>
+          <div class="sks-themes"><div class="sks-theme-opt">system</div><div class="sks-theme-opt">light</div><div class="sks-theme-opt active">dark</div></div>
+          <div class="sks-section">data</div>
+          <div class="sks-row"><div class="sks-row-name sks-danger">Clear Clips</div><div class="sks-row-val">&#8594;</div></div>
+          <div class="sks-section">support</div>
+          <div class="sks-row"><div class="sks-row-name">Feedback</div><div class="sks-row-val">&#8594;</div></div>
+          <div class="sks-about">
+            <div class="sks-about-name">SwingLink</div>
+            <div class="sks-about-ver">v1.0.0</div>
+            <div class="sks-about-desc">peer-to-peer video for golf</div>
+          </div>
+        </div>
+      </div></div></div></div>
+
+    </div>
+  </div>
+
+  <!-- STARK DEVICES -->
+  <div class="device-showcase">
+    <div class="section-header">Devices — Home Screen</div>
+    <div class="device-row">
+      <div class="device-item"><div class="device-label">iPhone 16</div><div class="phone-frame iphone"><div class="phone-screen"><div class="sk sk-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="sk-top"><div class="sk-mark">swinglink</div><div class="sk-ver">v1.0</div></div><div class="sk-strips"><div class="sk-strip active"><div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div><div class="sk-strip-body"><div class="sk-strip-name">Camera</div><div class="sk-strip-desc">film &amp; stream your swing</div></div><div class="sk-strip-arrow">&#8594;</div></div><div class="sk-strip"><div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="sk-strip-body"><div class="sk-strip-name">Viewer</div><div class="sk-strip-desc">watch the live stream</div></div><div class="sk-strip-arrow">&#8594;</div></div><div class="sk-strip"><div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="8" x2="22" y2="8"/><line x1="2" y1="16" x2="22" y2="16"/><line x1="8" y1="2" x2="8" y2="8"/><line x1="16" y1="2" x2="16" y2="8"/><line x1="8" y1="16" x2="8" y2="22"/><line x1="16" y1="16" x2="16" y2="22"/></svg></div><div class="sk-strip-body"><div class="sk-strip-name">My Clips</div><div class="sk-strip-desc">review recorded swings</div></div><div class="sk-strip-arrow">&#8594;</div></div></div><div class="sk-bottom"><div class="sk-settings-link">settings &#8594;</div></div></div></div></div></div>
+      <div class="device-item"><div class="device-label">Galaxy S22 Ultra</div><div class="phone-frame galaxy"><div class="phone-screen"><div class="sk sk-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="sk-top"><div class="sk-mark">swinglink</div><div class="sk-ver">v1.0</div></div><div class="sk-strips"><div class="sk-strip active"><div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div><div class="sk-strip-body"><div class="sk-strip-name">Camera</div><div class="sk-strip-desc">film &amp; stream your swing</div></div><div class="sk-strip-arrow">&#8594;</div></div><div class="sk-strip"><div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="sk-strip-body"><div class="sk-strip-name">Viewer</div><div class="sk-strip-desc">watch the live stream</div></div><div class="sk-strip-arrow">&#8594;</div></div><div class="sk-strip"><div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="8" x2="22" y2="8"/><line x1="2" y1="16" x2="22" y2="16"/><line x1="8" y1="2" x2="8" y2="8"/><line x1="16" y1="2" x2="16" y2="8"/><line x1="8" y1="16" x2="8" y2="22"/><line x1="16" y1="16" x2="16" y2="22"/></svg></div><div class="sk-strip-body"><div class="sk-strip-name">My Clips</div><div class="sk-strip-desc">review recorded swings</div></div><div class="sk-strip-arrow">&#8594;</div></div></div><div class="sk-bottom"><div class="sk-settings-link">settings &#8594;</div></div></div></div></div></div>
+      <div class="device-item"><div class="device-label">iPad</div><div class="tablet-frame"><div class="tablet-screen"><div class="sk sk-home"><div class="status-bar"><span>9:41</span><span style="font-size:10px">&#9679;&#9679;&#9679;&#9632;</span></div><div class="sk-top"><div class="sk-mark">swinglink</div><div class="sk-ver">v1.0</div></div><div class="sk-strips"><div class="sk-strip active"><div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div><div class="sk-strip-body"><div class="sk-strip-name">Camera</div><div class="sk-strip-desc">film &amp; stream your swing</div></div><div class="sk-strip-arrow">&#8594;</div></div><div class="sk-strip"><div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="sk-strip-body"><div class="sk-strip-name">Viewer</div><div class="sk-strip-desc">watch the live stream</div></div><div class="sk-strip-arrow">&#8594;</div></div><div class="sk-strip"><div class="sk-strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="8" x2="22" y2="8"/><line x1="2" y1="16" x2="22" y2="16"/><line x1="8" y1="2" x2="8" y2="8"/><line x1="16" y1="2" x2="16" y2="8"/><line x1="8" y1="16" x2="8" y2="22"/><line x1="16" y1="16" x2="16" y2="22"/></svg></div><div class="sk-strip-body"><div class="sk-strip-name">My Clips</div><div class="sk-strip-desc">review recorded swings</div></div><div class="sk-strip-arrow">&#8594;</div></div></div><div class="sk-bottom"><div class="sk-settings-link">settings &#8594;</div></div></div></div></div></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+document.getElementById('concept-tabs').append(
+  ...['cadence','terrain','zero','stark'].map(function(id, i) {
+    var btn = document.createElement('button');
+    btn.className = 'nav-tab' + (i === 0 ? ' active' : '');
+    btn.textContent = id.charAt(0).toUpperCase() + id.slice(1);
+    btn.addEventListener('click', function() {
+      document.documentElement.dataset.concept = id;
+      document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.concept-section').forEach(function(s) { s.classList.remove('active'); });
+      document.getElementById('section-' + id).classList.add('active');
+    });
+    return btn;
+  })
+);
+document.getElementById('theme-toggle').append(
+  ...['dark','light'].map(function(theme, i) {
+    var btn = document.createElement('button');
+    btn.className = 'theme-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+    btn.addEventListener('click', function() {
+      document.documentElement.dataset.theme = theme;
+      document.querySelectorAll('.theme-btn').forEach(function(t) { t.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+    return btn;
+  })
+);
+</script>
+</body>
+</html>
