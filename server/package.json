@@ -1,7 +1,7 @@
 {
-  "name": "swinglink-signaling",
+  "name": "divot-signaling",
   "version": "1.0.0",
-  "description": "WebRTC signaling server for SwingLink",
+  "description": "WebRTC signaling server for Divot",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

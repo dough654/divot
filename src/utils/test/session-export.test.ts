@@ -27,7 +27,7 @@ describe('buildSessionSummaryText', () => {
     const session = makeSession();
     const text = buildSessionSummaryText(session, []);
 
-    expect(text).toContain('SwingLink Session Summary');
+    expect(text).toContain('Divot Session Summary');
     expect(text).toContain('Duration: 45 min');
     expect(text).toContain('Clips: 0');
   });

@@ -22,7 +22,7 @@ import { useConnectivity } from '@/src/hooks/use-connectivity';
 import { useAutoConnect } from '@/src/hooks/use-auto-connect';
 import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
-import { decodeQRPayload, isValidSwingLinkQR } from '@/src/services/discovery/qr-payload';
+import { decodeQRPayload, isValidDivotQR } from '@/src/services/discovery/qr-payload';
 import { connectionErrors, getSignalingError } from '@/src/utils/error-messages';
 import { shouldBlockConnection } from '@/src/utils/connectivity';
 import { resolveNetworkTransport } from '@/src/utils';
@@ -209,7 +209,7 @@ export default function ViewerScreen() {
     // Prevent multiple scans from processing
     if (isProcessingScan.current) return;
 
-    if (!isValidSwingLinkQR(data)) {
+    if (!isValidDivotQR(data)) {
       console.log('Invalid QR code scanned');
       return;
     }

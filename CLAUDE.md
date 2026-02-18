@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SwingLink is a P2P video streaming app for golfers using React Native + Expo. Two devices connect directly: one acts as the camera (filming the swing), the other as the viewer (coach or self-review).
+Divot is a P2P video streaming app for golfers using React Native + Expo. Two devices connect directly: one acts as the camera (filming the swing), the other as the viewer (coach or self-review).
 
 ## Commands
 
@@ -42,7 +42,7 @@ npm run fly:logs     # View Fly.io logs
 
 ### Key Architectural Decisions
 - **Signaling server** (`server/`) is minimal (~130 lines) - only relays WebRTC signaling messages, no media
-- **QR payload** uses base64-encoded JSON with `SWINGLINK:` prefix for validation
+- **QR payload** uses base64-encoded JSON with `DIVOT:` prefix for validation
 - **Room codes** are 6-character alphanumeric (excluding ambiguous chars like 0/O, 1/I)
 - **Dynamic Expo config** (`app.config.ts`) allows environment variables but requires manual plugin configuration
 

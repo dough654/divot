@@ -1,5 +1,5 @@
 /**
- * SwingLink Design Tokens — Stark Design System
+ * Divot Design Tokens — Stark Design System
  * Pure black/white, gold accent, Darker Grotesque display, Manrope body.
  */
 

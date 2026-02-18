@@ -1,5 +1,5 @@
 /**
- * SwingLink Theme Context
+ * Divot Theme Context
  *
  * Provides theme-aware styling throughout the app. Components automatically
  * adapt to light/dark mode without prop drilling.

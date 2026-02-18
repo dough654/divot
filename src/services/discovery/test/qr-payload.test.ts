@@ -4,7 +4,7 @@ import {
   decodeQRPayload,
   createAutoModePayload,
   createHotspotModePayload,
-  isValidSwingLinkQR,
+  isValidDivotQR,
 } from '../qr-payload';
 import type { QRCodePayload } from '@/src/types';
 
@@ -16,7 +16,7 @@ describe('encodeQRPayload', () => {
     };
     const encoded = encodeQRPayload(payload);
 
-    expect(encoded).toMatch(/^SWINGLINK:/);
+    expect(encoded).toMatch(/^DIVOT:/);
     // Should be decodable
     const decoded = decodeQRPayload(encoded);
     expect(decoded?.sessionId).toBe('ABC123');
@@ -32,7 +32,7 @@ describe('encodeQRPayload', () => {
     };
     const encoded = encodeQRPayload(payload);
 
-    expect(encoded).toMatch(/^SWINGLINK:/);
+    expect(encoded).toMatch(/^DIVOT:/);
     const decoded = decodeQRPayload(encoded);
     expect(decoded?.sessionId).toBe('XYZ789');
     expect(decoded?.mode).toBe('hotspot');
@@ -77,32 +77,32 @@ describe('decodeQRPayload', () => {
   });
 
   it('returns null for invalid base64 after prefix', () => {
-    expect(decodeQRPayload('SWINGLINK:not-valid-base64!!!')).toBeNull();
+    expect(decodeQRPayload('DIVOT:not-valid-base64!!!')).toBeNull();
   });
 
   it('returns null for valid base64 but invalid JSON', () => {
     const invalidJson = btoa('not json');
-    expect(decodeQRPayload(`SWINGLINK:${invalidJson}`)).toBeNull();
+    expect(decodeQRPayload(`DIVOT:${invalidJson}`)).toBeNull();
   });
 
   it('returns null when sessionId is missing', () => {
     const payload = btoa(JSON.stringify({ mode: 'auto' }));
-    expect(decodeQRPayload(`SWINGLINK:${payload}`)).toBeNull();
+    expect(decodeQRPayload(`DIVOT:${payload}`)).toBeNull();
   });
 
   it('returns null when sessionId is not a string', () => {
     const payload = btoa(JSON.stringify({ sessionId: 123, mode: 'auto' }));
-    expect(decodeQRPayload(`SWINGLINK:${payload}`)).toBeNull();
+    expect(decodeQRPayload(`DIVOT:${payload}`)).toBeNull();
   });
 
   it('returns null for invalid mode values', () => {
     const payload = btoa(JSON.stringify({ sessionId: 'TEST', mode: 'invalid' }));
-    expect(decodeQRPayload(`SWINGLINK:${payload}`)).toBeNull();
+    expect(decodeQRPayload(`DIVOT:${payload}`)).toBeNull();
   });
 
   it('defaults mode to "auto" when not specified', () => {
     const payload = btoa(JSON.stringify({ sessionId: 'TEST', v: 1 }));
-    const decoded = decodeQRPayload(`SWINGLINK:${payload}`);
+    const decoded = decodeQRPayload(`DIVOT:${payload}`);
     expect(decoded?.mode).toBe('auto');
   });
 
@@ -174,13 +174,13 @@ describe('createHotspotModePayload', () => {
   });
 });
 
-describe('isValidSwingLinkQR', () => {
+describe('isValidDivotQR', () => {
   it('returns true for valid auto-mode QR', () => {
     const encoded = encodeQRPayload({
       sessionId: 'TEST01',
       mode: 'auto',
     });
-    expect(isValidSwingLinkQR(encoded)).toBe(true);
+    expect(isValidDivotQR(encoded)).toBe(true);
   });
 
   it('returns true for valid hotspot-mode QR', () => {
@@ -190,18 +190,18 @@ describe('isValidSwingLinkQR', () => {
       hotspotSsid: 'Test',
       hotspotPassword: 'pass',
     });
-    expect(isValidSwingLinkQR(encoded)).toBe(true);
+    expect(isValidDivotQR(encoded)).toBe(true);
   });
 
   it('returns false for random strings', () => {
-    expect(isValidSwingLinkQR('hello world')).toBe(false);
-    expect(isValidSwingLinkQR('')).toBe(false);
-    expect(isValidSwingLinkQR('https://example.com')).toBe(false);
+    expect(isValidDivotQR('hello world')).toBe(false);
+    expect(isValidDivotQR('')).toBe(false);
+    expect(isValidDivotQR('https://example.com')).toBe(false);
   });
 
   it('returns false for malformed SWINGLINK strings', () => {
-    expect(isValidSwingLinkQR('SWINGLINK:')).toBe(false);
-    expect(isValidSwingLinkQR('SWINGLINK:invalid')).toBe(false);
+    expect(isValidDivotQR('DIVOT:')).toBe(false);
+    expect(isValidDivotQR('DIVOT:invalid')).toBe(false);
   });
 });
 
@@ -213,7 +213,7 @@ describe('round-trip encoding/decoding', () => {
       hotspotSsid: 'Test Network',
       hotspotPassword: 'complex!@#$%^&*()',
       localIp: '10.0.0.1',
-      signalingUrl: 'wss://signaling.swinglink.app/ws',
+      signalingUrl: 'wss://signaling.divotgolf.app/ws',
     };
 
     const encoded = encodeQRPayload(original);

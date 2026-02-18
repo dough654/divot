@@ -1,5 +1,5 @@
 {
-  "name": "swing-app",
+  "name": "divot",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
@@ -50,6 +50,7 @@
     "expo-av": "~16.0.8",
     "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.13",
+    "expo-crypto": "^15.0.8",
     "expo-dev-client": "~6.0.20",
     "expo-file-system": "~19.0.21",
     "expo-font": "~14.0.11",
@@ -92,6 +93,20 @@
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2",
     "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "@clerk/clerk-expo": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    },
+    "@clerk/types": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    },
+    "@clerk/shared": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
   },
   "private": true
 }

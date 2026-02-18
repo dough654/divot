@@ -1,5 +1,5 @@
 /**
- * SwingLink Toast Context
+ * Divot Toast Context
  *
  * Provides a unified toast notification system throughout the app.
  * Supports success, error, warning, and info variants with auto-dismiss.

@@ -40,7 +40,7 @@ export const HotspotConnectInstructions = ({
   const openWifiSettings = async () => {
     if (Platform.OS === 'ios') {
       // Deep-link directly to WiFi settings
-      // iOS will show "Back to SwingLink" in the top-left
+      // iOS will show "Back to Divot" in the top-left
       try {
         const wifiUrl = 'App-Prefs:WIFI';
         const canOpen = await Linking.canOpenURL(wifiUrl);

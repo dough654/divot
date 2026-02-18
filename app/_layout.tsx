@@ -76,28 +76,41 @@ const ThemedApp = ({ children }: { children: ReactNode }) => {
   );
 };
 
+/** Per-screen header config. Screens not listed here get headerShown: false. */
+const screenHeaderConfig: Record<string, { title: string; headerBackTitle?: string; presentation?: 'modal' }> = {
+  settings: { title: 'Settings', headerBackTitle: 'Home' },
+  clips: { title: 'Clips', headerBackTitle: 'Home' },
+  'playback/[id]': { title: 'Playback', headerBackTitle: 'Clips' },
+  sessions: { title: 'Sessions', headerBackTitle: 'Home' },
+  'session/[id]': { title: 'Session', headerBackTitle: 'Sessions' },
+  'sign-in': { title: 'Account', headerBackTitle: 'Back', presentation: 'modal' },
+};
+
 /**
  * Inner layout that has access to theme context for navigation styling.
  */
-const NavigationLayout = ({ children }: { children: ReactNode }) => {
+const NavigationLayout = () => {
   const { theme, isDark } = useTheme();
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
       <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: theme.colors.background,
-          },
-          headerTintColor: theme.colors.text,
-          headerTitleStyle: {
-            fontFamily: 'Manrope_600SemiBold',
-          },
-          headerShadowVisible: false,
+        screenOptions={({ route }) => {
+          const config = screenHeaderConfig[route.name];
+          return {
+            headerStyle: {
+              backgroundColor: theme.colors.background,
+            },
+            headerTintColor: theme.colors.text,
+            headerTitleStyle: {
+              fontFamily: 'Manrope_600SemiBold',
+            },
+            headerShadowVisible: false,
+            headerShown: !!config,
+            ...(config ?? {}),
+          };
         }}
-      >
-        {children}
-      </Stack>
+      />
     </ThemeProvider>
   );
 };
@@ -127,80 +140,11 @@ export default function RootLayout() {
     return null;
   }
 
-  const screens = (
-    <>
-      <Stack.Screen
-        name="index"
-        options={{
-          title: 'SwingLink',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="camera"
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="viewer"
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          headerBackTitle: 'Home',
-        }}
-      />
-      <Stack.Screen
-        name="clips"
-        options={{
-          title: 'Clips',
-          headerBackTitle: 'Home',
-        }}
-      />
-      <Stack.Screen
-        name="playback/[id]"
-        options={{
-          title: 'Playback',
-          headerBackTitle: 'Clips',
-        }}
-      />
-      <Stack.Screen
-        name="sessions"
-        options={{
-          title: 'Sessions',
-          headerBackTitle: 'Home',
-        }}
-      />
-      <Stack.Screen
-        name="session/[id]"
-        options={{
-          title: 'Session',
-          headerBackTitle: 'Sessions',
-        }}
-      />
-      <Stack.Screen
-        name="sign-in"
-        options={{
-          title: 'Account',
-          presentation: 'modal',
-          headerBackTitle: 'Back',
-        }}
-      />
-    </>
-  );
-
   const innerContent = (
     <SettingsProvider>
       <ThemedApp>
         <ToastProvider>
-          <NavigationLayout>
-            {screens}
-          </NavigationLayout>
+          <NavigationLayout />
         </ToastProvider>
       </ThemedApp>
     </SettingsProvider>

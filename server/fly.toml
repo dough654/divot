@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for swinglink-signaling on 2026-02-02T13:39:51-05:00
+# fly.toml app configuration file generated for divot-signaling on 2026-02-02T13:39:51-05:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'swinglink-signaling'
+app = 'divot-signaling'
 primary_region = 'ord'
 
 [build]

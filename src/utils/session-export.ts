@@ -9,7 +9,7 @@ import { formatRelativeDate, formatDuration, formatSessionDuration } from './for
 export const buildSessionSummaryText = (session: Session, clips: Clip[]): string => {
   const lines: string[] = [];
 
-  lines.push('SwingLink Session Summary');
+  lines.push('Divot Session Summary');
   lines.push('========================');
   lines.push('');
 

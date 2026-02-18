@@ -144,7 +144,7 @@ export const useBLEAdvertising = (
 /**
  * Hook for BLE scanning (viewer side).
  *
- * Starts scanning for nearby SwingLink advertisers on mount and maintains a
+ * Starts scanning for nearby Divot advertisers on mount and maintains a
  * list of discovered devices sorted by signal strength. Stops scanning on
  * unmount. If permissions are not granted, silently returns an empty list —
  * the viewer screen falls back to QR-only discovery.

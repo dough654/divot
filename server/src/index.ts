@@ -279,5 +279,5 @@ io.on('connection', (socket: Socket) => {
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`🚀 SwingLink signaling server running on port ${PORT}`);
+  console.log(`🚀 Divot signaling server running on port ${PORT}`);
 });

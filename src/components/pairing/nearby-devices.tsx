@@ -66,7 +66,7 @@ export const NearbyDevices = ({
           </View>
           <View style={styles.deviceInfo}>
             <Text style={styles.deviceName} numberOfLines={1}>
-              {device.name || 'SwingLink Camera'}
+              {device.name || 'Divot Camera'}
             </Text>
             <Text style={styles.deviceMeta}>
               {device.platform === 'ios' ? 'iPhone' : 'Android'} · {device.roomCode}

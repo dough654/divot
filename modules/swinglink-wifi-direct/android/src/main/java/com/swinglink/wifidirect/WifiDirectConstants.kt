@@ -2,8 +2,8 @@ package com.swinglink.wifidirect
 
 /** Constants shared across Wi-Fi Direct components. */
 object WifiDirectConstants {
-  /** Bonjour/DNS-SD service type for SwingLink signaling. */
-  const val SERVICE_TYPE = "_swinglink-sig._tcp"
+  /** Bonjour/DNS-SD service type for Divot signaling. */
+  const val SERVICE_TYPE = "_divot-sig._tcp"
 
   /** TXT record key for room code. */
   const val TXT_ROOM_CODE = "rc"

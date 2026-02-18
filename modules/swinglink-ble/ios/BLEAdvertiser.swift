@@ -68,7 +68,7 @@ class BLEAdvertiser: NSObject, CBPeripheralManagerDelegate {
     // Now that the GATT service is registered, start advertising
     peripheral.startAdvertising([
       CBAdvertisementDataServiceUUIDsKey: [BLEConstants.serviceUUID],
-      CBAdvertisementDataLocalNameKey: "SwingLink",
+      CBAdvertisementDataLocalNameKey: "Divot",
     ])
   }
 

@@ -9,7 +9,7 @@ import type {
 } from '@/src/types';
 
 const DEFAULT_CONFIG: SignalingClientConfig = {
-  serverUrl: 'https://swinglink-signaling.fly.dev',
+  serverUrl: 'https://divot-signaling.fly.dev',
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
 };

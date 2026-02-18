@@ -11,7 +11,7 @@ private let logger = Logger(subsystem: "com.swinglink.multipeer", category: "Mul
 /// The MPC session is short-lived — it only relays SDP offers/answers and ICE candidates,
 /// then tears down once WebRTC establishes a direct connection.
 final class MultipeerManager: NSObject {
-  private static let serviceType = "swinglink-sig"
+  private static let serviceType = "divot-sig"
 
   private let serialQueue = DispatchQueue(label: "com.swinglink.multipeer.serial")
 

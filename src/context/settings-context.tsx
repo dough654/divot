@@ -1,5 +1,5 @@
 /**
- * SwingLink Settings Context
+ * Divot Settings Context
  *
  * Provides persistent app settings throughout the app.
  * Settings are stored in AsyncStorage and loaded on app start.
@@ -64,7 +64,7 @@ type SettingsContextValue = {
 // CONSTANTS
 // ============================================
 
-const SETTINGS_KEY = '@swinglink/settings';
+const SETTINGS_KEY = '@divot/settings';
 
 const DEFAULT_SETTINGS: Settings = {
   hapticsEnabled: true,

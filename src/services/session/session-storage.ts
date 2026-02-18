@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session, SessionMetadata, SessionLocation } from '@/src/types/session';
 
-const METADATA_KEY = '@swinglink/sessions_metadata';
+const METADATA_KEY = '@divot/sessions_metadata';
 const CURRENT_VERSION = 1;
 
 /**

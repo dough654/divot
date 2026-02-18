@@ -1,7 +1,7 @@
 import type { QRCodePayload, ConnectionMode } from '@/src/types';
 
 const QR_PAYLOAD_VERSION = 1;
-const QR_PAYLOAD_PREFIX = 'SWINGLINK:';
+const QR_PAYLOAD_PREFIX = 'DIVOT:';
 
 /**
  * Simple base64 encoding for React Native compatibility.
@@ -74,7 +74,7 @@ export const encodeQRPayload = (payload: QRCodePayload): string => {
 
 /**
  * Decodes a QR code string back into a payload object.
- * Returns null if the string is not a valid SwingLink QR code.
+ * Returns null if the string is not a valid Divot QR code.
  */
 export const decodeQRPayload = (qrString: string): QRCodePayload | null => {
   if (!qrString.startsWith(QR_PAYLOAD_PREFIX)) {
@@ -141,8 +141,8 @@ export const createHotspotModePayload = (params: {
 });
 
 /**
- * Validates if a string is a valid SwingLink QR code.
+ * Validates if a string is a valid Divot QR code.
  */
-export const isValidSwingLinkQR = (qrString: string): boolean => {
+export const isValidDivotQR = (qrString: string): boolean => {
   return decodeQRPayload(qrString) !== null;
 };

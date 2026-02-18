@@ -5,12 +5,12 @@ import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
-  name: 'SwingLink',
-  slug: 'swing-app',
+  name: 'Divot',
+  slug: 'divot',
   version: '1.0.0',
   orientation: 'default',
   icon: './assets/images/icon.png',
-  scheme: 'swinglink',
+  scheme: 'divot',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   splash: {
@@ -20,15 +20,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.swinglink.app',
+    bundleIdentifier: 'com.divotgolf.app',
     infoPlist: {
-      NSCameraUsageDescription: 'SwingLink needs camera access to film and stream your golf swing.',
-      NSMicrophoneUsageDescription: 'SwingLink needs microphone access for audio during video streaming.',
-      NSLocalNetworkUsageDescription: 'SwingLink uses local network to discover and connect to nearby devices.',
-      NSBonjourServices: ['_swinglink._tcp', '_swinglink-sig._tcp'],
-      NSPhotoLibraryUsageDescription: 'SwingLink needs photo library access to save recorded swing videos.',
-      NSPhotoLibraryAddUsageDescription: 'SwingLink needs photo library access to save recorded swing videos.',
-      NSBluetoothAlwaysUsageDescription: 'SwingLink uses Bluetooth to discover nearby devices for pairing.',
+      NSCameraUsageDescription: 'Divot needs camera access to film and stream your golf swing.',
+      NSMicrophoneUsageDescription: 'Divot needs microphone access for audio during video streaming.',
+      NSLocalNetworkUsageDescription: 'Divot uses local network to discover and connect to nearby devices.',
+      NSBonjourServices: ['_divot._tcp', '_divot-sig._tcp'],
+      NSPhotoLibraryUsageDescription: 'Divot needs photo library access to save recorded swing videos.',
+      NSPhotoLibraryAddUsageDescription: 'Divot needs photo library access to save recorded swing videos.',
+      NSBluetoothAlwaysUsageDescription: 'Divot uses Bluetooth to discover nearby devices for pairing.',
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   android: {
@@ -36,7 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/images/adaptive-icon.png',
       backgroundColor: '#000000',
     },
-    package: 'com.swinglink.app',
+    package: 'com.divotgolf.app',
     permissions: [
       'CAMERA',
       'RECORD_AUDIO',
@@ -65,25 +66,25 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       '@config-plugins/react-native-webrtc',
       {
-        cameraPermission: 'SwingLink needs camera access to film and stream your golf swing.',
-        microphonePermission: 'SwingLink needs microphone access for audio during video streaming.',
+        cameraPermission: 'Divot needs camera access to film and stream your golf swing.',
+        microphonePermission: 'Divot needs microphone access for audio during video streaming.',
       },
     ],
     [
       'react-native-vision-camera',
       {
-        cameraPermissionText: 'SwingLink needs camera access to record your golf swing.',
+        cameraPermissionText: 'Divot needs camera access to record your golf swing.',
         enableCodeScanner: true,
         enableMicrophonePermission: true,
-        microphonePermissionText: 'SwingLink needs microphone access to record audio with your swing videos.',
+        microphonePermissionText: 'Divot needs microphone access to record audio with your swing videos.',
       },
     ],
     'expo-apple-authentication',
     [
       'expo-media-library',
       {
-        photosPermission: 'SwingLink needs photo library access to save recorded swing videos.',
-        savePhotosPermission: 'SwingLink needs permission to save recorded swing videos to your library.',
+        photosPermission: 'Divot needs photo library access to save recorded swing videos.',
+        savePhotosPermission: 'Divot needs permission to save recorded swing videos to your library.',
         isAccessMediaLocationEnabled: true,
       },
     ],
@@ -91,7 +92,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:
-          'SwingLink uses your location to tag practice sessions.',
+          'Divot uses your location to tag practice sessions.',
       },
     ],
   ],
@@ -99,7 +100,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     typedRoutes: true,
   },
   extra: {
-    signalingServerUrl: process.env.SIGNALING_SERVER_URL || 'https://swinglink-signaling.fly.dev',
+    signalingServerUrl: process.env.SIGNALING_SERVER_URL || 'https://divot-signaling.fly.dev',
+    apiBaseUrl: process.env.API_BASE_URL || 'https://divot-api.fly.dev',
+    appEnv: process.env.APP_ENV || 'development',
     posthogApiKey: process.env.POSTHOG_API_KEY || '',
     eas: {
       projectId: '35da25d9-0965-4058-8a6e-cfe1a9a385d1',

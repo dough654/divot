@@ -7,7 +7,7 @@ import { deleteAnalysis } from '@/src/services/analysis/analysis-storage';
 import { removeClipFromSession } from '@/src/services/session/session-storage';
 
 const CLIPS_DIR_NAME = 'clips';
-const METADATA_KEY = '@swinglink/clips_metadata';
+const METADATA_KEY = '@divot/clips_metadata';
 const CURRENT_VERSION = 1;
 
 /**

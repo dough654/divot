@@ -1,7 +1,7 @@
 import Zeroconf from 'react-native-zeroconf';
 import type { LocalDiscoveryService, LocalDiscoveryState } from '@/src/types';
 
-const SERVICE_TYPE = '_swinglink._tcp.';
+const SERVICE_TYPE = '_divot._tcp.';
 const SERVICE_DOMAIN = 'local.';
 const DISCOVERY_TIMEOUT_MS = 5000;
 
@@ -100,7 +100,7 @@ export const createLocalDiscovery = (callbacks: LocalDiscoveryCallbacks = {}) =>
    */
   const unpublishService = (): void => {
     try {
-      zeroconf.unpublishService('SwingLink');
+      zeroconf.unpublishService('Divot');
       isPublishing = false;
       updateState();
     } catch (error) {

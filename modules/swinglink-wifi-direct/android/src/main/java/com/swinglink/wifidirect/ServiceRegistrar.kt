@@ -30,7 +30,7 @@ class ServiceRegistrar(
     )
 
     val info = WifiP2pDnsSdServiceInfo.newInstance(
-      "swinglink_$roomCode",
+      "divot_$roomCode",
       WifiDirectConstants.SERVICE_TYPE,
       txtRecord,
     )

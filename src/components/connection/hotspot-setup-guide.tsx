@@ -40,7 +40,7 @@ export const HotspotSetupGuide = ({
   const viewerStepsIOS = [
     'Scan the QR code with your camera app',
     'Tap "Join Network" when prompted',
-    'Return to SwingLink after connecting',
+    'Return to Divot after connecting',
   ];
 
   const steps = isCamera

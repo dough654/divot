@@ -126,7 +126,7 @@ export const connectionErrors = {
 export const permissionErrors = {
   cameraPermissionDenied: {
     title: 'Camera Access Required',
-    message: 'SwingLink needs camera access to record swings and stream video. Grant permission in Settings.',
+    message: 'Divot needs camera access to record swings and stream video. Grant permission in Settings.',
     recoveryActions: [
       { label: 'Open Settings', action: 'settings' as const, primary: true },
       { label: 'Dismiss', action: 'dismiss' as const },

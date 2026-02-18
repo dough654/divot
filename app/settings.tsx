@@ -25,7 +25,7 @@ const FPS_OPTIONS: { value: RecordingFps; label: string }[] = [
   { value: 240, label: '240' },
 ];
 
-const FEEDBACK_EMAIL = 'feedback@swinglink.app';
+const FEEDBACK_EMAIL = 'feedback@divotgolf.app';
 
 const showAccountSection = !!process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -165,7 +165,7 @@ export default function SettingsScreen() {
 
   const handleSendFeedback = () => {
     haptics.light();
-    const subject = encodeURIComponent('SwingLink Feedback');
+    const subject = encodeURIComponent('Divot Feedback');
     const body = encodeURIComponent('\n\n---\nApp Version: 1.0.0');
     Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`);
   };
@@ -474,7 +474,7 @@ export default function SettingsScreen() {
 
       {/* About */}
       <View style={styles.aboutSection}>
-        <Text style={styles.appName}>swinglink</Text>
+        <Text style={styles.appName}>divot</Text>
         <Text style={styles.version}>v1.0.0</Text>
         <Text style={styles.description}>
           p2p video streaming for golfers
