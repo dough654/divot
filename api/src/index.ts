@@ -13,7 +13,8 @@ import { health } from './routes/health';
 import { sessions } from './routes/sessions';
 import { clipsRouter } from './routes/clips';
 import { settings } from './routes/settings';
-import { presignedUrls } from './routes/presigned-urls';
+import { createPresignedUrlsRouter } from './routes/presigned-urls';
+import { createR2ServiceFromEnv } from './services/r2';
 import { db } from './db';
 
 const app = new Hono<AuthEnv>();
@@ -40,7 +41,11 @@ app.route('/', health);
 app.route('/', sessions);
 app.route('/', clipsRouter);
 app.route('/', settings);
-app.route('/', presignedUrls);
+const r2 = createR2ServiceFromEnv();
+if (!r2) {
+  console.warn('R2 not configured — presigned URL endpoints will return 503');
+}
+app.route('/', createPresignedUrlsRouter(r2));
 
 const port = Number(process.env.PORT) || 3000;
 

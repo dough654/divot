@@ -4,14 +4,15 @@ import { health } from '../../src/routes/health';
 import { sessions } from '../../src/routes/sessions';
 import { clipsRouter } from '../../src/routes/clips';
 import { settings } from '../../src/routes/settings';
-import { presignedUrls } from '../../src/routes/presigned-urls';
+import { createPresignedUrlsRouter } from '../../src/routes/presigned-urls';
+import type { R2Service } from '../../src/routes/presigned-urls';
 import type { AuthEnv } from '../../src/middleware/auth';
 import type { Database } from '../../src/db';
 
 /**
  * Creates a test Hono app that bypasses Clerk auth and injects a test db + userId.
  */
-export const createTestApp = (db: Database, userId: string) => {
+export const createTestApp = (db: Database, userId: string, r2?: R2Service | null) => {
   const app = new Hono<AuthEnv>();
 
   app.onError(errorHandler);
@@ -29,7 +30,7 @@ export const createTestApp = (db: Database, userId: string) => {
   app.route('/', sessions);
   app.route('/', clipsRouter);
   app.route('/', settings);
-  app.route('/', presignedUrls);
+  app.route('/', createPresignedUrlsRouter(r2 ?? null));
 
   return app;
 };
