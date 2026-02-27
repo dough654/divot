@@ -78,10 +78,10 @@ const SubscriptionContext = createContext<SubscriptionContextValue | null>(null)
 
 /**
  * Provides subscription state via RevenueCat.
- * When API keys are empty, stays in free-tier mode without crashing.
+ * When API keys are empty, defaults to pro (dev mode) until RevenueCat is configured.
  */
 export const SubscriptionProvider = ({ userId, children }: SubscriptionProviderProps) => {
-  const [isPro, setIsPro] = useState(false);
+  const [isPro, setIsPro] = useState(!hasApiKey());
   const [isLoading, setIsLoading] = useState(hasApiKey());
   const [currentOffering, setCurrentOffering] = useState<PurchasesOffering | null>(null);
   const initializedRef = useRef(false);
