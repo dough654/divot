@@ -1,3 +1,7 @@
+import { config as loadEnv } from 'dotenv';
+
+loadEnv({ path: '.env.local' });
+
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { bodyLimit } from 'hono/body-limit';

@@ -20,6 +20,7 @@
     "@clerk/backend": "^1.21.0",
     "@hono/node-server": "^1.13.0",
     "@libsql/client": "^0.14.0",
+    "dotenv": "^17.3.1",
     "drizzle-orm": "^0.38.0",
     "hono": "^4.7.0",
     "ulidx": "^2.4.0",
