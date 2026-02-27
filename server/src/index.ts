@@ -1,5 +1,6 @@
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import { createRateLimiter } from './rate-limiter';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
@@ -34,6 +35,21 @@ const rooms = new Map<string, Set<string>>();
 // Track pending connection requests (roomCode → requester socket id)
 const pendingRequests = new Map<string, string>();
 
+// Rate limiters
+const roomCreationLimiter = createRateLimiter({ maxRequests: 5, windowMs: 60_000 });
+const signalingMessageLimiter = createRateLimiter({ maxRequests: 100, windowMs: 60_000 });
+
+/**
+ * Extracts the client IP from a Socket.IO handshake, respecting X-Forwarded-For behind proxies.
+ */
+const getClientIp = (socket: Socket): string => {
+  const forwarded = socket.handshake.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  return socket.handshake.address;
+};
+
 /**
  * Generates a random room code.
  */
@@ -63,6 +79,13 @@ io.on('connection', (socket: Socket) => {
    * Create a new room and return the room code.
    */
   socket.on('create-room', (callback: (response: { roomCode?: string; error?: string }) => void) => {
+    const clientIp = getClientIp(socket);
+    if (roomCreationLimiter.isRateLimited(clientIp)) {
+      console.warn(`[RateLimit] Room creation blocked for IP ${clientIp}`);
+      callback({ error: 'Rate limited. Try again later.' });
+      return;
+    }
+
     const roomCode = getUniqueRoomCode();
     rooms.set(roomCode, new Set([socket.id]));
     socket.join(roomCode);
@@ -229,6 +252,10 @@ io.on('connection', (socket: Socket) => {
    * Relay SDP offer to the other participant.
    */
   socket.on('offer', (data: { room: string; sdp: string }) => {
+    if (signalingMessageLimiter.isRateLimited(socket.id)) {
+      console.warn(`[RateLimit] Signaling message dropped for ${socket.id}`);
+      return;
+    }
     socket.to(data.room).emit('offer', { sdp: data.sdp });
     console.log(`Offer relayed in room: ${data.room}`);
   });
@@ -237,6 +264,10 @@ io.on('connection', (socket: Socket) => {
    * Relay SDP answer to the other participant.
    */
   socket.on('answer', (data: { room: string; sdp: string }) => {
+    if (signalingMessageLimiter.isRateLimited(socket.id)) {
+      console.warn(`[RateLimit] Signaling message dropped for ${socket.id}`);
+      return;
+    }
     socket.to(data.room).emit('answer', { sdp: data.sdp });
     console.log(`Answer relayed in room: ${data.room}`);
   });
@@ -245,6 +276,9 @@ io.on('connection', (socket: Socket) => {
    * Relay ICE candidate to the other participant.
    */
   socket.on('ice-candidate', (data: { room: string; candidate: object }) => {
+    if (signalingMessageLimiter.isRateLimited(socket.id)) {
+      return;
+    }
     socket.to(data.room).emit('ice-candidate', { candidate: data.candidate });
   });
 
