@@ -10,11 +10,13 @@ import {
   Manrope_600SemiBold,
   Manrope_700Bold,
 } from '@expo-google-fonts/manrope';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, ReactNode } from 'react';
 import 'react-native-reanimated';
+import { Pressable } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Ionicons } from '@expo/vector-icons';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { ClerkProvider, ClerkLoaded, useUser } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
@@ -104,12 +106,14 @@ const screenHeaderConfig: Record<string, { title: string; headerBackTitle?: stri
  */
 const NavigationLayout = () => {
   const { theme, isDark } = useTheme();
+  const router = useRouter();
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
       <Stack
         screenOptions={({ route }) => {
           const config = screenHeaderConfig[route.name];
+          const isModal = config?.presentation === 'modal';
           return {
             headerStyle: {
               backgroundColor: theme.colors.background,
@@ -121,6 +125,20 @@ const NavigationLayout = () => {
             headerShadowVisible: false,
             headerShown: !!config,
             ...(config ?? {}),
+            ...(isModal
+              ? {
+                  headerLeft: () => (
+                    <Pressable
+                      onPress={() => router.back()}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Close"
+                    >
+                      <Ionicons name="close" size={24} color={theme.colors.text} />
+                    </Pressable>
+                  ),
+                }
+              : {}),
           };
         }}
       />
