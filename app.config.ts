@@ -82,6 +82,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-apple-authentication',
     [
+      '@config-plugins/ffmpeg-kit-react-native',
+      { package: 'min' },
+    ],
+    [
       'expo-media-library',
       {
         photosPermission: 'Divot needs photo library access to save recorded swing videos.',

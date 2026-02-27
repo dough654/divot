@@ -30,3 +30,5 @@ export * from './use-video-zoom';
 // Import directly: import { useSwingAnalysis } from '@/src/hooks/use-swing-analysis';
 // use-pro-access excluded from barrel — depends on react-native-purchases (native dep)
 // Import directly: import { useProAccess } from '@/src/hooks/use-pro-access';
+// use-video-export excluded from barrel — depends on ffmpeg-kit-react-native (native dep)
+// Import directly: import { useVideoExport } from '@/src/hooks/use-video-export';

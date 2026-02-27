@@ -13,8 +13,12 @@ import { useDrawing } from '@/src/hooks/use-drawing';
 import { useSwingAnalysis } from '@/src/hooks/use-swing-analysis';
 import { findNearestShaftFrame } from '@/src/utils/shaft-frame-lookup';
 import { captureAnnotatedFrame, saveBase64ImageToGallery } from '@/src/services/annotation/frame-capture';
+import { useProAccess } from '@/src/hooks/use-pro-access';
+import { useVideoExport } from '@/src/hooks/use-video-export';
+import { ExportProgressModal } from '@/src/components/export';
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import { useRouter } from 'expo-router';
 import type { Theme } from '@/src/context';
 
 export type VideoPlayerProps = {
@@ -89,9 +93,22 @@ export const VideoPlayer = ({
 
   const { theme } = useTheme();
   const themedStyles = useThemedStyles(createStyles);
+  const router = useRouter();
+  const { isPro } = useProAccess();
 
   const drawingEnabled = !!clipId;
   const drawing = useDrawing({ clipId: clipId ?? '' });
+
+  // Video export
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportSvgRef = useRef<any>(null);
+  const exportSvgReady = useRef<(() => void) | null>(null);
+
+  const videoExport = useVideoExport({
+    videoPath: clipPath ?? uri,
+    durationMs: duration,
+  });
 
   // Swing analysis
   const analysisEnabled = !!clipId;
@@ -139,6 +156,57 @@ export const VideoPlayer = ({
       setShowShaftOverlay(true);
     }
   }, [analysis.status]);
+
+  const handleExportVideo = useCallback(async () => {
+    if (!isPro) {
+      router.push('/paywall');
+      return;
+    }
+
+    setExportModalVisible(true);
+    setIsExporting(true);
+
+    await videoExport.startExport(async () => {
+      // Mount the hidden SVG overlay at video container size and get base64 PNG
+      await new Promise<void>((resolve) => {
+        if (exportSvgReady.current === null) {
+          exportSvgReady.current = resolve;
+        } else {
+          resolve();
+        }
+      });
+      // Wait for native SVG rendering
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => setTimeout(resolve, 200));
+
+      if (!exportSvgRef.current) {
+        throw new Error('SVG ref not available for export');
+      }
+
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('toDataURL timeout')), 5000);
+        exportSvgRef.current.toDataURL((data: string) => {
+          clearTimeout(timeout);
+          resolve(data);
+        });
+      });
+
+      setIsExporting(false);
+      return base64;
+    });
+  }, [isPro, router, videoExport, drawing.annotations]);
+
+  const handleExportDone = useCallback(() => {
+    videoExport.reset();
+    setExportModalVisible(false);
+    setIsExporting(false);
+    exportSvgReady.current = null;
+  }, [videoExport]);
+
+  const handleExportRetry = useCallback(() => {
+    handleExportVideo();
+  }, [handleExportVideo]);
 
   // Auto-hide controls in landscape when playing
   const resetHideTimer = useCallback(() => {
@@ -531,6 +599,23 @@ export const VideoPlayer = ({
           />
         )}
 
+        {/* Hidden SVG overlay for video export — generates the PNG overlay via toDataURL */}
+        {isExporting && drawing.annotations.length > 0 && (
+          <StaticAnnotationOverlay
+            ref={exportSvgRef}
+            annotations={drawing.annotations}
+            width={containerSize.current.width}
+            height={containerSize.current.height}
+            onReady={() => {
+              if (exportSvgReady.current) {
+                exportSvgReady.current();
+              } else {
+                exportSvgReady.current = () => {};
+              }
+            }}
+          />
+        )}
+
         {/* Drawing toolbar - absolutely positioned inside video container */}
         {isDrawMode && !isSaving && (
           <View style={themedStyles.toolbarContainer}>
@@ -548,6 +633,7 @@ export const VideoPlayer = ({
               onClear={drawing.clearAll}
               onToolSelect={drawing.setActiveTool}
               onSave={handleSaveFrame}
+              onExportVideo={handleExportVideo}
             />
           </View>
         )}
@@ -643,6 +729,20 @@ export const VideoPlayer = ({
                     name="analytics-outline"
                     size={18}
                     color={showShaftOverlay ? theme.colors.text : '#fff'}
+                  />
+                </Pressable>
+              )}
+              {drawingEnabled && drawing.annotations.length > 0 && (
+                <Pressable
+                  style={themedStyles.drawButton}
+                  onPress={handleExportVideo}
+                  accessibilityRole="button"
+                  accessibilityLabel="Export annotated video"
+                >
+                  <Ionicons
+                    name={isPro ? 'videocam-outline' : 'lock-closed-outline'}
+                    size={18}
+                    color="#fff"
                   />
                 </Pressable>
               )}
@@ -764,9 +864,36 @@ export const VideoPlayer = ({
                 />
               </Pressable>
             )}
+            {drawingEnabled && drawing.annotations.length > 0 && (
+              <Pressable
+                style={themedStyles.drawButton}
+                onPress={handleExportVideo}
+                accessibilityRole="button"
+                accessibilityLabel="Export annotated video"
+                accessibilityHint="Export the full video with annotations burned in"
+              >
+                <Ionicons
+                  name={isPro ? 'videocam-outline' : 'lock-closed-outline'}
+                  size={18}
+                  color={theme.colors.textTertiary}
+                />
+              </Pressable>
+            )}
           </View>
         </View>
       )}
+
+      <ExportProgressModal
+        visible={exportModalVisible}
+        status={videoExport.status}
+        progress={videoExport.progress}
+        errorMessage={videoExport.errorMessage}
+        onCancel={videoExport.cancel}
+        onSaveToGallery={videoExport.saveToGallery}
+        onShare={videoExport.share}
+        onDone={handleExportDone}
+        onRetry={handleExportRetry}
+      />
     </View>
   );
 };

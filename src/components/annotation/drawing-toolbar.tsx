@@ -50,6 +50,8 @@ type DrawingToolbarProps = {
   onToolSelect: (tool: DrawingTool) => void;
   /** Called when save/export is tapped. */
   onSave: () => void;
+  /** Called when video export is tapped. */
+  onExportVideo?: () => void;
 };
 
 /**
@@ -71,6 +73,7 @@ export const DrawingToolbar = ({
   onClear,
   onToolSelect,
   onSave,
+  onExportVideo,
 }: DrawingToolbarProps) => {
   const phaseHint = ANGLE_PHASE_HINTS[anglePhase];
 
@@ -130,6 +133,20 @@ export const DrawingToolbar = ({
           >
             <Ionicons name="download-outline" size={20} color={canSave ? '#fff' : '#666'} />
           </Pressable>
+
+          {onExportVideo && (
+            <Pressable
+              style={[styles.actionButton, !canSave && styles.actionButtonDisabled]}
+              onPress={onExportVideo}
+              disabled={!canSave}
+              accessibilityRole="button"
+              accessibilityLabel="Export annotated video"
+              accessibilityHint="Exports the full video with annotations burned in"
+              accessibilityState={{ disabled: !canSave }}
+            >
+              <Ionicons name="videocam-outline" size={20} color={canSave ? '#fff' : '#666'} />
+            </Pressable>
+          )}
 
           <Pressable
             style={[styles.actionButton, !canUndo && styles.actionButtonDisabled]}
