@@ -81,7 +81,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-apple-authentication',
-    'react-native-purchases',
     [
       'expo-media-library',
       {
