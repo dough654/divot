@@ -20,7 +20,7 @@ import { ClerkProvider, ClerkLoaded, useUser } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import Constants from 'expo-constants';
 
-import { AppThemeProvider, ToastProvider, SettingsProvider, useSettings, useTheme } from '@/src/context';
+import { AppThemeProvider, ToastProvider, SettingsProvider, SubscriptionProvider, useSettings, useTheme } from '@/src/context';
 import { setPostHogInstance, identifyUser } from '@/src/services/analytics';
 import type { ThemeMode } from '@/src/context';
 
@@ -60,6 +60,18 @@ const AuthAnalyticsBridge = ({ children }: { children: ReactNode }) => {
 };
 
 /**
+ * Passes the Clerk user ID to SubscriptionProvider for cross-device purchase persistence.
+ */
+const SubscriptionBridge = ({ children }: { children: ReactNode }) => {
+  const { user } = useUser();
+  return (
+    <SubscriptionProvider userId={user?.id ?? null}>
+      {children}
+    </SubscriptionProvider>
+  );
+};
+
+/**
  * Bridge component that connects SettingsProvider to AppThemeProvider.
  * Reads theme mode from settings and passes to theme provider.
  */
@@ -84,6 +96,7 @@ const screenHeaderConfig: Record<string, { title: string; headerBackTitle?: stri
   sessions: { title: 'Sessions', headerBackTitle: 'Home' },
   'session/[id]': { title: 'Session', headerBackTitle: 'Sessions' },
   'sign-in': { title: 'Account', headerBackTitle: 'Back', presentation: 'modal' },
+  paywall: { title: 'Divot Pro', headerBackTitle: 'Back', presentation: 'modal' },
 };
 
 /**
@@ -156,12 +169,16 @@ export default function RootLayout() {
         <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
           <ClerkLoaded>
             <AuthAnalyticsBridge>
-              {innerContent}
+              <SubscriptionBridge>
+                {innerContent}
+              </SubscriptionBridge>
             </AuthAnalyticsBridge>
           </ClerkLoaded>
         </ClerkProvider>
       ) : (
-        innerContent
+        <SubscriptionProvider userId={null}>
+          {innerContent}
+        </SubscriptionProvider>
       )}
     </GestureHandlerRootView>
   );

@@ -17,7 +17,9 @@
         "SIGNALING_SERVER_URL": "https://divot-signaling.fly.dev",
         "API_BASE_URL": "https://divot-api-dev.fly.dev",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_aGVscGluZy1nb2JibGVyLTUxLmNsZXJrLmFjY291bnRzLmRldiQ",
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_REVENUECAT_APPLE_KEY": "",
+        "EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY": ""
       }
     },
     "preview": {
@@ -32,7 +34,9 @@
         "SIGNALING_SERVER_URL": "https://divot-signaling.fly.dev",
         "API_BASE_URL": "https://divot-api-dev.fly.dev",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_aGVscGluZy1nb2JibGVyLTUxLmNsZXJrLmFjY291bnRzLmRldiQ",
-        "APP_ENV": "preview"
+        "APP_ENV": "preview",
+        "EXPO_PUBLIC_REVENUECAT_APPLE_KEY": "",
+        "EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY": ""
       }
     },
     "production": {
@@ -41,7 +45,9 @@
         "SIGNALING_SERVER_URL": "https://divot-signaling.fly.dev",
         "API_BASE_URL": "https://divot-api.fly.dev",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsuZGl2b3Rnb2xmLmFwcCQ",
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_REVENUECAT_APPLE_KEY": "",
+        "EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY": ""
       }
     }
   },

@@ -1,11 +1,11 @@
-import { View, Text, Switch, Pressable, Alert, Linking, ScrollView } from 'react-native';
+import { View, Text, Switch, Pressable, Alert, Linking, ScrollView, Platform } from 'react-native';
 import { useState } from 'react';
 import Slider from '@react-native-community/slider';
 import { useFeatureFlag } from 'posthog-react-native';
 import { SignedIn, SignedOut, useUser, useClerk } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 
-import { useTheme, useSettings } from '@/src/context';
+import { useTheme, useSettings, useSubscription } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { useToast } from '@/src/context';
@@ -53,6 +53,7 @@ export default function SettingsScreen() {
   const [isClearing, setIsClearing] = useState(false);
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { isPro, isLoading: subscriptionLoading, restorePurchases } = useSubscription();
 
   const handleHapticsToggle = (value: boolean) => {
     // Trigger haptic before potentially disabling
@@ -170,6 +171,25 @@ export default function SettingsScreen() {
     Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`);
   };
 
+  const handleRestorePurchases = async () => {
+    haptics.light();
+    const restored = await restorePurchases();
+    if (restored) {
+      haptics.success();
+      showToast('Purchases restored', { variant: 'success' });
+    } else {
+      showToast('No purchases to restore', { variant: 'info' });
+    }
+  };
+
+  const handleManageSubscription = () => {
+    haptics.light();
+    const url = Platform.OS === 'ios'
+      ? 'https://apps.apple.com/account/subscriptions'
+      : 'https://play.google.com/store/account/subscriptions';
+    Linking.openURL(url);
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Account Section — only when Clerk is configured */}
@@ -225,6 +245,59 @@ export default function SettingsScreen() {
           </SignedIn>
         </View>
       )}
+
+      {/* Subscription Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>subscription</Text>
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingLabel}>CURRENT PLAN</Text>
+            <Text style={styles.settingDescription}>
+              {subscriptionLoading ? 'checking...' : isPro ? 'divot pro' : 'free'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        {isPro ? (
+          <Pressable
+            style={styles.actionRow}
+            onPress={handleManageSubscription}
+            accessibilityRole="button"
+            accessibilityLabel="Manage subscription"
+          >
+            <Text style={styles.settingLabel}>MANAGE</Text>
+            <Text style={styles.actionArrow}>&rarr;</Text>
+          </Pressable>
+        ) : (
+          <>
+            <Pressable
+              style={styles.actionRow}
+              onPress={() => router.push('/paywall')}
+              accessibilityRole="button"
+              accessibilityLabel="Upgrade to Pro"
+            >
+              <Text style={[styles.settingLabel, styles.accentText]}>UPGRADE TO PRO</Text>
+              <Text style={styles.actionArrow}>&rarr;</Text>
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              style={styles.actionRow}
+              onPress={handleRestorePurchases}
+              disabled={subscriptionLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Restore purchases"
+            >
+              <Text style={styles.settingLabel}>RESTORE PURCHASES</Text>
+              <Text style={styles.actionArrow}>&rarr;</Text>
+            </Pressable>
+          </>
+        )}
+      </View>
 
       {/* Preferences Section */}
       <View style={styles.section}>
@@ -581,6 +654,9 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   dangerText: {
     color: theme.colors.error,
+  },
+  accentText: {
+    color: theme.colors.accent,
   },
   aboutSection: {
     marginTop: 'auto' as const,

@@ -81,6 +81,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-apple-authentication',
+    'react-native-purchases',
     [
       'expo-media-library',
       {
@@ -105,6 +106,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     apiBaseUrl: process.env.API_BASE_URL || 'https://divot-api.fly.dev',
     appEnv: process.env.APP_ENV || 'development',
     posthogApiKey: process.env.POSTHOG_API_KEY || '',
+    revenuecatAppleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY || '',
+    revenuecatGoogleApiKey: process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY || '',
     eas: {
       projectId: '3fb2e8fb-96ba-4e3c-9b18-f66d7bd227c4',
     },

@@ -28,3 +28,5 @@ export * from './use-video-zoom';
 // Import directly: import { useSwingDetectionAnalytics } from '@/src/hooks/use-swing-detection-analytics';
 // use-swing-analysis excluded from barrel — depends on swing-analysis native module
 // Import directly: import { useSwingAnalysis } from '@/src/hooks/use-swing-analysis';
+// use-pro-access excluded from barrel — depends on react-native-purchases (native dep)
+// Import directly: import { useProAccess } from '@/src/hooks/use-pro-access';
