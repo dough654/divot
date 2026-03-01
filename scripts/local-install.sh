@@ -29,11 +29,16 @@ REMOTE_DIR="~/dev/swing-app"
 # ---------------------------------------------------------------------------
 resolve_ios_device() {
   local name="$1"
+
+  # Devices with hardcoded UDIDs (not visible to devicectl)
+  case "${name}" in
+    ipad-pro) echo "4b99c110653490a52fe22ecee6a5be45894a095f"; return 0 ;;
+  esac
+
   local pattern
   case "${name}" in
     iphone)   pattern="iPhone" ;;
     ipad)     pattern="iPad" ;;
-    ipad-pro) pattern="iPad Pro" ;;
     *)        echo "Unknown iOS device name: ${name}" >&2; return 1 ;;
   esac
 
@@ -108,8 +113,15 @@ elif [[ "${PLATFORM}" == "ios" ]]; then
     echo "    ssh mac \"cd ${REMOTE_DIR} && xcrun devicectl device install app --device <DEVICE_ID> ${ARTIFACT}\""
   else
     echo "    Target: ${DEVICE:-auto-detected} (${DEVICE_ID})"
-    ssh "${MAC_HOST}" "cd ${REMOTE_DIR} && xcrun devicectl device install app --device '${DEVICE_ID}' '${ARTIFACT}'" \
-      && echo "    Installed on iOS device." \
-      || echo "    Install failed. You may need to trust the developer certificate on the device."
+    # Old-style UDIDs (40 hex chars) aren't supported by devicectl — use ios-deploy
+    if [[ "${DEVICE_ID}" =~ ^[0-9a-f]{40}$ ]]; then
+      ssh "${MAC_HOST}" "cd ${REMOTE_DIR} && ios-deploy --id '${DEVICE_ID}' --bundle '${ARTIFACT}'" \
+        && echo "    Installed on iOS device." \
+        || echo "    Install failed. Make sure ios-deploy is installed (brew install ios-deploy) and the device is connected."
+    else
+      ssh "${MAC_HOST}" "cd ${REMOTE_DIR} && xcrun devicectl device install app --device '${DEVICE_ID}' '${ARTIFACT}'" \
+        && echo "    Installed on iOS device." \
+        || echo "    Install failed. You may need to trust the developer certificate on the device."
+    fi
   fi
 fi
