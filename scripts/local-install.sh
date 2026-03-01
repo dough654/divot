@@ -31,9 +31,10 @@ resolve_ios_device() {
   local name="$1"
   local pattern
   case "${name}" in
-    iphone)  pattern="iPhone" ;;
-    ipad)    pattern="iPad" ;;
-    *)       echo "Unknown iOS device name: ${name}" >&2; return 1 ;;
+    iphone)   pattern="iPhone" ;;
+    ipad)     pattern="iPad" ;;
+    ipad-pro) pattern="iPad Pro" ;;
+    *)        echo "Unknown iOS device name: ${name}" >&2; return 1 ;;
   esac
 
   local uuid

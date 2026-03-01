@@ -82,7 +82,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-apple-authentication',
     [
-      '@config-plugins/ffmpeg-kit-react-native',
+      './plugins/with-ffmpeg-kit',
       { package: 'min' },
     ],
     [

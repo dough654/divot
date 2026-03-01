@@ -18,6 +18,7 @@
     "build:ios:prod": "npx eas-cli build --platform ios --profile production",
     "build:local:iphone": "./scripts/local-build.sh ios --device iphone",
     "build:local:ipad": "./scripts/local-build.sh ios --device ipad",
+    "build:local:ipad-pro": "./scripts/local-build.sh ios --device ipad-pro",
     "build:local:s22": "./scripts/local-build.sh android --device s22",
     "build:local:s10-tablet": "./scripts/local-build.sh android --device s10-tablet",
     "build:local:android": "./scripts/local-build.sh android",
@@ -26,6 +27,7 @@
     "build:local:ios:preview": "./scripts/local-build.sh ios --profile preview",
     "install:iphone": "./scripts/local-install.sh ios --device iphone",
     "install:ipad": "./scripts/local-install.sh ios --device ipad",
+    "install:ipad-pro": "./scripts/local-install.sh ios --device ipad-pro",
     "install:s22": "./scripts/local-install.sh android --device s22",
     "install:s10-tablet": "./scripts/local-install.sh android --device s10-tablet",
     "eas:configure": "npx eas-cli build:configure",
@@ -36,7 +38,6 @@
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.23",
-    "@config-plugins/ffmpeg-kit-react-native": "^11.0.0",
     "@config-plugins/react-native-webrtc": "^13.0.0",
     "@expo-google-fonts/darker-grotesque": "^0.4.2",
     "@expo-google-fonts/manrope": "^0.4.2",
