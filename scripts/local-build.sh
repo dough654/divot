@@ -50,7 +50,7 @@ resolve_ios_device() {
   esac
 
   local uuid
-  uuid=$(ssh "${MAC_HOST}" "xcrun devicectl list devices 2>/dev/null | grep 'available' | grep -m1 '${pattern}' | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}'" 2>/dev/null || true)
+  uuid=$(ssh "${MAC_HOST}" "xcrun devicectl list devices 2>/dev/null | grep -E 'available|connected' | grep -m1 '${pattern}' | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}'" 2>/dev/null || true)
 
   if [[ -z "${uuid}" ]]; then
     echo "No paired iOS device matching '${pattern}' found." >&2
@@ -145,7 +145,7 @@ elif [[ "${PLATFORM}" == "ios" ]]; then
     DEVICE_ID=$(resolve_ios_device "${DEVICE}")
   else
     # Default: iPhone preferred, falls back to iPad
-    DEVICE_ID=$(ssh "${MAC_HOST}" "xcrun devicectl list devices 2>/dev/null | grep 'available' | { grep -m1 'iPhone' || grep -m1 'iPad'; } | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}'" 2>/dev/null || true)
+    DEVICE_ID=$(ssh "${MAC_HOST}" "xcrun devicectl list devices 2>/dev/null | grep -E 'available|connected' | { grep -m1 'iPhone' || grep -m1 'iPad'; } | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}'" 2>/dev/null || true)
   fi
 
   if [[ -z "${DEVICE_ID}" ]]; then
