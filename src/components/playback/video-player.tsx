@@ -586,7 +586,7 @@ export const VideoPlayer = ({
   const showControlsSection = showControls && isLoaded;
 
   return (
-    <View style={themedStyles.container}>
+    <View style={[themedStyles.container, !isLandscape && { paddingTop: insets.top }]}>
       <Pressable
         ref={videoContainerRef}
         style={themedStyles.videoContainer}
@@ -753,29 +753,6 @@ export const VideoPlayer = ({
           </View>
         )}
 
-        {/* Translucent header — portrait only, auto-hides */}
-        {controlsVisible && !isLandscape && headerTitle && (
-          <View style={[themedStyles.headerOverlay, { paddingTop: insets.top }]}>
-            {onBack && (
-              <Pressable
-                style={themedStyles.headerBackButton}
-                onPress={onBack}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Go back"
-              >
-                <Ionicons name="chevron-back" size={28} color="#fff" />
-              </Pressable>
-            )}
-            <View style={themedStyles.headerTitleGroup}>
-              <Text style={themedStyles.headerTitleText} numberOfLines={1}>{headerTitle}</Text>
-              {headerSubtitle && (
-                <Text style={themedStyles.headerSubtitleText} numberOfLines={1}>{headerSubtitle}</Text>
-              )}
-            </View>
-          </View>
-        )}
-
         {/* Landscape controls overlay — auto-hides */}
         {showControlsSection && isLandscape && controlsVisible && (
           <View style={themedStyles.controlsOverlay}>
@@ -917,6 +894,29 @@ export const VideoPlayer = ({
           </View>
         )}
       </Pressable>
+
+      {/* Translucent header — portrait only, auto-hides, covers status bar area */}
+      {controlsVisible && !isLandscape && headerTitle && (
+        <View style={[themedStyles.headerOverlay, { paddingTop: insets.top }]}>
+          {onBack && (
+            <Pressable
+              style={themedStyles.headerBackButton}
+              onPress={onBack}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="chevron-back" size={28} color="#fff" />
+            </Pressable>
+          )}
+          <View style={themedStyles.headerTitleGroup}>
+            <Text style={themedStyles.headerTitleText} numberOfLines={1}>{headerTitle}</Text>
+            {headerSubtitle && (
+              <Text style={themedStyles.headerSubtitleText} numberOfLines={1}>{headerSubtitle}</Text>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* FrameScrubber — portrait only, always visible */}
       {showControlsSection && !isLandscape && (
