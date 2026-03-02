@@ -3,21 +3,25 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { File } from 'expo-file-system/next';
-import { buildOverlayCommand } from './ffmpeg-command';
+import { buildOverlayCommand, buildCopyCommand } from './ffmpeg-command';
 
-export { buildOverlayCommand } from './ffmpeg-command';
+export { buildOverlayCommand, buildCopyCommand } from './ffmpeg-command';
 
 type ExportOptions = {
   /** Path to the source video file. */
   videoPath: string;
-  /** Path to the transparent PNG overlay. */
-  overlayPngPath: string;
+  /** Path to the transparent PNG overlay. When omitted, video is copied without overlay. */
+  overlayPngPath?: string;
   /** Path for the output .mp4. */
   outputPath: string;
   /** Estimated duration in ms (for progress calculation). */
   durationMs: number;
   /** Progress callback (0-1). */
   onProgress?: (fraction: number) => void;
+  /** Native video width. */
+  videoWidth?: number;
+  /** Native video height. */
+  videoHeight?: number;
 };
 
 /**
@@ -30,8 +34,18 @@ export const exportAnnotatedVideo = async ({
   outputPath,
   durationMs,
   onProgress,
+  videoWidth,
+  videoHeight,
 }: ExportOptions): Promise<{ sessionId: number }> => {
-  const command = buildOverlayCommand(videoPath, overlayPngPath, outputPath);
+  const command = overlayPngPath
+    ? buildOverlayCommand({
+        videoPath,
+        overlayPath: overlayPngPath,
+        outputPath,
+        videoWidth,
+        videoHeight,
+      })
+    : buildCopyCommand({ videoPath, outputPath });
 
   if (onProgress) {
     FFmpegKitConfig.enableStatisticsCallback((statistics) => {

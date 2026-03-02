@@ -17,6 +17,10 @@ type UseVideoExportOptions = {
   videoPath: string;
   /** Video duration in milliseconds. */
   durationMs: number;
+  /** Native video width. */
+  videoWidth?: number;
+  /** Native video height. */
+  videoHeight?: number;
 };
 
 type UseVideoExportReturn = {
@@ -28,8 +32,9 @@ type UseVideoExportReturn = {
   outputPath: string | null;
   /** Error message if export failed. */
   errorMessage: string | null;
-  /** Start the export. Provide a callback that returns the overlay PNG as base64. */
-  startExport: (getOverlayBase64: () => Promise<string>) => Promise<void>;
+  /** Start the export. Optionally provide a callback that returns the overlay PNG as base64.
+   *  When omitted, the video is exported without an overlay (straight copy). */
+  startExport: (getOverlayBase64?: () => Promise<string>) => Promise<void>;
   /** Cancel a running export. */
   cancel: () => void;
   /** Save the completed export to the photo gallery. */
@@ -50,6 +55,8 @@ type UseVideoExportReturn = {
 export const useVideoExport = ({
   videoPath,
   durationMs,
+  videoWidth,
+  videoHeight,
 }: UseVideoExportOptions): UseVideoExportReturn => {
   const [status, setStatus] = useState<ExportStatus>('idle');
   const [progress, setProgress] = useState(0);
@@ -70,7 +77,7 @@ export const useVideoExport = ({
     };
   }, []);
 
-  const startExport = useCallback(async (getOverlayBase64: () => Promise<string>) => {
+  const startExport = useCallback(async (getOverlayBase64?: () => Promise<string>) => {
     setStatus('preparing');
     setProgress(0);
     setErrorMessage(null);
@@ -78,11 +85,17 @@ export const useVideoExport = ({
     cleanup();
 
     try {
-      // Generate overlay PNG from SVG
-      const base64 = await getOverlayBase64();
-      const overlayPath = await writeOverlayPng(base64);
+      let overlayPath: string | undefined;
       const exportOutputPath = getExportOutputPath();
-      tempFilesRef.current = [overlayPath, exportOutputPath];
+
+      if (getOverlayBase64) {
+        // Generate overlay PNG from SVG
+        const base64 = await getOverlayBase64();
+        overlayPath = await writeOverlayPng(base64);
+        tempFilesRef.current = [overlayPath, exportOutputPath];
+      } else {
+        tempFilesRef.current = [exportOutputPath];
+      }
 
       setStatus('encoding');
 
@@ -92,6 +105,8 @@ export const useVideoExport = ({
         outputPath: exportOutputPath,
         durationMs,
         onProgress: setProgress,
+        videoWidth,
+        videoHeight,
       });
 
       sessionIdRef.current = sessionId;
@@ -107,7 +122,7 @@ export const useVideoExport = ({
         setStatus('error');
       }
     }
-  }, [videoPath, durationMs, cleanup]);
+  }, [videoPath, durationMs, videoWidth, videoHeight, cleanup]);
 
   const cancel = useCallback(() => {
     if (sessionIdRef.current !== null) {

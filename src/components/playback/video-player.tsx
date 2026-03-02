@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, Pressable, Image, Platform, PixelRatio } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Image, Platform } from 'react-native';
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus, VideoReadyForDisplayEvent } from 'expo-av';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -89,7 +89,6 @@ export const VideoPlayer = ({
   const svgLayoutReady = useRef<(() => void) | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const staticSvgRef = useRef<any>(null);
-  const containerSize = useRef({ width: 0, height: 0 });
   const wasPlayingBeforeSeek = useRef(false);
   const lastSeekTime = useRef(0);
   const pendingSeek = useRef<number | null>(null);
@@ -127,33 +126,20 @@ export const VideoPlayer = ({
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
 
-  // Video content rect within container (for export letterbox correction).
-  // Scaled by device pixel ratio because toDataURL() produces a high-DPI
-  // PNG — the FFmpeg crop coordinates must be in physical pixels, not CSS points.
-  // Width/height are clamped so the crop never exceeds the overlay PNG bounds
-  // (floating-point rounding can push Math.round up by 1px).
-  const exportContentRect = useMemo(() => {
+  // Video content rect within container — positions annotation overlays over
+  // the actual video content area (excluding letterbox bars). Since normalized
+  // coordinates are relative to the content rect, annotations stay stable
+  // across orientation changes.
+  const videoContentRect = useMemo(() => {
     if (videoNaturalWidth <= 0 || videoNaturalHeight <= 0 || containerWidth <= 0 || containerHeight <= 0) {
-      return undefined;
+      return null;
     }
-    const rect = computeContainRect(videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight);
-    const scale = PixelRatio.get();
-    const overlayW = Math.round(containerWidth * scale);
-    const overlayH = Math.round(containerHeight * scale);
-    const x = Math.round(rect.x * scale);
-    const y = Math.round(rect.y * scale);
-    return {
-      x,
-      y,
-      width: Math.min(Math.round(rect.width * scale), overlayW - x),
-      height: Math.min(Math.round(rect.height * scale), overlayH - y),
-    };
+    return computeContainRect(videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight);
   }, [videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight]);
 
   const videoExport = useVideoExport({
     videoPath: clipPath ?? uri,
     durationMs: duration,
-    contentRect: exportContentRect,
     videoWidth: videoNaturalWidth || undefined,
     videoHeight: videoNaturalHeight || undefined,
   });
@@ -629,7 +615,6 @@ export const VideoPlayer = ({
         disabled={isDrawMode}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
-          containerSize.current = { width, height };
           setContainerWidth(width);
           setContainerHeight(height);
         }}
@@ -661,16 +646,69 @@ export const VideoPlayer = ({
           />
         )}
 
-        {/* Drawing overlay - hidden during save so it doesn't block captureRef */}
-        {drawingEnabled && !isSaving && (
-          <DrawingOverlay
-            drawingEnabled={isDrawMode}
-            annotations={showAnnotations ? drawing.annotations : []}
-            currentAnnotation={showAnnotations ? drawing.currentAnnotation : null}
-            onLineStart={drawing.startLine}
-            onLineMove={drawing.addPoint}
-            onLineEnd={drawing.endLine}
-          />
+        {/* Annotation overlays positioned at the video content rect so
+            normalized coordinates stay stable across orientation changes. */}
+        {videoContentRect && (
+          <View style={{
+            position: 'absolute',
+            left: videoContentRect.x,
+            top: videoContentRect.y,
+            width: videoContentRect.width,
+            height: videoContentRect.height,
+          }}>
+            {/* Drawing overlay - hidden during save so it doesn't block captureRef */}
+            {drawingEnabled && !isSaving && (
+              <DrawingOverlay
+                drawingEnabled={isDrawMode}
+                annotations={showAnnotations ? drawing.annotations : []}
+                currentAnnotation={showAnnotations ? drawing.currentAnnotation : null}
+                onLineStart={drawing.startLine}
+                onLineMove={drawing.addPoint}
+                onLineEnd={drawing.endLine}
+              />
+            )}
+
+            {/* Static annotation layer for capture.
+                On iOS: captureRef sees the SVG directly (no background image needed).
+                On Android: the frame is embedded as an SVG <Image> element so
+                toDataURL produces a fully composited PNG — bypassing captureRef
+                which can't see SVG content on Android. */}
+            {isSaving && drawing.annotations.length > 0 && (
+              <StaticAnnotationOverlay
+                ref={staticSvgRef}
+                annotations={drawing.annotations}
+                width={videoContentRect.width}
+                height={videoContentRect.height}
+                backgroundImageUri={Platform.OS === 'android' ? captureFrameUri ?? undefined : undefined}
+                onReady={() => {
+                  if (svgLayoutReady.current) {
+                    svgLayoutReady.current();
+                  } else {
+                    svgLayoutReady.current = () => {};
+                  }
+                }}
+              />
+            )}
+
+            {/* Hidden SVG overlay for video export — generates the PNG overlay via toDataURL.
+                Content-rect sized so no letterbox crop is needed — just scale to video resolution. */}
+            {isExporting && (drawing.annotations.length > 0 || !isPro) && (
+              <StaticAnnotationOverlay
+                ref={exportSvgRef}
+                annotations={drawing.annotations}
+                width={videoContentRect.width}
+                height={videoContentRect.height}
+                watermarkText={!isPro ? 'recorded with divot' : undefined}
+                onReady={() => {
+                  if (exportSvgReady.current) {
+                    exportSvgReady.current();
+                  } else {
+                    exportSvgReady.current = () => {};
+                  }
+                }}
+              />
+            )}
+          </View>
         )}
 
         {/* Shaft detection overlay */}
@@ -683,47 +721,6 @@ export const VideoPlayer = ({
             containerHeight={containerHeight}
             videoWidth={analysis.result.analysisResolution.width}
             videoHeight={analysis.result.analysisResolution.height}
-          />
-        )}
-
-        {/* Static annotation layer for capture.
-            On iOS: captureRef sees the SVG directly (no background image needed).
-            On Android: the frame is embedded as an SVG <Image> element so
-            toDataURL produces a fully composited PNG — bypassing captureRef
-            which can't see SVG content on Android. */}
-        {isSaving && drawing.annotations.length > 0 && (
-          <StaticAnnotationOverlay
-            ref={staticSvgRef}
-            annotations={drawing.annotations}
-            width={containerSize.current.width}
-            height={containerSize.current.height}
-            backgroundImageUri={Platform.OS === 'android' ? captureFrameUri ?? undefined : undefined}
-            onReady={() => {
-              if (svgLayoutReady.current) {
-                svgLayoutReady.current();
-              } else {
-                svgLayoutReady.current = () => {};
-              }
-            }}
-          />
-        )}
-
-        {/* Hidden SVG overlay for video export — generates the PNG overlay via toDataURL.
-            Mounted when annotations exist OR when a watermark is needed (free users). */}
-        {isExporting && (drawing.annotations.length > 0 || !isPro) && (
-          <StaticAnnotationOverlay
-            ref={exportSvgRef}
-            annotations={drawing.annotations}
-            width={containerSize.current.width}
-            height={containerSize.current.height}
-            watermarkText={!isPro ? 'recorded with divot' : undefined}
-            onReady={() => {
-              if (exportSvgReady.current) {
-                exportSvgReady.current();
-              } else {
-                exportSvgReady.current = () => {};
-              }
-            }}
           />
         )}
 

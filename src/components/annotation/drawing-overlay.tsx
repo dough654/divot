@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { useRef, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Polyline, Line, Ellipse } from 'react-native-svg';
 import type { Annotation, AnnotationLine, EllipseAnnotation, Point } from '@/src/types/annotation';
@@ -107,10 +107,13 @@ export const DrawingOverlay = ({
   onLineMove,
   onLineEnd,
 }: DrawingOverlayProps) => {
-  const containerSize = useRef({ width: 0, height: 0 });
+  // State drives re-renders when layout changes (e.g. on rotation).
+  // Ref mirrors state for synchronous access inside gesture callbacks.
+  const [overlaySize, setOverlaySize] = useState({ width: 0, height: 0 });
+  const overlaySizeRef = useRef({ width: 0, height: 0 });
 
   const normalizePoint = useCallback((absoluteX: number, absoluteY: number): Point => {
-    const { width, height } = containerSize.current;
+    const { width, height } = overlaySizeRef.current;
     if (width === 0 || height === 0) return { x: 0, y: 0 };
     return {
       x: Math.max(0, Math.min(1, absoluteX / width)),
@@ -139,7 +142,7 @@ export const DrawingOverlay = ({
     : annotations;
   const hasAnnotations = allAnnotations.length > 0;
 
-  const { width, height } = containerSize.current;
+  const { width, height } = overlaySize;
 
   return (
     <GestureDetector gesture={panGesture}>
@@ -150,7 +153,9 @@ export const DrawingOverlay = ({
         ]}
         onLayout={(event) => {
           const layout = event.nativeEvent.layout;
-          containerSize.current = { width: layout.width, height: layout.height };
+          const newSize = { width: layout.width, height: layout.height };
+          overlaySizeRef.current = newSize;
+          setOverlaySize(newSize);
         }}
       >
         {hasAnnotations && (

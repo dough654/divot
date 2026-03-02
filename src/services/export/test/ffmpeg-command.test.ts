@@ -26,13 +26,14 @@ describe('buildOverlayCommand', () => {
     expect(result).toContain('"/tmp/my output.mp4"');
   });
 
-  it('uses overlay=0:0 positioning without contentRect', () => {
+  it('uses overlay=0:0 positioning without video dimensions', () => {
     const result = buildOverlayCommand({
       videoPath: '/a.mp4',
       overlayPath: '/b.png',
       outputPath: '/c.mp4',
     });
-    expect(result).toContain('overlay=0:0');
+    expect(result).toContain('[0:v][1:v]overlay=0:0');
+    expect(result).not.toContain('scale');
   });
 
   it('copies audio without re-encoding', () => {
@@ -53,46 +54,29 @@ describe('buildOverlayCommand', () => {
     expect(result).toContain('-y');
   });
 
-  it('crops and scales overlay when contentRect is provided', () => {
+  it('scales overlay to video dimensions when videoWidth and videoHeight are provided', () => {
     const result = buildOverlayCommand({
       videoPath: '/video.mp4',
       overlayPath: '/overlay.png',
       outputPath: '/out.mp4',
-      contentRect: { x: 0, y: 60, width: 390, height: 220 },
       videoWidth: 1920,
       videoHeight: 1080,
     });
 
-    // Uses min() expressions to clamp crop to overlay bounds (iw/ih)
-    expect(result).toContain("crop='min(390,iw-0)':'min(220,ih-60)':0:60");
     expect(result).toContain('scale=1920:1080');
     expect(result).toContain('[ovr];[0:v][ovr]overlay=0:0');
+    expect(result).not.toContain('crop');
   });
 
-  it('rounds contentRect values to integers', () => {
-    const result = buildOverlayCommand({
-      videoPath: '/video.mp4',
-      overlayPath: '/overlay.png',
-      outputPath: '/out.mp4',
-      contentRect: { x: 0.5, y: 59.7, width: 389.6, height: 219.3 },
-      videoWidth: 1920,
-      videoHeight: 1080,
-    });
-
-    expect(result).toContain("crop='min(390,iw-1)':'min(219,ih-60)':1:60");
-  });
-
-  it('falls back to simple overlay when contentRect is missing video dimensions', () => {
+  it('falls back to simple overlay when video dimensions are missing', () => {
     const result = buildOverlayCommand({
       videoPath: '/a.mp4',
       overlayPath: '/b.png',
       outputPath: '/c.mp4',
-      contentRect: { x: 0, y: 60, width: 390, height: 220 },
-      // videoWidth/videoHeight missing
     });
 
     expect(result).toContain('[0:v][1:v]overlay=0:0');
-    expect(result).not.toContain('crop');
+    expect(result).not.toContain('scale');
   });
 });
 
