@@ -773,7 +773,7 @@ export const VideoPlayer = ({
                 accessibilityRole="button"
                 accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
               >
-                <Ionicons name={isPlaying ? 'pause' : 'play'} size={22} color="#fff" />
+                <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color="#fff" />
               </Pressable>
               <Pressable
                 style={themedStyles.overlayButton}
@@ -791,7 +791,7 @@ export const VideoPlayer = ({
                   accessibilityLabel={isDrawMode ? 'Exit drawing mode' : 'Enter drawing mode'}
                   accessibilityState={{ selected: isDrawMode }}
                 >
-                  <Ionicons name="pencil" size={18} color={isDrawMode ? theme.colors.text : '#fff'} />
+                  <Ionicons name="pencil" size={22} color={isDrawMode ? theme.colors.text : '#fff'} />
                 </Pressable>
               )}
               {analysisEnabled && (
@@ -804,7 +804,7 @@ export const VideoPlayer = ({
                 >
                   <Ionicons
                     name="analytics-outline"
-                    size={18}
+                    size={22}
                     color={showShaftOverlay ? theme.colors.text : '#fff'}
                   />
                 </Pressable>
@@ -815,7 +815,7 @@ export const VideoPlayer = ({
                 accessibilityRole="button"
                 accessibilityLabel="Save"
               >
-                <Ionicons name="download-outline" size={18} color="#fff" />
+                <Ionicons name="download-outline" size={22} color="#fff" />
               </Pressable>
               <Pressable
                 style={themedStyles.overlayButton}
@@ -823,7 +823,7 @@ export const VideoPlayer = ({
                 accessibilityRole="button"
                 accessibilityLabel="Share"
               >
-                <Ionicons name="share-outline" size={18} color="#fff" />
+                <Ionicons name="share-outline" size={22} color="#fff" />
               </Pressable>
             </View>
           </View>
@@ -832,7 +832,7 @@ export const VideoPlayer = ({
         {showControlsSection && !isLandscape && controlsVisible && videoContentRect && (
           <View style={[
             themedStyles.portraitControlsOverlay,
-            { top: videoContentRect.y + videoContentRect.height - 52 },
+            { top: videoContentRect.y + videoContentRect.height - 60 },
           ]}>
             <View style={themedStyles.portraitButtonRow}>
               <Pressable
@@ -841,7 +841,7 @@ export const VideoPlayer = ({
                 accessibilityRole="button"
                 accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
               >
-                <Ionicons name={isPlaying ? 'pause' : 'play'} size={22} color="#fff" />
+                <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color="#fff" />
               </Pressable>
               <Pressable
                 style={themedStyles.overlayButton}
@@ -859,7 +859,7 @@ export const VideoPlayer = ({
                   accessibilityLabel={isDrawMode ? 'Exit drawing mode' : 'Enter drawing mode'}
                   accessibilityState={{ selected: isDrawMode }}
                 >
-                  <Ionicons name="pencil" size={18} color={isDrawMode ? theme.colors.text : '#fff'} />
+                  <Ionicons name="pencil" size={22} color={isDrawMode ? theme.colors.text : '#fff'} />
                 </Pressable>
               )}
               {analysisEnabled && (
@@ -872,7 +872,7 @@ export const VideoPlayer = ({
                 >
                   <Ionicons
                     name="analytics-outline"
-                    size={18}
+                    size={22}
                     color={showShaftOverlay ? theme.colors.text : '#fff'}
                   />
                 </Pressable>
@@ -883,7 +883,7 @@ export const VideoPlayer = ({
                 accessibilityRole="button"
                 accessibilityLabel="Save"
               >
-                <Ionicons name="download-outline" size={18} color="#fff" />
+                <Ionicons name="download-outline" size={22} color="#fff" />
               </Pressable>
               <Pressable
                 style={themedStyles.overlayButton}
@@ -891,7 +891,7 @@ export const VideoPlayer = ({
                 accessibilityRole="button"
                 accessibilityLabel="Share"
               >
-                <Ionicons name="share-outline" size={18} color="#fff" />
+                <Ionicons name="share-outline" size={22} color="#fff" />
               </Pressable>
             </View>
           </View>
@@ -1051,13 +1051,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     flexDirection: 'row' as const,
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
-    gap: 12,
+    gap: 14,
     paddingHorizontal: 16,
   },
   overlayButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
@@ -1068,7 +1068,7 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   speedButtonText: {
     fontFamily: theme.fontFamily.bodySemiBold,
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     textTransform: 'lowercase' as const,
   },
   portraitControlsOverlay: {
