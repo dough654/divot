@@ -130,17 +130,23 @@ export const VideoPlayer = ({
   // Video content rect within container (for export letterbox correction).
   // Scaled by device pixel ratio because toDataURL() produces a high-DPI
   // PNG — the FFmpeg crop coordinates must be in physical pixels, not CSS points.
+  // Width/height are clamped so the crop never exceeds the overlay PNG bounds
+  // (floating-point rounding can push Math.round up by 1px).
   const exportContentRect = useMemo(() => {
     if (videoNaturalWidth <= 0 || videoNaturalHeight <= 0 || containerWidth <= 0 || containerHeight <= 0) {
       return undefined;
     }
     const rect = computeContainRect(videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight);
     const scale = PixelRatio.get();
+    const overlayW = Math.round(containerWidth * scale);
+    const overlayH = Math.round(containerHeight * scale);
+    const x = Math.round(rect.x * scale);
+    const y = Math.round(rect.y * scale);
     return {
-      x: rect.x * scale,
-      y: rect.y * scale,
-      width: rect.width * scale,
-      height: rect.height * scale,
+      x,
+      y,
+      width: Math.min(Math.round(rect.width * scale), overlayW - x),
+      height: Math.min(Math.round(rect.height * scale), overlayH - y),
     };
   }, [videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight]);
 
