@@ -14,13 +14,11 @@ type ExportProgressModalProps = {
   progress: number;
   /** Error message to display. */
   errorMessage: string | null;
+  /** Message shown at completion (e.g., "Saved to gallery", "Shared"). */
+  completionMessage: string | null;
   /** Called when cancel is tapped during encoding. */
   onCancel: () => void;
-  /** Called when "save to gallery" is tapped after completion. */
-  onSaveToGallery: () => void;
-  /** Called when "share" is tapped after completion. */
-  onShare: () => void;
-  /** Called when "done" or "try again" resets the flow. */
+  /** Called when "done" resets the flow. */
   onDone: () => void;
   /** Called when "try again" is tapped after an error. */
   onRetry: () => void;
@@ -28,16 +26,15 @@ type ExportProgressModalProps = {
 
 /**
  * Modal overlay shown during video export.
- * Displays preparing spinner, encoding progress bar, completion actions, or error state.
+ * Displays preparing spinner, encoding progress bar, completion message, or error state.
  */
 export const ExportProgressModal = ({
   visible,
   status,
   progress,
   errorMessage,
+  completionMessage,
   onCancel,
-  onSaveToGallery,
-  onShare,
   onDone,
   onRetry,
 }: ExportProgressModalProps) => {
@@ -45,15 +42,28 @@ export const ExportProgressModal = ({
 
   if (!visible || status === 'idle') return null;
 
+  const isDismissable = status === 'complete' || status === 'cancelled' || status === 'error';
+
   return (
     <Modal
       transparent
       animationType="fade"
       visible={visible}
       onRequestClose={onDone}
+      supportedOrientations={['portrait', 'landscape']}
     >
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+      <Pressable
+        style={styles.backdrop}
+        onPress={isDismissable ? onDone : undefined}
+        disabled={!isDismissable}
+      >
+        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+          {isDismissable && (
+            <Pressable style={styles.closeButton} onPress={onDone}>
+              <Ionicons name="close" size={16} color="#fff" />
+            </Pressable>
+          )}
+
           {status === 'preparing' && (
             <>
               <ActivityIndicator size="large" color="#E5A020" />
@@ -69,8 +79,8 @@ export const ExportProgressModal = ({
               <View style={styles.progressBarTrack}>
                 <View style={[styles.progressBarFill, { width: `${Math.round(progress * 100)}%` }]} />
               </View>
-              <Pressable style={styles.secondaryButton} onPress={onCancel}>
-                <Text style={styles.secondaryButtonText}>cancel</Text>
+              <Pressable style={styles.cancelTextButton} onPress={onCancel}>
+                <Text style={styles.cancelTextButtonText}>cancel</Text>
               </Pressable>
             </>
           )}
@@ -78,20 +88,9 @@ export const ExportProgressModal = ({
           {status === 'complete' && (
             <>
               <Ionicons name="checkmark-circle" size={48} color="#4CAF50" />
-              <Text style={styles.statusText}>export complete</Text>
-              <View style={styles.actionRow}>
-                <Pressable style={styles.primaryButton} onPress={onSaveToGallery}>
-                  <Ionicons name="download-outline" size={18} color="#000" />
-                  <Text style={styles.primaryButtonText}>save to gallery</Text>
-                </Pressable>
-                <Pressable style={styles.primaryButton} onPress={onShare}>
-                  <Ionicons name="share-outline" size={18} color="#000" />
-                  <Text style={styles.primaryButtonText}>share</Text>
-                </Pressable>
-              </View>
-              <Pressable style={styles.secondaryButton} onPress={onDone}>
-                <Text style={styles.secondaryButtonText}>done</Text>
-              </Pressable>
+              <Text style={styles.statusText}>
+                {completionMessage ?? 'export complete'}
+              </Text>
             </>
           )}
 
@@ -102,14 +101,9 @@ export const ExportProgressModal = ({
               {errorMessage && (
                 <Text style={styles.errorText} numberOfLines={3}>{errorMessage}</Text>
               )}
-              <View style={styles.actionRow}>
-                <Pressable style={styles.secondaryButton} onPress={onRetry}>
-                  <Text style={styles.secondaryButtonText}>try again</Text>
-                </Pressable>
-                <Pressable style={styles.secondaryButton} onPress={onDone}>
-                  <Text style={styles.secondaryButtonText}>done</Text>
-                </Pressable>
-              </View>
+              <Pressable style={styles.retryButton} onPress={onRetry}>
+                <Text style={styles.retryButtonText}>try again</Text>
+              </Pressable>
             </>
           )}
 
@@ -117,13 +111,10 @@ export const ExportProgressModal = ({
             <>
               <Ionicons name="close-circle" size={48} color="#999" />
               <Text style={styles.statusText}>export cancelled</Text>
-              <Pressable style={styles.secondaryButton} onPress={onDone}>
-                <Text style={styles.secondaryButtonText}>done</Text>
-              </Pressable>
             </>
           )}
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };
@@ -170,35 +161,37 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     backgroundColor: theme.colors.accent,
     borderRadius: 3,
   },
-  actionRow: {
-    flexDirection: 'row' as const,
-    gap: 12,
-  },
-  primaryButton: {
-    flexDirection: 'row' as const,
+  closeButton: {
+    position: 'absolute' as const,
+    top: 12,
+    right: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center' as const,
     alignItems: 'center' as const,
-    gap: 6,
-    backgroundColor: theme.colors.accent,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: theme.borderRadius.sm,
   },
-  primaryButtonText: {
+  cancelTextButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  cancelTextButtonText: {
     fontFamily: theme.fontFamily.bodySemiBold,
-    color: '#000',
+    color: theme.colors.textSecondary,
     fontSize: 14,
     textTransform: 'lowercase' as const,
   },
-  secondaryButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: theme.borderRadius.sm,
+  retryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 20,
   },
-  secondaryButtonText: {
+  retryButtonText: {
     fontFamily: theme.fontFamily.bodySemiBold,
     color: theme.colors.text,
-    fontSize: 14,
+    fontSize: 15,
     textTransform: 'lowercase' as const,
   },
 }));
