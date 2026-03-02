@@ -980,9 +980,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   toolbarContainer: {
     position: 'absolute' as const,
+    right: 8,
+    top: 0,
     bottom: 0,
-    left: 0,
-    right: 0,
+    justifyContent: 'center' as const,
+    alignItems: 'flex-end' as const,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

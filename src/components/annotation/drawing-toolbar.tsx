@@ -36,8 +36,6 @@ type DrawingToolbarProps = {
   activeTool: DrawingTool;
   /** Current angle drawing phase. */
   anglePhase: AnglePhase;
-  /** Whether the annotated frame can be saved (annotations exist). */
-  canSave: boolean;
   /** Called when a color swatch is tapped. */
   onColorSelect: (color: string) => void;
   /** Called when undo is tapped. */
@@ -48,16 +46,13 @@ type DrawingToolbarProps = {
   onClear: () => void;
   /** Called when a tool is selected. */
   onToolSelect: (tool: DrawingTool) => void;
-  /** Called when save/export is tapped. */
-  onSave: () => void;
-  /** Called when video export is tapped. */
-  onExportVideo?: () => void;
 };
 
 /**
- * Compact toolbar for annotation drawing controls.
- * Displays tool selection, color swatches, undo, and clear buttons.
- * Shows a hint during angle measurement phases.
+ * Vertical sidebar toolbar for annotation drawing controls.
+ * Stacks tool selection, color swatches, and undo/redo/clear
+ * in a translucent pill on the right edge of the video.
+ * Shows a floating hint during angle measurement phases.
  */
 export const DrawingToolbar = ({
   activeColor,
@@ -66,45 +61,51 @@ export const DrawingToolbar = ({
   canRedo,
   activeTool,
   anglePhase,
-  canSave,
   onColorSelect,
   onUndo,
   onRedo,
   onClear,
   onToolSelect,
-  onSave,
-  onExportVideo,
 }: DrawingToolbarProps) => {
   const phaseHint = ANGLE_PHASE_HINTS[anglePhase];
 
   return (
-    <View style={styles.container}>
-      {/* Tool selection row */}
-      <View style={styles.toolRow} accessibilityRole="toolbar">
-        {TOOL_OPTIONS.map(({ tool, icon, label }) => (
-          <Pressable
-            key={tool}
-            onPress={() => onToolSelect(tool)}
-            style={[
-              styles.toolButton,
-              activeTool === tool && styles.toolButtonActive,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={label}
-            accessibilityState={{ selected: activeTool === tool }}
-          >
-            <Ionicons
-              name={icon}
-              size={20}
-              color={activeTool === tool ? '#fff' : '#aaa'}
-            />
-          </Pressable>
-        ))}
-      </View>
+    <View style={styles.wrapper}>
+      {/* Angle phase hint — floats to the left of the sidebar */}
+      {phaseHint && (
+        <View style={styles.hintPill}>
+          <Text style={styles.hintText}>{phaseHint}</Text>
+        </View>
+      )}
 
-      {/* Color swatches + actions */}
-      <View style={styles.mainRow}>
-        <View style={styles.colorRow} accessibilityRole="radiogroup" accessibilityLabel="Drawing colors">
+      <View style={styles.container}>
+        {/* Tool selection */}
+        <View style={styles.section} accessibilityRole="toolbar">
+          {TOOL_OPTIONS.map(({ tool, icon, label }) => (
+            <Pressable
+              key={tool}
+              onPress={() => onToolSelect(tool)}
+              style={[
+                styles.toolButton,
+                activeTool === tool && styles.toolButtonActive,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              accessibilityState={{ selected: activeTool === tool }}
+            >
+              <Ionicons
+                name={icon}
+                size={20}
+                color={activeTool === tool ? '#fff' : '#aaa'}
+              />
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Color swatches */}
+        <View style={styles.section} accessibilityRole="radiogroup" accessibilityLabel="Drawing colors">
           {presetColors.map((color) => (
             <Pressable
               key={color}
@@ -121,43 +122,19 @@ export const DrawingToolbar = ({
           ))}
         </View>
 
-        <View style={styles.actionRow}>
-          <Pressable
-            style={[styles.actionButton, !canSave && styles.actionButtonDisabled]}
-            onPress={onSave}
-            disabled={!canSave}
-            accessibilityRole="button"
-            accessibilityLabel="Save annotated frame"
-            accessibilityHint="Saves the current frame with annotations to your device"
-            accessibilityState={{ disabled: !canSave }}
-          >
-            <Ionicons name="download-outline" size={20} color={canSave ? '#fff' : '#666'} />
-          </Pressable>
+        <View style={styles.divider} />
 
-          {onExportVideo && (
-            <Pressable
-              style={[styles.actionButton, !canSave && styles.actionButtonDisabled]}
-              onPress={onExportVideo}
-              disabled={!canSave}
-              accessibilityRole="button"
-              accessibilityLabel="Export annotated video"
-              accessibilityHint="Exports the full video with annotations burned in"
-              accessibilityState={{ disabled: !canSave }}
-            >
-              <Ionicons name="videocam-outline" size={20} color={canSave ? '#fff' : '#666'} />
-            </Pressable>
-          )}
-
+        {/* Actions */}
+        <View style={styles.section}>
           <Pressable
             style={[styles.actionButton, !canUndo && styles.actionButtonDisabled]}
             onPress={onUndo}
             disabled={!canUndo}
             accessibilityRole="button"
             accessibilityLabel="Undo"
-            accessibilityHint="Undo last annotation"
             accessibilityState={{ disabled: !canUndo }}
           >
-            <Ionicons name="arrow-undo" size={20} color={canUndo ? '#fff' : '#666'} />
+            <Ionicons name="arrow-undo" size={18} color={canUndo ? '#fff' : '#666'} />
           </Pressable>
 
           <Pressable
@@ -166,10 +143,9 @@ export const DrawingToolbar = ({
             disabled={!canRedo}
             accessibilityRole="button"
             accessibilityLabel="Redo"
-            accessibilityHint="Redo last undone annotation"
             accessibilityState={{ disabled: !canRedo }}
           >
-            <Ionicons name="arrow-redo" size={20} color={canRedo ? '#fff' : '#666'} />
+            <Ionicons name="arrow-redo" size={18} color={canRedo ? '#fff' : '#666'} />
           </Pressable>
 
           <Pressable
@@ -177,34 +153,37 @@ export const DrawingToolbar = ({
             onPress={onClear}
             accessibilityRole="button"
             accessibilityLabel="Clear all"
-            accessibilityHint="Clears all annotations from the frame"
           >
-            <Ionicons name="trash-outline" size={20} color="#fff" />
+            <Ionicons name="trash-outline" size={18} color="#fff" />
           </Pressable>
         </View>
       </View>
-
-      {/* Angle phase hint */}
-      {phaseHint && (
-        <View style={styles.hintRow}>
-          <Text style={styles.hintText}>{phaseHint}</Text>
-        </View>
-      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(18, 18, 31, 0.9)',
-    gap: 8,
-  },
-  toolRow: {
+  wrapper: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  container: {
+    backgroundColor: 'rgba(18, 18, 31, 0.85)',
+    borderRadius: 22,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    gap: 4,
+    alignItems: 'center',
+  },
+  section: {
     gap: 8,
-    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  divider: {
+    width: 24,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginVertical: 4,
   },
   toolButton: {
     width: 36,
@@ -220,19 +199,10 @@ const styles = StyleSheet.create({
     borderColor: '#E5A020',
     backgroundColor: 'rgba(229, 160, 32, 0.2)',
   },
-  mainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  colorRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
   colorSwatch: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 2,
     borderColor: 'transparent',
   },
@@ -240,14 +210,10 @@ const styles = StyleSheet.create({
     borderColor: '#E5A020',
     borderWidth: 3,
   },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -255,12 +221,16 @@ const styles = StyleSheet.create({
   actionButtonDisabled: {
     opacity: 0.4,
   },
-  hintRow: {
-    alignItems: 'center',
+  hintPill: {
+    backgroundColor: 'rgba(18, 18, 31, 0.85)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
   },
   hintText: {
     color: '#E5A020',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
   },
 });
