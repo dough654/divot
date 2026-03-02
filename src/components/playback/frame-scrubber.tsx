@@ -10,7 +10,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 
-const PIXELS_PER_SECOND = 60;
+const PIXELS_PER_SECOND = 150;
 const MINOR_TICK_INTERVAL_MS = 100;
 const MAJOR_TICK_INTERVAL_MS = 1000;
 const SCRUBBER_HEIGHT = 48;

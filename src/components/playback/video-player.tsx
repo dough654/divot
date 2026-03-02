@@ -776,18 +776,16 @@ export const VideoPlayer = ({
           </View>
         )}
 
-        {/* Unified controls overlay — both orientations, auto-hides */}
-        {showControlsSection && controlsVisible && (
+        {/* Landscape controls overlay — auto-hides */}
+        {showControlsSection && isLandscape && controlsVisible && (
           <View style={themedStyles.controlsOverlay}>
-            {isLandscape && (
-              <FrameScrubber
-                duration={duration}
-                position={position}
-                onSeekStart={handleSeekStart}
-                onSeekChange={handleSeekChange}
-                onSeekComplete={handleSeekComplete}
-              />
-            )}
+            <FrameScrubber
+              duration={duration}
+              position={position}
+              onSeekStart={handleSeekStart}
+              onSeekChange={handleSeekChange}
+              onSeekComplete={handleSeekComplete}
+            />
             <View style={themedStyles.buttonRowOverlay}>
               <Pressable
                 style={themedStyles.overlayButton}
@@ -852,9 +850,71 @@ export const VideoPlayer = ({
         )}
       </Pressable>
 
-      {/* FrameScrubber — portrait only, always visible */}
+      {/* Portrait controls — below video, auto-hides button row */}
       {showControlsSection && !isLandscape && (
-        <View style={{ paddingBottom: insets.bottom, backgroundColor: theme.colors.background }}>
+        <View style={[themedStyles.portraitControls, { paddingBottom: insets.bottom }]}>
+          {controlsVisible && (
+            <View style={themedStyles.portraitButtonRow}>
+              <Pressable
+                style={themedStyles.portraitButton}
+                onPress={togglePlayPause}
+                accessibilityRole="button"
+                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+              >
+                <Ionicons name={isPlaying ? 'pause' : 'play'} size={22} color={theme.colors.text} />
+              </Pressable>
+              <Pressable
+                style={themedStyles.portraitButton}
+                onPress={cyclePlaybackSpeed}
+                accessibilityRole="button"
+                accessibilityLabel={`Playback speed ${playbackRate}x`}
+              >
+                <Text style={themedStyles.portraitSpeedText}>{playbackRate}x</Text>
+              </Pressable>
+              {drawingEnabled && (
+                <Pressable
+                  style={[themedStyles.portraitButton, isDrawMode && themedStyles.portraitButtonActive]}
+                  onPress={toggleDrawMode}
+                  accessibilityRole="button"
+                  accessibilityLabel={isDrawMode ? 'Exit drawing mode' : 'Enter drawing mode'}
+                  accessibilityState={{ selected: isDrawMode }}
+                >
+                  <Ionicons name="pencil" size={18} color={isDrawMode ? theme.colors.text : theme.colors.textTertiary} />
+                </Pressable>
+              )}
+              {analysisEnabled && (
+                <Pressable
+                  style={[themedStyles.portraitButton, showShaftOverlay && themedStyles.portraitButtonActive]}
+                  onPress={handleAnalyzePress}
+                  onLongPress={handleAnalyzeLongPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={analysis.result ? 'Toggle shaft overlay' : 'Analyze swing'}
+                >
+                  <Ionicons
+                    name="analytics-outline"
+                    size={18}
+                    color={showShaftOverlay ? theme.colors.text : theme.colors.textTertiary}
+                  />
+                </Pressable>
+              )}
+              <Pressable
+                style={themedStyles.portraitButton}
+                onPress={handleSave}
+                accessibilityRole="button"
+                accessibilityLabel="Save"
+              >
+                <Ionicons name="download-outline" size={18} color={theme.colors.textTertiary} />
+              </Pressable>
+              <Pressable
+                style={themedStyles.portraitButton}
+                onPress={handleShare}
+                accessibilityRole="button"
+                accessibilityLabel="Share"
+              >
+                <Ionicons name="share-outline" size={18} color={theme.colors.textTertiary} />
+              </Pressable>
+            </View>
+          )}
           <FrameScrubber
             duration={duration}
             position={position}
@@ -992,6 +1052,34 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   speedButtonText: {
     fontFamily: theme.fontFamily.bodySemiBold,
     color: '#fff',
+    fontSize: 14,
+    textTransform: 'lowercase' as const,
+  },
+  portraitControls: {
+    backgroundColor: theme.colors.background,
+  },
+  portraitButtonRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  portraitButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.backgroundSecondary,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  portraitButtonActive: {
+    backgroundColor: theme.colors.accent,
+  },
+  portraitSpeedText: {
+    fontFamily: theme.fontFamily.bodySemiBold,
+    color: theme.colors.text,
     fontSize: 14,
     textTransform: 'lowercase' as const,
   },
