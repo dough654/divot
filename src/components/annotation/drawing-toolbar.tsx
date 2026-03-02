@@ -95,7 +95,7 @@ export const DrawingToolbar = ({
             >
               <Ionicons
                 name={icon}
-                size={20}
+                size={24}
                 color={activeTool === tool ? '#fff' : '#aaa'}
               />
             </Pressable>
@@ -134,7 +134,7 @@ export const DrawingToolbar = ({
             accessibilityLabel="Undo"
             accessibilityState={{ disabled: !canUndo }}
           >
-            <Ionicons name="arrow-undo" size={18} color={canUndo ? '#fff' : '#666'} />
+            <Ionicons name="arrow-undo" size={22} color={canUndo ? '#fff' : '#666'} />
           </Pressable>
 
           <Pressable
@@ -145,7 +145,7 @@ export const DrawingToolbar = ({
             accessibilityLabel="Redo"
             accessibilityState={{ disabled: !canRedo }}
           >
-            <Ionicons name="arrow-redo" size={18} color={canRedo ? '#fff' : '#666'} />
+            <Ionicons name="arrow-redo" size={22} color={canRedo ? '#fff' : '#666'} />
           </Pressable>
 
           <Pressable
@@ -154,7 +154,7 @@ export const DrawingToolbar = ({
             accessibilityRole="button"
             accessibilityLabel="Clear all"
           >
-            <Ionicons name="trash-outline" size={18} color="#fff" />
+            <Ionicons name="trash-outline" size={22} color="#fff" />
           </Pressable>
         </View>
       </View>
@@ -169,26 +169,26 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: 'rgba(18, 18, 31, 0.85)',
-    borderRadius: 22,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
+    borderRadius: 26,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     gap: 4,
     alignItems: 'center',
   },
   section: {
-    gap: 8,
+    gap: 10,
     alignItems: 'center',
   },
   divider: {
-    width: 24,
+    width: 28,
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     marginVertical: 4,
   },
   toolButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -200,9 +200,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(229, 160, 32, 0.2)',
   },
   colorSwatch: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: 'transparent',
   },
@@ -211,9 +211,9 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   actionButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
