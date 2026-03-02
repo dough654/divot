@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, Pressable, Image, Platform } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Image, Platform, PixelRatio } from 'react-native';
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus, VideoReadyForDisplayEvent } from 'expo-av';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -127,12 +127,21 @@ export const VideoPlayer = ({
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
 
-  // Video content rect within container (for export letterbox correction)
+  // Video content rect within container (for export letterbox correction).
+  // Scaled by device pixel ratio because toDataURL() produces a high-DPI
+  // PNG — the FFmpeg crop coordinates must be in physical pixels, not CSS points.
   const exportContentRect = useMemo(() => {
     if (videoNaturalWidth <= 0 || videoNaturalHeight <= 0 || containerWidth <= 0 || containerHeight <= 0) {
       return undefined;
     }
-    return computeContainRect(videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight);
+    const rect = computeContainRect(videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight);
+    const scale = PixelRatio.get();
+    return {
+      x: rect.x * scale,
+      y: rect.y * scale,
+      width: rect.width * scale,
+      height: rect.height * scale,
+    };
   }, [videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight]);
 
   const videoExport = useVideoExport({
@@ -205,18 +214,12 @@ export const VideoPlayer = ({
             throw new Error('SVG ref not available for export');
           }
 
-          // Force 1x output so pixel dimensions match the CSS-point contentRect
-          // used by the FFmpeg crop filter. Without this, toDataURL produces a
-          // high-DPI image (2x/3x) and the crop coordinates miss the annotations.
-          const overlayWidth = Math.round(containerSize.current.width);
-          const overlayHeight = Math.round(containerSize.current.height);
-
           const base64 = await new Promise<string>((resolve, reject) => {
             const timeout = setTimeout(() => reject(new Error('toDataURL timeout')), 5000);
             exportSvgRef.current.toDataURL((data: string) => {
               clearTimeout(timeout);
               resolve(data);
-            }, overlayWidth, overlayHeight);
+            });
           });
 
           setIsExporting(false);
