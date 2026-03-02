@@ -103,19 +103,17 @@ export default function PlaybackScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: !isLandscape,
-          headerTitle: () => (
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>{clipTitle}</Text>
-              <Text style={styles.headerDate}>{formatDate(clip.timestamp)}</Text>
-            </View>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.container}>
-        <VideoPlayer uri={clip.path} clipId={clip.id} clipPath={clip.path} isLandscape={isLandscape} />
+        <VideoPlayer
+          uri={clip.path}
+          clipId={clip.id}
+          clipPath={clip.path}
+          isLandscape={isLandscape}
+          headerTitle={clipTitle}
+          headerSubtitle={formatDate(clip.timestamp)}
+          onBack={() => router.back()}
+        />
       </View>
     </>
   );
@@ -161,22 +159,5 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontFamily: theme.fontFamily.bodySemiBold,
     color: theme.isDark ? theme.palette.black : theme.palette.white,
     fontSize: theme.fontSize.md,
-  },
-  headerTitleContainer: {
-    alignItems: 'center' as const,
-  },
-  headerTitle: {
-    fontFamily: theme.fontFamily.display,
-    fontSize: 20,
-    color: theme.colors.text,
-    textTransform: 'uppercase' as const,
-    letterSpacing: -0.3,
-  },
-  headerDate: {
-    fontFamily: theme.fontFamily.body,
-    fontSize: 15,
-    color: theme.colors.textSecondary,
-    textTransform: 'lowercase' as const,
-    marginTop: 2,
   },
 }));

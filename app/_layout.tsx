@@ -94,7 +94,6 @@ const ThemedApp = ({ children }: { children: ReactNode }) => {
 const screenHeaderConfig: Record<string, { title: string; headerBackTitle?: string; presentation?: 'modal' }> = {
   settings: { title: 'Settings', headerBackTitle: 'Home' },
   clips: { title: 'Clips', headerBackTitle: 'Home' },
-  'playback/[id]': { title: 'Playback', headerBackTitle: 'Clips' },
   sessions: { title: 'Sessions', headerBackTitle: 'Home' },
   'session/[id]': { title: 'Session', headerBackTitle: 'Sessions' },
   'sign-in': { title: 'Account', headerBackTitle: 'Back', presentation: 'modal' },

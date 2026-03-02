@@ -4,11 +4,12 @@ import { Video, ResizeMode, AVPlaybackStatus, VideoReadyForDisplayEvent } from '
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DrawingOverlay } from '@/src/components/annotation/drawing-overlay';
 import { StaticAnnotationOverlay } from '@/src/components/annotation/static-annotation-overlay';
 import { DrawingToolbar } from '@/src/components/annotation/drawing-toolbar';
 import { ShaftOverlay } from '@/src/components/playback/shaft-overlay';
+import { FrameScrubber } from '@/src/components/playback/frame-scrubber';
 import { useDrawing } from '@/src/hooks/use-drawing';
 import { useSwingAnalysis } from '@/src/hooks/use-swing-analysis';
 import { findNearestShaftFrame } from '@/src/utils/shaft-frame-lookup';
@@ -43,16 +44,12 @@ export type VideoPlayerProps = {
   clipPath?: string;
   /** Whether the device is currently in landscape orientation. */
   isLandscape?: boolean;
-};
-
-/**
- * Formats milliseconds to MM:SS format.
- */
-const formatTime = (millis: number): string => {
-  const totalSeconds = Math.floor(millis / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  /** Title to display in the translucent header overlay. */
+  headerTitle?: string;
+  /** Subtitle (e.g. date) for the translucent header overlay. */
+  headerSubtitle?: string;
+  /** Called when the back button in the header overlay is pressed. */
+  onBack?: () => void;
 };
 
 const CONTROLS_AUTO_HIDE_MS = 3000;
@@ -72,6 +69,9 @@ export const VideoPlayer = ({
   clipId,
   clipPath,
   isLandscape = false,
+  headerTitle,
+  headerSubtitle,
+  onBack,
 }: VideoPlayerProps) => {
   const videoRef = useRef<Video>(null);
   const videoContainerRef = useRef<View>(null);
@@ -99,6 +99,7 @@ export const VideoPlayer = ({
 
   const { theme } = useTheme();
   const themedStyles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const { isPro } = useProAccess();
 
   const drawingEnabled = !!clipId;
@@ -259,25 +260,25 @@ export const VideoPlayer = ({
     startVideoExport();
   }, [startVideoExport]);
 
-  // Auto-hide controls in landscape when playing
+  // Auto-hide controls when playing (both orientations)
   const resetHideTimer = useCallback(() => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
       hideTimerRef.current = null;
     }
-    if (isLandscape && isPlaying && !isDrawMode) {
+    if (isPlaying && !isDrawMode) {
       hideTimerRef.current = setTimeout(() => {
         setControlsVisible(false);
       }, CONTROLS_AUTO_HIDE_MS);
     }
-  }, [isLandscape, isPlaying, isDrawMode]);
+  }, [isPlaying, isDrawMode]);
 
-  // Reset timer when play state or landscape changes
+  // Reset timer when play state changes
   useEffect(() => {
-    if (isLandscape && isPlaying && !isDrawMode) {
+    if (isPlaying && !isDrawMode) {
       resetHideTimer();
     } else {
-      // Always show controls when paused or portrait
+      // Always show controls when paused
       setControlsVisible(true);
       if (hideTimerRef.current) {
         clearTimeout(hideTimerRef.current);
@@ -290,7 +291,7 @@ export const VideoPlayer = ({
         clearTimeout(hideTimerRef.current);
       }
     };
-  }, [isLandscape, isPlaying, isDrawMode, resetHideTimer]);
+  }, [isPlaying, isDrawMode, resetHideTimer]);
 
   // Show controls when orientation changes
   useEffect(() => {
@@ -300,15 +301,11 @@ export const VideoPlayer = ({
   const handleVideoTap = useCallback(() => {
     if (isDrawMode) return;
 
-    if (isLandscape) {
-      setControlsVisible((prev) => !prev);
-      if (!controlsVisible) {
-        resetHideTimer();
-      }
-    } else {
-      togglePlayPause();
+    setControlsVisible((prev) => !prev);
+    if (!controlsVisible) {
+      resetHideTimer();
     }
-  }, [isLandscape, isDrawMode, controlsVisible, resetHideTimer]);
+  }, [isDrawMode, controlsVisible, resetHideTimer]);
 
   const handlePlaybackStatusUpdate = useCallback(
     (status: AVPlaybackStatus) => {
@@ -585,26 +582,8 @@ export const VideoPlayer = ({
     videoRef.current?.setRateAsync(newRate, true);
   }, [playbackRate]);
 
-  // Frame step duration in ms (assuming 30fps = ~33ms per frame)
-  const FRAME_DURATION_MS = 33;
-
-  const stepBackward = useCallback(async () => {
-    if (!videoRef.current) return;
-    const newPosition = Math.max(0, position - FRAME_DURATION_MS);
-    await safeSeek(newPosition);
-    setPosition(newPosition);
-  }, [position, safeSeek]);
-
-  const stepForward = useCallback(async () => {
-    if (!videoRef.current) return;
-    const newPosition = Math.min(duration, position + FRAME_DURATION_MS);
-    await safeSeek(newPosition);
-    setPosition(newPosition);
-  }, [position, duration, safeSeek]);
-
   const showAnnotations = drawingEnabled;
   const showControlsSection = showControls && isLoaded;
-  const controlsOverlay = isLandscape && showControlsSection;
 
   return (
     <View style={themedStyles.container}>
@@ -774,46 +753,61 @@ export const VideoPlayer = ({
           </View>
         )}
 
-        {/* Landscape overlay controls */}
-        {controlsOverlay && controlsVisible && (
-          <View style={themedStyles.controlsOverlay}>
-            {/* Time + slider */}
-            <View style={themedStyles.timeRow}>
-              <Text style={[themedStyles.timeText, themedStyles.timeTextOverlay]}>{formatTime(position)}</Text>
-              <Slider
-                style={themedStyles.sliderLandscape}
-                minimumValue={0}
-                maximumValue={duration}
-                value={position}
-                onSlidingStart={handleSeekStart}
-                onSlidingComplete={handleSeekComplete}
-                onValueChange={handleSeekChange}
-                minimumTrackTintColor={theme.colors.accent}
-                maximumTrackTintColor="rgba(255,255,255,0.3)"
-                thumbTintColor={theme.colors.accent}
-                accessibilityRole="adjustable"
-                accessibilityLabel={`Video position: ${formatTime(position)} of ${formatTime(duration)}`}
-              />
-              <Text style={[themedStyles.timeText, themedStyles.timeTextOverlay]}>{formatTime(duration)}</Text>
+        {/* Translucent header — portrait only, auto-hides */}
+        {controlsVisible && !isLandscape && headerTitle && (
+          <View style={[themedStyles.headerOverlay, { paddingTop: insets.top + 8 }]}>
+            {onBack && (
+              <Pressable
+                style={themedStyles.headerBackButton}
+                onPress={onBack}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
+                <Ionicons name="chevron-back" size={28} color="#fff" />
+              </Pressable>
+            )}
+            <View style={themedStyles.headerTitleGroup}>
+              <Text style={themedStyles.headerTitleText} numberOfLines={1}>{headerTitle}</Text>
+              {headerSubtitle && (
+                <Text style={themedStyles.headerSubtitleText} numberOfLines={1}>{headerSubtitle}</Text>
+              )}
             </View>
+          </View>
+        )}
 
-            {/* Compact button row */}
-            <View style={themedStyles.buttonRowLandscape}>
-              <Pressable style={themedStyles.frameButton} onPress={stepBackward} accessibilityRole="button" accessibilityLabel="Previous frame">
-                <Ionicons name="chevron-back" size={24} color="#fff" />
+        {/* Unified controls overlay — both orientations, auto-hides */}
+        {showControlsSection && controlsVisible && (
+          <View style={themedStyles.controlsOverlay}>
+            {isLandscape && (
+              <FrameScrubber
+                duration={duration}
+                position={position}
+                onSeekStart={handleSeekStart}
+                onSeekChange={handleSeekChange}
+                onSeekComplete={handleSeekComplete}
+              />
+            )}
+            <View style={themedStyles.buttonRowOverlay}>
+              <Pressable
+                style={themedStyles.overlayButton}
+                onPress={togglePlayPause}
+                accessibilityRole="button"
+                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+              >
+                <Ionicons name={isPlaying ? 'pause' : 'play'} size={22} color="#fff" />
               </Pressable>
-              <Pressable style={themedStyles.playPauseButtonLandscape} onPress={togglePlayPause} accessibilityRole="button" accessibilityLabel={isPlaying ? 'Pause' : 'Play'}>
-                <Ionicons name={isPlaying ? 'pause' : 'play'} size={28} color="#000" />
-              </Pressable>
-              <Pressable style={themedStyles.frameButton} onPress={stepForward} accessibilityRole="button" accessibilityLabel="Next frame">
-                <Ionicons name="chevron-forward" size={24} color="#fff" />
-              </Pressable>
-              <Pressable style={themedStyles.speedButtonLandscape} onPress={cyclePlaybackSpeed} accessibilityRole="button" accessibilityLabel={`Playback speed ${playbackRate}x`}>
+              <Pressable
+                style={themedStyles.overlayButton}
+                onPress={cyclePlaybackSpeed}
+                accessibilityRole="button"
+                accessibilityLabel={`Playback speed ${playbackRate}x`}
+              >
                 <Text style={themedStyles.speedButtonText}>{playbackRate}x</Text>
               </Pressable>
               {drawingEnabled && (
                 <Pressable
-                  style={[themedStyles.drawButton, isDrawMode && themedStyles.drawButtonActive]}
+                  style={[themedStyles.overlayButton, isDrawMode && themedStyles.overlayButtonActive]}
                   onPress={toggleDrawMode}
                   accessibilityRole="button"
                   accessibilityLabel={isDrawMode ? 'Exit drawing mode' : 'Enter drawing mode'}
@@ -824,7 +818,7 @@ export const VideoPlayer = ({
               )}
               {analysisEnabled && (
                 <Pressable
-                  style={[themedStyles.drawButton, showShaftOverlay && themedStyles.drawButtonActive]}
+                  style={[themedStyles.overlayButton, showShaftOverlay && themedStyles.overlayButtonActive]}
                   onPress={handleAnalyzePress}
                   onLongPress={handleAnalyzeLongPress}
                   accessibilityRole="button"
@@ -838,7 +832,7 @@ export const VideoPlayer = ({
                 </Pressable>
               )}
               <Pressable
-                style={themedStyles.drawButton}
+                style={themedStyles.overlayButton}
                 onPress={handleSave}
                 accessibilityRole="button"
                 accessibilityLabel="Save"
@@ -846,7 +840,7 @@ export const VideoPlayer = ({
                 <Ionicons name="download-outline" size={18} color="#fff" />
               </Pressable>
               <Pressable
-                style={themedStyles.drawButton}
+                style={themedStyles.overlayButton}
                 onPress={handleShare}
                 accessibilityRole="button"
                 accessibilityLabel="Share"
@@ -858,146 +852,16 @@ export const VideoPlayer = ({
         )}
       </Pressable>
 
-      {/* Portrait controls (standard layout below video) */}
+      {/* FrameScrubber — portrait only, always visible */}
       {showControlsSection && !isLandscape && (
-        <View style={themedStyles.controls}>
-          {/* Time display */}
-          <View style={themedStyles.timeRow}>
-            <Text style={themedStyles.timeText}>{formatTime(position)}</Text>
-            <Text style={themedStyles.timeText}>{formatTime(duration)}</Text>
-          </View>
-
-          {/* Timeline scrubber */}
-          <Slider
-            style={themedStyles.slider}
-            minimumValue={0}
-            maximumValue={duration}
-            value={position}
-            onSlidingStart={handleSeekStart}
-            onSlidingComplete={handleSeekComplete}
-            onValueChange={handleSeekChange}
-            minimumTrackTintColor={theme.colors.accent}
-            maximumTrackTintColor={theme.colors.textTertiary}
-            thumbTintColor={theme.colors.accent}
-            accessibilityRole="adjustable"
-            accessibilityLabel={`Video position: ${formatTime(position)} of ${formatTime(duration)}`}
-            accessibilityHint="Drag to seek through the video"
+        <View style={{ paddingBottom: insets.bottom, backgroundColor: theme.colors.background }}>
+          <FrameScrubber
+            duration={duration}
+            position={position}
+            onSeekStart={handleSeekStart}
+            onSeekChange={handleSeekChange}
+            onSeekComplete={handleSeekComplete}
           />
-
-          {/* Control buttons */}
-          <View style={themedStyles.buttonRow}>
-            <Pressable
-              style={themedStyles.frameButton}
-              onPress={stepBackward}
-              accessibilityRole="button"
-              accessibilityLabel="Previous frame"
-              accessibilityHint="Step back one frame"
-            >
-              <Ionicons name="chevron-back" size={32} color={theme.colors.text} />
-            </Pressable>
-
-            <Pressable
-              style={themedStyles.playPauseButton}
-              onPress={togglePlayPause}
-              accessibilityRole="button"
-              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              accessibilityHint={isPlaying ? 'Pause video playback' : 'Start video playback'}
-            >
-              <Ionicons
-                name={isPlaying ? 'pause' : 'play'}
-                size={36}
-                color={theme.isDark ? theme.palette.black : theme.palette.white}
-              />
-            </Pressable>
-
-            <Pressable
-              style={themedStyles.frameButton}
-              onPress={stepForward}
-              accessibilityRole="button"
-              accessibilityLabel="Next frame"
-              accessibilityHint="Step forward one frame"
-            >
-              <Ionicons name="chevron-forward" size={32} color={theme.colors.text} />
-            </Pressable>
-          </View>
-
-          {/* Bottom row: speed + draw toggle */}
-          <View style={themedStyles.bottomRow}>
-            <Pressable
-              style={themedStyles.speedButton}
-              onPress={cyclePlaybackSpeed}
-              accessibilityRole="button"
-              accessibilityLabel={`Playback speed ${playbackRate}x`}
-              accessibilityHint="Cycle through playback speeds"
-            >
-              <Text style={themedStyles.speedButtonText}>{playbackRate}x</Text>
-            </Pressable>
-
-            {drawingEnabled && (
-              <Pressable
-                style={[
-                  themedStyles.drawButton,
-                  isDrawMode && themedStyles.drawButtonActive,
-                ]}
-                onPress={toggleDrawMode}
-                accessibilityRole="button"
-                accessibilityLabel={isDrawMode ? 'Exit drawing mode' : 'Enter drawing mode'}
-                accessibilityHint={isDrawMode ? 'Exit annotation drawing' : 'Draw annotations on the video'}
-                accessibilityState={{ selected: isDrawMode }}
-              >
-                <Ionicons
-                  name="pencil"
-                  size={18}
-                  color={isDrawMode ? theme.colors.text : theme.colors.textTertiary}
-                />
-              </Pressable>
-            )}
-            {analysisEnabled && (
-              <Pressable
-                style={[
-                  themedStyles.drawButton,
-                  showShaftOverlay && themedStyles.drawButtonActive,
-                ]}
-                onPress={handleAnalyzePress}
-                onLongPress={handleAnalyzeLongPress}
-                accessibilityRole="button"
-                accessibilityLabel={analysis.result ? 'Toggle shaft overlay' : 'Analyze swing'}
-                accessibilityHint={analysis.result ? 'Show or hide the club shaft tracking' : 'Analyze the swing to detect club shaft positions'}
-              >
-                <Ionicons
-                  name="analytics-outline"
-                  size={18}
-                  color={showShaftOverlay ? theme.colors.text : theme.colors.textTertiary}
-                />
-              </Pressable>
-            )}
-            <Pressable
-              style={themedStyles.drawButton}
-              onPress={handleSave}
-              accessibilityRole="button"
-              accessibilityLabel="Save"
-              accessibilityHint="Save a screenshot or video clip to gallery"
-            >
-              <Ionicons
-                name="download-outline"
-                size={18}
-                color={theme.colors.textTertiary}
-              />
-            </Pressable>
-            <Pressable
-              style={themedStyles.drawButton}
-              onPress={handleShare}
-              accessibilityRole="button"
-              accessibilityLabel="Share"
-              accessibilityHint="Share a screenshot or video clip"
-            >
-              <Ionicons
-                name="share-outline"
-                size={18}
-                color={theme.colors.textTertiary}
-              />
-            </Pressable>
-          </View>
         </View>
       )}
 
@@ -1063,11 +927,40 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontSize: 15,
     textTransform: 'lowercase' as const,
   },
-  controls: {
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 32,
+  headerOverlay: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingBottom: 10,
+  },
+  headerBackButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  headerTitleGroup: {
+    flex: 1,
+    marginRight: 40,
+  },
+  headerTitleText: {
+    fontFamily: theme.fontFamily.display,
+    fontSize: 18,
+    color: '#fff',
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.3,
+  },
+  headerSubtitleText: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+    textTransform: 'lowercase' as const,
+    marginTop: 1,
   },
   controlsOverlay: {
     position: 'absolute' as const,
@@ -1075,108 +968,32 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     left: 0,
     right: 0,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
   },
-  timeRow: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    marginBottom: 4,
-  },
-  timeText: {
-    fontFamily: theme.fontFamily.mono,
-    color: theme.colors.textSecondary,
-    fontSize: 15,
-    fontVariant: ['tabular-nums' as const],
-  },
-  timeTextOverlay: {
-    color: '#fff',
-    fontSize: 13,
-  },
-  slider: {
-    width: '100%' as const,
-    height: 40,
-  },
-  sliderLandscape: {
-    flex: 1,
-    height: 32,
-    marginHorizontal: 8,
-  },
-  buttonRow: {
+  buttonRowOverlay: {
     flexDirection: 'row' as const,
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
-    gap: 32,
-    marginTop: 8,
-  },
-  buttonRowLandscape: {
-    flexDirection: 'row' as const,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    gap: 16,
-    marginTop: 4,
-  },
-  frameButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  playPauseButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: theme.colors.accent,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  playPauseButtonLandscape: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: theme.colors.accent,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-  },
-  bottomRow: {
-    flexDirection: 'row' as const,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    marginTop: 12,
     gap: 12,
-  },
-  speedButton: {
-    paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: theme.borderRadius.sm,
   },
-  speedButtonLandscape: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: theme.borderRadius.sm,
-  },
-  speedButtonText: {
-    fontFamily: theme.fontFamily.bodySemiBold,
-    color: theme.colors.text,
-    fontSize: 15,
-    textTransform: 'lowercase' as const,
-  },
-  drawButton: {
+  overlayButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
   },
-  drawButtonActive: {
+  overlayButtonActive: {
     backgroundColor: theme.colors.accent,
+  },
+  speedButtonText: {
+    fontFamily: theme.fontFamily.bodySemiBold,
+    color: '#fff',
+    fontSize: 14,
+    textTransform: 'lowercase' as const,
   },
   saveMessageOverlay: {
     position: 'absolute' as const,
