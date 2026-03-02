@@ -1,5 +1,6 @@
 import { View, Text, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useState, useEffect } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -103,11 +104,8 @@ export default function PlaybackScreen() {
 
   return (
     <>
-      <Stack.Screen options={{
-        headerShown: false,
-        statusBarTranslucent: true,
-        statusBarStyle: 'light',
-      }} />
+      <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style="light" />
       <View style={styles.container}>
         <VideoPlayer
           uri={clip.path}
