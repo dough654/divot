@@ -118,6 +118,7 @@ export default function PlaybackScreen() {
           headerTitle={clipTitle}
           headerSubtitle={formatDate(clip.timestamp)}
           onBack={() => router.back()}
+          headerBackTitle="Clips"
         />
       </View>
     </>

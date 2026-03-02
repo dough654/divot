@@ -50,6 +50,8 @@ export type VideoPlayerProps = {
   headerSubtitle?: string;
   /** Called when the back button in the header overlay is pressed. */
   onBack?: () => void;
+  /** Label shown next to the back chevron (e.g. "Clips"). */
+  headerBackTitle?: string;
 };
 
 const CONTROLS_AUTO_HIDE_MS = 3000;
@@ -72,6 +74,7 @@ export const VideoPlayer = ({
   headerTitle,
   headerSubtitle,
   onBack,
+  headerBackTitle,
 }: VideoPlayerProps) => {
   const videoRef = useRef<Video>(null);
   const videoContainerRef = useRef<View>(null);
@@ -898,23 +901,26 @@ export const VideoPlayer = ({
       {/* Translucent header — portrait only, auto-hides, covers status bar area */}
       {controlsVisible && !isLandscape && headerTitle && (
         <View style={[themedStyles.headerOverlay, { paddingTop: insets.top + 10 }]}>
-          {onBack && (
-            <Pressable
-              style={themedStyles.headerBackButton}
-              onPress={onBack}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-            >
-              <Ionicons name="chevron-back" size={28} color="#fff" />
-            </Pressable>
-          )}
           <View style={themedStyles.headerTitleGroup}>
             <Text style={themedStyles.headerTitleText} numberOfLines={1}>{headerTitle}</Text>
             {headerSubtitle && (
               <Text style={themedStyles.headerSubtitleText} numberOfLines={1}>{headerSubtitle}</Text>
             )}
           </View>
+          {onBack && (
+            <Pressable
+              style={themedStyles.headerBackButton}
+              onPress={onBack}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={headerBackTitle ? `Back to ${headerBackTitle}` : 'Go back'}
+            >
+              <Ionicons name="chevron-back" size={22} color="#fff" />
+              {headerBackTitle && (
+                <Text style={themedStyles.headerBackTitle}>{headerBackTitle}</Text>
+              )}
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -995,21 +1001,28 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row' as const,
     alignItems: 'center' as const,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 8,
     paddingBottom: 10,
   },
   headerBackButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center' as const,
+    position: 'absolute' as const,
+    left: 8,
+    bottom: 10,
+    flexDirection: 'row' as const,
     alignItems: 'center' as const,
+    height: 40,
+    zIndex: 1,
+  },
+  headerBackTitle: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: 17,
+    color: '#fff',
+    marginLeft: -2,
   },
   headerTitleGroup: {
-    flex: 1,
-    marginRight: 40,
+    alignItems: 'center' as const,
+    paddingHorizontal: 80,
   },
   headerTitleText: {
     fontFamily: theme.fontFamily.display,
