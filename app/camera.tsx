@@ -83,6 +83,11 @@ export default function CameraScreen() {
   const hintRingScale = useSharedValue(1);
   const hintRingOpacity = useSharedValue(0);
 
+  // Pulse ring animation for arm button hint
+  const [showArmHint, setShowArmHint] = useState(false);
+  const armHintRingScale = useSharedValue(1);
+  const armHintRingOpacity = useSharedValue(0);
+
   // Camera state machine
   const [cameraState, setCameraState] = useState<CameraState>('connecting');
   const [isArmed, setIsArmed] = useState(false);
@@ -441,6 +446,54 @@ export default function CameraScreen() {
     opacity: hintRingOpacity.value,
   }));
 
+  // Show arm button hint 1s after entering previewing (if not yet armed)
+  useEffect(() => {
+    if (cameraState !== 'previewing' || isArmed) return;
+
+    const timer = setTimeout(() => {
+      setShowArmHint(true);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [cameraState, isArmed]);
+
+  // Dismiss arm hint on first arm
+  useEffect(() => {
+    if (isArmed) setShowArmHint(false);
+  }, [isArmed]);
+
+  // Pulse ring animation for arm button hint
+  useEffect(() => {
+    if (!showArmHint) return;
+
+    armHintRingScale.value = withRepeat(
+      withSequence(
+        withTiming(1.5, { duration: 800, easing: Easing.out(Easing.cubic) }),
+        withTiming(1, { duration: 0 }),
+        withDelay(400, withTiming(1, { duration: 0 })),
+      ),
+      8,
+    );
+
+    armHintRingOpacity.value = withSequence(
+      withTiming(0.6, { duration: 0 }),
+      withRepeat(
+        withSequence(
+          withTiming(0, { duration: 800, easing: Easing.out(Easing.cubic) }),
+          withTiming(0.6, { duration: 0 }),
+          withDelay(400, withTiming(0.6, { duration: 0 })),
+        ),
+        8,
+      ),
+      withTiming(0, { duration: 300 }),
+    );
+  }, [showArmHint]);
+
+  const armHintRingAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: armHintRingScale.value }],
+    opacity: armHintRingOpacity.value,
+  }));
+
   // Start camera, native WebRTC stream, and connection on mount
   useEffect(() => {
     const initialize = async () => {
@@ -752,13 +805,25 @@ export default function CameraScreen() {
 
         {/* Floating Arm Button — bottom-center */}
         {cameraState === 'previewing' && (
-          <View style={[styles.floatingRecordButton, { bottom: insets.bottom + 16 }]}>
+          <View style={[styles.floatingArmContainer, { bottom: insets.bottom + 16 }]}>
+            {/* Pulse ring — behind button */}
+            {showArmHint && !isArmed && (
+              <Animated.View style={[styles.armHintRing, armHintRingAnimatedStyle]} />
+            )}
             <ArmButton
               isArmed={isArmed}
               onPress={() => setIsArmed(prev => !prev)}
               disabled={!visionDevice || !hasCameraPermission}
               size={64}
             />
+          </View>
+        )}
+
+        {/* Arm button tooltip — positioned independently for centering */}
+        {cameraState === 'previewing' && showArmHint && !isArmed && (
+          <View style={[styles.armHintTooltip, { bottom: insets.bottom + 88 }]}>
+            <Text style={styles.hintTooltipText} numberOfLines={1}>Tap to start detecting</Text>
+            <View style={styles.armHintTooltipArrow} />
           </View>
         )}
 
@@ -1018,6 +1083,44 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     position: 'absolute' as const,
     alignSelf: 'center' as const,
     zIndex: 10,
+  },
+  floatingArmContainer: {
+    position: 'absolute' as const,
+    alignSelf: 'center' as const,
+    zIndex: 10,
+    overflow: 'visible' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  armHintRing: {
+    position: 'absolute' as const,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: theme.colors.success,
+  },
+  armHintTooltip: {
+    position: 'absolute' as const,
+    alignSelf: 'center' as const,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    zIndex: 10,
+  },
+  armHintTooltipArrow: {
+    position: 'absolute' as const,
+    bottom: -8,
+    alignSelf: 'center' as const,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: 'rgba(0,0,0,0.7)',
   },
   floatingReviewControls: {
     position: 'absolute' as const,
