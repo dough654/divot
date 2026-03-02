@@ -104,7 +104,10 @@ export default function PlaybackScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen options={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#000' },
+      }} />
       <StatusBar style="light" />
       <View style={styles.container}>
         <VideoPlayer
@@ -124,7 +127,7 @@ export default function PlaybackScreen() {
 const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
