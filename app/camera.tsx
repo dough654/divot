@@ -3,7 +3,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { VideoFile } from 'react-native-vision-camera';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -21,7 +20,7 @@ import type { Theme } from '@/src/context';
 import { QRCodeDisplay, ConnectionRequestModal } from '@/src/components/pairing';
 import { ConnectionStatus, TransportBadge } from '@/src/components/connection';
 import {
-  RecordingButton,
+  ArmButton,
   RecordingIndicator,
   VisionCameraRecorder,
   VisionCameraRecorderRef,
@@ -49,7 +48,6 @@ import { useAutoConnect } from '@/src/hooks/use-auto-connect';
 import { useConnectionAnalytics } from '@/src/hooks/use-connection-analytics';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { encodeQRPayload } from '@/src/services/discovery/qr-payload';
-import { saveClip } from '@/src/services/recording/clip-storage';
 import { useSessionLifecycle } from '@/src/hooks/use-session-lifecycle';
 import { useRollingRecorder } from '@/src/hooks/use-rolling-recorder';
 import { useSwingRecorder } from '@/src/hooks/use-swing-recorder';
@@ -87,6 +85,7 @@ export default function CameraScreen() {
 
   // Camera state machine
   const [cameraState, setCameraState] = useState<CameraState>('connecting');
+  const [isArmed, setIsArmed] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const [lastRecordedClip, setLastRecordedClip] = useState<Clip | null>(null);
@@ -98,8 +97,6 @@ export default function CameraScreen() {
   const p2pOfferCreatedRef = useRef(false);
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingDurationRef = useRef(0);
-  const recordingFpsRef = useRef(30);
-
   // VisionCamera is always active
   const {
     device: visionDevice,
@@ -117,7 +114,7 @@ export default function CameraScreen() {
 
   // Auto-detection pipeline: motion + audio → swing detection → rolling recorder
   // Decoupled from pose detection — uses frame differencing instead
-  const autoDetectEnabled = !!autoDetectionFlag && settings.swingAutoDetectionEnabled && cameraState === 'previewing';
+  const autoDetectEnabled = isArmed && !!autoDetectionFlag && settings.swingAutoDetectionEnabled && cameraState === 'previewing';
   const { playSwingStart, playSwingEnd, playAddressReady } = useSwingFeedback({ enabled: autoDetectEnabled });
 
   // Motion-based swing detection state machine (legacy)
@@ -199,11 +196,6 @@ export default function CameraScreen() {
 
   // Club detection — runs continuously when auto-detect is enabled (like pose)
   const { clubKeypoints, cameraAspectRatio } = useClubDetection({ enabled: autoDetectEnabled });
-
-  // Keep recording fps ref in sync for async callbacks
-  useEffect(() => {
-    recordingFpsRef.current = recordingFps;
-  }, [recordingFps]);
 
   const {
     connectionState: signalingConnectionState,
@@ -345,6 +337,8 @@ export default function CameraScreen() {
 
   const isSyncing = syncProgress.state === 'sending' || syncProgress.state === 'receiving';
 
+  const isRecording = swingRecorder.isRecording;
+
   // Auto-reconnect — mask signaling state when on P2P so Scenario B doesn't fire
   const effectiveSignalingState = autoConnect.activeTransport === 'p2p'
     ? 'connected' as const
@@ -356,7 +350,7 @@ export default function CameraScreen() {
     signalingConnectionState: effectiveSignalingState,
     wasConnected,
     roomCode,
-    isRecording: cameraState === 'recording',
+    isRecording,
     isTransferring: isSyncing,
     restartIce,
     renegotiate,
@@ -371,8 +365,6 @@ export default function CameraScreen() {
         mode: 'auto',
       })
     : null;
-
-  const isRecording = cameraState === 'recording';
 
   // Duration timer for recording
   useEffect(() => {
@@ -550,82 +542,12 @@ export default function CameraScreen() {
     setShowHint(false);
   };
 
-  // Start manual recording
-  const handleStartRecording = useCallback(() => {
-    if (!recorderRef.current) {
-      setRecordingError('Camera not ready');
-      return;
-    }
-
-    // Suspend auto-recorders so they don't fight with manual recording
-    rollingRecorder.suspend();
-    swingRecorder.suspend();
-
-    setRecordingError(null);
-    setLastRecordedClip(null);
-    setCameraState('recording');
-
-    recorderRef.current.startRecording({
-      onRecordingFinished: async (video: VideoFile) => {
-        const duration = recordingDurationRef.current;
-
-        try {
-          const clip = await saveClip({
-            path: video.path,
-            duration,
-            fps: recordingFpsRef.current,
-            sessionId: activeSessionIdRef.current ?? undefined,
-          });
-
-          if (clip.sessionId) {
-            tagClip(clip.id);
-          }
-
-          setLastRecordedClip(clip);
-          setCameraState('reviewing');
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : 'Failed to save recording';
-          setRecordingError(errorMsg);
-          setCameraState('previewing');
-          showToast(`Save Failed: ${errorMsg}`, { variant: 'error' });
-        }
-      },
-      onRecordingError: (error: unknown) => {
-        const errorMsg = error instanceof Error ? error.message : 'Recording failed';
-        setRecordingError(errorMsg);
-        setCameraState('previewing');
-        showToast(`Recording Error: ${errorMsg}`, { variant: 'error' });
-      },
-    });
-  }, [rollingRecorder, swingRecorder]);
-
-  // Stop recording
-  const handleStopRecording = useCallback(async () => {
-    if (!recorderRef.current) return;
-
-    try {
-      await recorderRef.current.stopRecording();
-    } catch (err) {
-      console.error('Error stopping recording:', err);
-    }
-  }, []);
-
   // Wire swing auto-detection refs — only for motion detection path
   // Classifier path uses useSwingRecorder which watches detectionState directly
-  swingStartRef.current = useMotionDetect
-    ? (rollingRecorderEnabled ? rollingRecorder.notifySwingDetected : handleStartRecording)
+  swingStartRef.current = useMotionDetect && rollingRecorderEnabled
+    ? rollingRecorder.notifySwingDetected
     : null;
-  swingEndRef.current = useMotionDetect
-    ? (rollingRecorderEnabled ? () => {} : handleStopRecording)
-    : null;
-
-  const handleRecordPress = useCallback(() => {
-    if (isRecording) {
-      handleStopRecording();
-    } else {
-      handleStartRecording();
-    }
-  }, [isRecording, handleStopRecording, handleStartRecording]);
+  swingEndRef.current = null;
 
   // Sync last recorded clip to viewer
   const handleSyncClip = useCallback(async () => {
@@ -828,12 +750,12 @@ export default function CameraScreen() {
           </Pressable>
         )}
 
-        {/* Floating Record Button — bottom-center */}
-        {(cameraState === 'previewing' || cameraState === 'recording') && (
+        {/* Floating Arm Button — bottom-center */}
+        {cameraState === 'previewing' && (
           <View style={[styles.floatingRecordButton, { bottom: insets.bottom + 16 }]}>
-            <RecordingButton
-              isRecording={isRecording}
-              onPress={handleRecordPress}
+            <ArmButton
+              isArmed={isArmed}
+              onPress={() => setIsArmed(prev => !prev)}
               disabled={!visionDevice || !hasCameraPermission}
               size={64}
             />
