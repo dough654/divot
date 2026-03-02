@@ -21,7 +21,6 @@ import { QRCodeDisplay, ConnectionRequestModal } from '@/src/components/pairing'
 import { ConnectionStatus, TransportBadge } from '@/src/components/connection';
 import {
   ArmButton,
-  RecordingIndicator,
   VisionCameraRecorder,
   VisionCameraRecorderRef,
   ClubPlaneLineOverlay,
@@ -91,17 +90,13 @@ export default function CameraScreen() {
   // Camera state machine
   const [cameraState, setCameraState] = useState<CameraState>('connecting');
   const [isArmed, setIsArmed] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const [lastRecordedClip, setLastRecordedClip] = useState<Clip | null>(null);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [pendingRequest, setPendingRequest] = useState<ConnectionRequest | null>(null);
 
   const recorderRef = useRef<VisionCameraRecorderRef>(null);
-  const recordingStartTimeRef = useRef<number | null>(null);
   const p2pOfferCreatedRef = useRef(false);
-  const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recordingDurationRef = useRef(0);
   // VisionCamera is always active
   const {
     device: visionDevice,
@@ -371,34 +366,6 @@ export default function CameraScreen() {
       })
     : null;
 
-  // Duration timer for recording
-  useEffect(() => {
-    if (isRecording) {
-      recordingStartTimeRef.current = Date.now();
-      setRecordingDuration(0);
-      recordingDurationRef.current = 0;
-
-      durationIntervalRef.current = setInterval(() => {
-        if (recordingStartTimeRef.current) {
-          const elapsed = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-          setRecordingDuration(elapsed);
-          recordingDurationRef.current = elapsed;
-        }
-      }, 100);
-    } else {
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current);
-        durationIntervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current);
-      }
-    };
-  }, [isRecording]);
-
   // Handle minimum loading time for smooth transition
   useEffect(() => {
     if (roomCode) {
@@ -658,20 +625,13 @@ export default function CameraScreen() {
           compact
           presetLabel={isConnected && isStreamReady ? getPresetLabel(qualityPreset) : undefined}
         />
-        {isRecording && (
-          <RecordingIndicator
-            duration={recordingDuration}
-            visible={isRecording}
-            compact
-          />
-        )}
         {isAdvertising && !isConnected && (
           <View style={styles.discoverableBadge}>
             <Ionicons name="bluetooth" size={12} color={theme.colors.textTertiary} />
             <Text style={styles.discoverableText}>Discoverable</Text>
           </View>
         )}
-        {autoDetectEnabled && !isRecording && (
+        {autoDetectEnabled && (
           <View style={styles.autoBadge}>
             <Ionicons
               name={isStill ? 'fitness' : 'body'}
@@ -742,16 +702,6 @@ export default function CameraScreen() {
             {currentError && (
               <View style={styles.errorOverlay}>
                 <Text style={styles.errorText}>{currentError}</Text>
-              </View>
-            )}
-
-            {/* Recording indicator overlay */}
-            {isRecording && (
-              <View style={styles.recordingOverlay}>
-                <RecordingIndicator
-                  duration={recordingDuration}
-                  visible={isRecording}
-                />
               </View>
             )}
           </View>
@@ -1011,11 +961,6 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     color: theme.palette.white,
     textAlign: 'center' as const,
     fontSize: theme.fontSize.sm,
-  },
-  recordingOverlay: {
-    position: 'absolute' as const,
-    top: theme.spacing.lg,
-    left: theme.spacing.lg,
   },
   floatingQRContainer: {
     position: 'absolute' as const,
