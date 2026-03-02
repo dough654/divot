@@ -897,7 +897,7 @@ export const VideoPlayer = ({
 
       {/* Translucent header — portrait only, auto-hides, covers status bar area */}
       {controlsVisible && !isLandscape && headerTitle && (
-        <View style={[themedStyles.headerOverlay, { paddingTop: insets.top + 4 }]}>
+        <View style={[themedStyles.headerOverlay, { paddingTop: insets.top + 10 }]}>
           {onBack && (
             <Pressable
               style={themedStyles.headerBackButton}
