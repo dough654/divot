@@ -17,7 +17,7 @@ import { computeEllipseFromCorners, isEllipseNonTrivial } from '@/src/utils/elli
 const DEFAULT_STROKE_WIDTH = 3;
 const DEFAULT_COLOR = '#ffffff';
 
-const PRESET_COLORS = ['#ffffff', '#4caf50', '#ab47bc', '#2196f3'] as const;
+const PRESET_COLORS = ['#ffffff', '#66ff66', '#ab47bc', '#2196f3'] as const;
 
 type AnglePhase = 'idle' | 'first-ray' | 'second-ray';
 
