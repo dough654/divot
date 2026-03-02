@@ -1,6 +1,6 @@
-import { StyleSheet, View, Text, Pressable, Image, Alert, Platform } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Image, Platform } from 'react-native';
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { Video, ResizeMode, AVPlaybackStatus, VideoReadyForDisplayEvent } from 'expo-av';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,13 +12,20 @@ import { ShaftOverlay } from '@/src/components/playback/shaft-overlay';
 import { useDrawing } from '@/src/hooks/use-drawing';
 import { useSwingAnalysis } from '@/src/hooks/use-swing-analysis';
 import { findNearestShaftFrame } from '@/src/utils/shaft-frame-lookup';
-import { captureAnnotatedFrame, saveBase64ImageToGallery } from '@/src/services/annotation/frame-capture';
+import {
+  captureAnnotatedFrame,
+  captureFrameToTempFile,
+  saveBase64ImageToGallery,
+  shareBase64Image,
+  shareTempFile,
+} from '@/src/services/annotation/frame-capture';
+import { computeContainRect } from '@/src/utils/contain-rect';
 import { useProAccess } from '@/src/hooks/use-pro-access';
 import { useVideoExport } from '@/src/hooks/use-video-export';
 import { ExportProgressModal } from '@/src/components/export';
+import { FormatPickerModal } from '@/src/components/playback/format-picker-modal';
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
-import { useRouter } from 'expo-router';
 import type { Theme } from '@/src/context';
 
 export type VideoPlayerProps = {
@@ -93,7 +100,6 @@ export const VideoPlayer = ({
 
   const { theme } = useTheme();
   const themedStyles = useThemedStyles(createStyles);
-  const router = useRouter();
   const { isPro } = useProAccess();
 
   const drawingEnabled = !!clipId;
@@ -104,11 +110,11 @@ export const VideoPlayer = ({
   const [isExporting, setIsExporting] = useState(false);
   const exportSvgRef = useRef<any>(null);
   const exportSvgReady = useRef<(() => void) | null>(null);
-
-  const videoExport = useVideoExport({
-    videoPath: clipPath ?? uri,
-    durationMs: duration,
-  });
+  const [videoNaturalWidth, setVideoNaturalWidth] = useState(0);
+  const [videoNaturalHeight, setVideoNaturalHeight] = useState(0);
+  const pendingExportAction = useRef<'save' | 'share' | null>(null);
+  const [completionMessage, setCompletionMessage] = useState<string | null>(null);
+  const [formatPickerMode, setFormatPickerMode] = useState<'save' | 'share' | null>(null);
 
   // Swing analysis
   const analysisEnabled = !!clipId;
@@ -120,6 +126,22 @@ export const VideoPlayer = ({
   const [showTracePath, setShowTracePath] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
+
+  // Video content rect within container (for export letterbox correction)
+  const exportContentRect = useMemo(() => {
+    if (videoNaturalWidth <= 0 || videoNaturalHeight <= 0 || containerWidth <= 0 || containerHeight <= 0) {
+      return undefined;
+    }
+    return computeContainRect(videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight);
+  }, [videoNaturalWidth, videoNaturalHeight, containerWidth, containerHeight]);
+
+  const videoExport = useVideoExport({
+    videoPath: clipPath ?? uri,
+    durationMs: duration,
+    contentRect: exportContentRect,
+    videoWidth: videoNaturalWidth || undefined,
+    videoHeight: videoNaturalHeight || undefined,
+  });
 
   // Look up the current shaft frame based on playback position
   const currentShaft = useMemo(() => {
@@ -157,56 +179,90 @@ export const VideoPlayer = ({
     }
   }, [analysis.status]);
 
-  const handleExportVideo = useCallback(async () => {
-    if (!isPro) {
-      router.push('/paywall');
-      return;
-    }
+  const needsOverlay = drawing.annotations.length > 0 || !isPro;
 
+  const startVideoExport = useCallback(async () => {
     setExportModalVisible(true);
     setIsExporting(true);
+    setCompletionMessage(null);
 
-    await videoExport.startExport(async () => {
-      // Mount the hidden SVG overlay at video container size and get base64 PNG
-      await new Promise<void>((resolve) => {
-        if (exportSvgReady.current === null) {
-          exportSvgReady.current = resolve;
-        } else {
-          resolve();
+    const getOverlayBase64 = needsOverlay
+      ? async () => {
+          // Mount the hidden SVG overlay at video container size and get base64 PNG
+          await new Promise<void>((resolve) => {
+            if (exportSvgReady.current === null) {
+              exportSvgReady.current = resolve;
+            } else {
+              resolve();
+            }
+          });
+          // Wait for native SVG rendering
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          await new Promise<void>((resolve) => setTimeout(resolve, 200));
+
+          if (!exportSvgRef.current) {
+            throw new Error('SVG ref not available for export');
+          }
+
+          // Force 1x output so pixel dimensions match the CSS-point contentRect
+          // used by the FFmpeg crop filter. Without this, toDataURL produces a
+          // high-DPI image (2x/3x) and the crop coordinates miss the annotations.
+          const overlayWidth = Math.round(containerSize.current.width);
+          const overlayHeight = Math.round(containerSize.current.height);
+
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('toDataURL timeout')), 5000);
+            exportSvgRef.current.toDataURL((data: string) => {
+              clearTimeout(timeout);
+              resolve(data);
+            }, overlayWidth, overlayHeight);
+          });
+
+          setIsExporting(false);
+          return base64;
         }
-      });
-      // Wait for native SVG rendering
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      await new Promise<void>((resolve) => setTimeout(resolve, 200));
+      : undefined;
 
-      if (!exportSvgRef.current) {
-        throw new Error('SVG ref not available for export');
+    await videoExport.startExport(getOverlayBase64);
+  }, [videoExport, needsOverlay]);
+
+  // Auto-save or auto-share when export completes
+  useEffect(() => {
+    if (videoExport.status !== 'complete' || !pendingExportAction.current) return;
+
+    const action = pendingExportAction.current;
+    pendingExportAction.current = null;
+
+    const performAction = async () => {
+      try {
+        if (action === 'save') {
+          await videoExport.saveToGallery();
+          setCompletionMessage('saved to gallery');
+        } else {
+          await videoExport.share();
+          setCompletionMessage('shared');
+        }
+      } catch {
+        setCompletionMessage('failed');
       }
+    };
 
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('toDataURL timeout')), 5000);
-        exportSvgRef.current.toDataURL((data: string) => {
-          clearTimeout(timeout);
-          resolve(data);
-        });
-      });
-
-      setIsExporting(false);
-      return base64;
-    });
-  }, [isPro, router, videoExport, drawing.annotations]);
+    performAction();
+  }, [videoExport.status]);
 
   const handleExportDone = useCallback(() => {
     videoExport.reset();
     setExportModalVisible(false);
     setIsExporting(false);
+    setCompletionMessage(null);
+    pendingExportAction.current = null;
     exportSvgReady.current = null;
   }, [videoExport]);
 
   const handleExportRetry = useCallback(() => {
-    handleExportVideo();
-  }, [handleExportVideo]);
+    startVideoExport();
+  }, [startVideoExport]);
 
   // Auto-hide controls in landscape when playing
   const resetHideTimer = useCallback(() => {
@@ -281,6 +337,11 @@ export const VideoPlayer = ({
     [isSeeking, loop, onPlaybackEnd]
   );
 
+  const handleReadyForDisplay = useCallback((event: VideoReadyForDisplayEvent) => {
+    setVideoNaturalWidth(event.naturalSize.width);
+    setVideoNaturalHeight(event.naturalSize.height);
+  }, []);
+
   const togglePlayPause = useCallback(async () => {
     if (!videoRef.current) return;
 
@@ -311,40 +372,33 @@ export const VideoPlayer = ({
 
   // Split into two phases so React actually re-renders between
   // hiding the toolbar and capturing the view.
-  const pendingCapture = useRef(false);
+  const pendingCapture = useRef<'save' | 'share' | null>(null);
 
-  const handleSaveFrame = useCallback(() => {
+  /**
+   * Phase 1: prepare a thumbnail overlay for the current frame,
+   * then schedule a capture. The `action` determines what happens after capture.
+   */
+  const beginFrameCapture = useCallback(async (action: 'save' | 'share') => {
     if (!videoContainerRef.current) return;
 
-    Alert.alert('Save to Photos', 'Save this annotated frame to your photo gallery?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Save',
-        onPress: async () => {
-          // Get the video frame as a thumbnail
-          const thumbnail = await VideoThumbnails.getThumbnailAsync(uri, {
-            time: position,
-          });
+    const thumbnail = await VideoThumbnails.getThumbnailAsync(uri, {
+      time: position,
+    });
+    const base64 = await FileSystem.readAsStringAsync(thumbnail.uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
 
-          // Read as base64 so Image renders synchronously
-          const base64 = await FileSystem.readAsStringAsync(thumbnail.uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-
-          // Phase 1: hide toolbar + show thumbnail, then schedule capture
-          pendingCapture.current = true;
-          setSaveMessage(null);
-          setIsSaving(true);
-          setCaptureFrameUri(`data:image/jpeg;base64,${base64}`);
-        },
-      },
-    ]);
+    pendingCapture.current = action;
+    setSaveMessage(null);
+    setIsSaving(true);
+    setCaptureFrameUri(`data:image/jpeg;base64,${base64}`);
   }, [uri, position]);
 
   // Phase 2: runs after React re-renders with toolbar hidden + thumbnail visible
   useEffect(() => {
     if (!pendingCapture.current || !isSaving || !captureFrameUri) return;
-    pendingCapture.current = false;
+    const action = pendingCapture.current;
+    pendingCapture.current = null;
 
     const doCapture = async () => {
       try {
@@ -353,7 +407,6 @@ export const VideoPlayer = ({
           // composite frame + annotations entirely within the SVG and export
           // via toDataURL. No captureRef needed.
 
-          // Wait for the SVG (with background image) to layout
           await new Promise<void>((resolve) => {
             if (svgLayoutReady.current === null) {
               svgLayoutReady.current = resolve;
@@ -361,7 +414,6 @@ export const VideoPlayer = ({
               resolve();
             }
           });
-          // Extra frames for native SVG + image decoding to finish
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           await new Promise<void>((resolve) => setTimeout(resolve, 200));
@@ -378,10 +430,13 @@ export const VideoPlayer = ({
             });
           });
 
-          await saveBase64ImageToGallery(rawBase64);
+          if (action === 'save') {
+            await saveBase64ImageToGallery(rawBase64);
+          } else {
+            await shareBase64Image(rawBase64);
+          }
         } else {
           // iOS path (or no annotations): use captureRef on the video container
-          // which correctly captures both the thumbnail Image and SVG overlay.
           await new Promise<void>((resolve) => {
             if (captureFrameReady.current) {
               captureFrameReady.current = null;
@@ -392,12 +447,17 @@ export const VideoPlayer = ({
           });
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-          await captureAnnotatedFrame(videoContainerRef);
+          if (action === 'save') {
+            await captureAnnotatedFrame(videoContainerRef);
+          } else {
+            const tempPath = await captureFrameToTempFile(videoContainerRef);
+            await shareTempFile(tempPath);
+          }
         }
 
-        setSaveMessage('Saved to gallery');
+        setSaveMessage(action === 'save' ? 'saved to gallery' : 'shared');
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Save failed';
+        const message = error instanceof Error ? error.message : 'Failed';
         setSaveMessage(message);
       } finally {
         setCaptureFrameUri(null);
@@ -409,6 +469,45 @@ export const VideoPlayer = ({
 
     doCapture();
   }, [isSaving, captureFrameUri]);
+
+  // Save/Share action sheet handlers
+  const saveScreenshot = useCallback(() => beginFrameCapture('save'), [beginFrameCapture]);
+  const shareScreenshot = useCallback(() => beginFrameCapture('share'), [beginFrameCapture]);
+
+  const saveVideoClip = useCallback(() => {
+    pendingExportAction.current = 'save';
+    startVideoExport();
+  }, [startVideoExport]);
+
+  const shareVideoClip = useCallback(() => {
+    pendingExportAction.current = 'share';
+    startVideoExport();
+  }, [startVideoExport]);
+
+  const handleSave = useCallback(() => {
+    setFormatPickerMode('save');
+  }, []);
+
+  const handleShare = useCallback(() => {
+    setFormatPickerMode('share');
+  }, []);
+
+  const handleFormatSelect = useCallback((format: 'screenshot' | 'video-clip') => {
+    const mode = formatPickerMode;
+    setFormatPickerMode(null);
+
+    if (format === 'screenshot') {
+      if (mode === 'save') saveScreenshot();
+      else shareScreenshot();
+    } else {
+      if (mode === 'save') saveVideoClip();
+      else shareVideoClip();
+    }
+  }, [formatPickerMode, saveScreenshot, shareScreenshot, saveVideoClip, shareVideoClip]);
+
+  const handleFormatCancel = useCallback(() => {
+    setFormatPickerMode(null);
+  }, []);
 
   const handleSeekStart = useCallback(async () => {
     setIsSeeking(true);
@@ -533,6 +632,7 @@ export const VideoPlayer = ({
           resizeMode={ResizeMode.CONTAIN}
           isLooping={loop}
           onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+          onReadyForDisplay={handleReadyForDisplay}
           shouldPlay={false}
           rate={playbackRate}
         />
@@ -599,13 +699,15 @@ export const VideoPlayer = ({
           />
         )}
 
-        {/* Hidden SVG overlay for video export — generates the PNG overlay via toDataURL */}
-        {isExporting && drawing.annotations.length > 0 && (
+        {/* Hidden SVG overlay for video export — generates the PNG overlay via toDataURL.
+            Mounted when annotations exist OR when a watermark is needed (free users). */}
+        {isExporting && (drawing.annotations.length > 0 || !isPro) && (
           <StaticAnnotationOverlay
             ref={exportSvgRef}
             annotations={drawing.annotations}
             width={containerSize.current.width}
             height={containerSize.current.height}
+            watermarkText={!isPro ? 'recorded with divot' : undefined}
             onReady={() => {
               if (exportSvgReady.current) {
                 exportSvgReady.current();
@@ -626,14 +728,11 @@ export const VideoPlayer = ({
               canRedo={drawing.canRedo}
               activeTool={drawing.activeTool}
               anglePhase={drawing.anglePhase}
-              canSave={drawing.annotations.length > 0}
               onColorSelect={drawing.setColor}
               onUndo={drawing.undo}
               onRedo={drawing.redo}
               onClear={drawing.clearAll}
               onToolSelect={drawing.setActiveTool}
-              onSave={handleSaveFrame}
-              onExportVideo={handleExportVideo}
             />
           </View>
         )}
@@ -732,20 +831,22 @@ export const VideoPlayer = ({
                   />
                 </Pressable>
               )}
-              {drawingEnabled && drawing.annotations.length > 0 && (
-                <Pressable
-                  style={themedStyles.drawButton}
-                  onPress={handleExportVideo}
-                  accessibilityRole="button"
-                  accessibilityLabel="Export annotated video"
-                >
-                  <Ionicons
-                    name={isPro ? 'videocam-outline' : 'lock-closed-outline'}
-                    size={18}
-                    color="#fff"
-                  />
-                </Pressable>
-              )}
+              <Pressable
+                style={themedStyles.drawButton}
+                onPress={handleSave}
+                accessibilityRole="button"
+                accessibilityLabel="Save"
+              >
+                <Ionicons name="download-outline" size={18} color="#fff" />
+              </Pressable>
+              <Pressable
+                style={themedStyles.drawButton}
+                onPress={handleShare}
+                accessibilityRole="button"
+                accessibilityLabel="Share"
+              >
+                <Ionicons name="share-outline" size={18} color="#fff" />
+              </Pressable>
             </View>
           </View>
         )}
@@ -864,33 +965,51 @@ export const VideoPlayer = ({
                 />
               </Pressable>
             )}
-            {drawingEnabled && drawing.annotations.length > 0 && (
-              <Pressable
-                style={themedStyles.drawButton}
-                onPress={handleExportVideo}
-                accessibilityRole="button"
-                accessibilityLabel="Export annotated video"
-                accessibilityHint="Export the full video with annotations burned in"
-              >
-                <Ionicons
-                  name={isPro ? 'videocam-outline' : 'lock-closed-outline'}
-                  size={18}
-                  color={theme.colors.textTertiary}
-                />
-              </Pressable>
-            )}
+            <Pressable
+              style={themedStyles.drawButton}
+              onPress={handleSave}
+              accessibilityRole="button"
+              accessibilityLabel="Save"
+              accessibilityHint="Save a screenshot or video clip to gallery"
+            >
+              <Ionicons
+                name="download-outline"
+                size={18}
+                color={theme.colors.textTertiary}
+              />
+            </Pressable>
+            <Pressable
+              style={themedStyles.drawButton}
+              onPress={handleShare}
+              accessibilityRole="button"
+              accessibilityLabel="Share"
+              accessibilityHint="Share a screenshot or video clip"
+            >
+              <Ionicons
+                name="share-outline"
+                size={18}
+                color={theme.colors.textTertiary}
+              />
+            </Pressable>
           </View>
         </View>
       )}
+
+      <FormatPickerModal
+        visible={formatPickerMode !== null}
+        title={formatPickerMode === 'save' ? 'save to gallery' : 'share'}
+        onSelectScreenshot={() => handleFormatSelect('screenshot')}
+        onSelectVideoClip={() => handleFormatSelect('video-clip')}
+        onCancel={handleFormatCancel}
+      />
 
       <ExportProgressModal
         visible={exportModalVisible}
         status={videoExport.status}
         progress={videoExport.progress}
         errorMessage={videoExport.errorMessage}
+        completionMessage={completionMessage}
         onCancel={videoExport.cancel}
-        onSaveToGallery={videoExport.saveToGallery}
-        onShare={videoExport.share}
         onDone={handleExportDone}
         onRetry={handleExportRetry}
       />
