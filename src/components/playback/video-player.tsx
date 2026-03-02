@@ -240,7 +240,8 @@ export const VideoPlayer = ({
           setCompletionMessage('saved to gallery');
         } else {
           await videoExport.share();
-          setCompletionMessage('shared');
+          // Auto-dismiss after share — the native share sheet already confirmed it
+          handleExportDone();
         }
       } catch {
         setCompletionMessage('failed');
@@ -302,13 +303,11 @@ export const VideoPlayer = ({
   }, [isLandscape]);
 
   const handleVideoTap = useCallback(() => {
-    if (isDrawMode) return;
-
     setControlsVisible((prev) => !prev);
     if (!controlsVisible) {
       resetHideTimer();
     }
-  }, [isDrawMode, controlsVisible, resetHideTimer]);
+  }, [controlsVisible, resetHideTimer]);
 
   const handlePlaybackStatusUpdate = useCallback(
     (status: AVPlaybackStatus) => {
@@ -588,13 +587,61 @@ export const VideoPlayer = ({
   const showAnnotations = drawingEnabled;
   const showControlsSection = showControls && isLoaded;
 
+  /** Shared button row — same buttons for portrait and landscape. */
+  const renderButtonRow = () => (
+    <>
+      <Pressable
+        style={themedStyles.overlayButton}
+        onPress={togglePlayPause}
+        accessibilityRole="button"
+        accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+      >
+        <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color="#fff" />
+      </Pressable>
+      <Pressable
+        style={themedStyles.overlayButton}
+        onPress={cyclePlaybackSpeed}
+        accessibilityRole="button"
+        accessibilityLabel={`Playback speed ${playbackRate}x`}
+      >
+        <Text style={themedStyles.speedButtonText}>{playbackRate}x</Text>
+      </Pressable>
+      {drawingEnabled && (
+        <Pressable
+          style={[themedStyles.overlayButton, isDrawMode && themedStyles.overlayButtonActive]}
+          onPress={toggleDrawMode}
+          accessibilityRole="button"
+          accessibilityLabel={isDrawMode ? 'Exit drawing mode' : 'Enter drawing mode'}
+          accessibilityState={{ selected: isDrawMode }}
+        >
+          <Ionicons name="pencil" size={22} color={isDrawMode ? theme.colors.text : '#fff'} />
+        </Pressable>
+      )}
+      <Pressable
+        style={themedStyles.overlayButton}
+        onPress={handleSave}
+        accessibilityRole="button"
+        accessibilityLabel="Save"
+      >
+        <Ionicons name="download-outline" size={22} color="#fff" />
+      </Pressable>
+      <Pressable
+        style={themedStyles.overlayButton}
+        onPress={handleShare}
+        accessibilityRole="button"
+        accessibilityLabel="Share"
+      >
+        <Ionicons name="share-outline" size={22} color="#fff" />
+      </Pressable>
+    </>
+  );
+
   return (
     <View style={[themedStyles.container, !isLandscape && { paddingTop: insets.top }]}>
       <Pressable
         ref={videoContainerRef}
         style={themedStyles.videoContainer}
-        onPress={handleVideoTap}
-        disabled={isDrawMode}
+        onPress={isDrawMode ? undefined : handleVideoTap}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
           setContainerWidth(width);
@@ -647,6 +694,7 @@ export const VideoPlayer = ({
                 onLineStart={drawing.startLine}
                 onLineMove={drawing.addPoint}
                 onLineEnd={drawing.endLine}
+                onTap={handleVideoTap}
               />
             )}
 
@@ -706,10 +754,11 @@ export const VideoPlayer = ({
           />
         )}
 
-        {/* Drawing toolbar - absolutely positioned inside video container */}
-        {isDrawMode && !isSaving && (
+        {/* Drawing toolbar - right side in both orientations */}
+        {isDrawMode && !isSaving && controlsVisible && (
           <View style={themedStyles.toolbarContainer}>
             <DrawingToolbar
+              layout={isLandscape ? 'grid' : 'vertical'}
               activeColor={drawing.color}
               presetColors={drawing.presetColors}
               canUndo={drawing.annotations.length > 0 || drawing.anglePhase !== 'idle'}
@@ -756,78 +805,18 @@ export const VideoPlayer = ({
           </View>
         )}
 
-        {/* Landscape controls overlay — auto-hides */}
+        {/* Landscape controls overlay — just button row, auto-hides */}
         {showControlsSection && isLandscape && controlsVisible && (
-          <View style={themedStyles.controlsOverlay}>
-            <FrameScrubber
-              duration={duration}
-              position={position}
-              onSeekStart={handleSeekStart}
-              onSeekChange={handleSeekChange}
-              onSeekComplete={handleSeekComplete}
-            />
+          <View style={[themedStyles.landscapeButtonOverlay, {
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          }]}>
             <View style={themedStyles.buttonRowOverlay}>
-              <Pressable
-                style={themedStyles.overlayButton}
-                onPress={togglePlayPause}
-                accessibilityRole="button"
-                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              >
-                <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color="#fff" />
-              </Pressable>
-              <Pressable
-                style={themedStyles.overlayButton}
-                onPress={cyclePlaybackSpeed}
-                accessibilityRole="button"
-                accessibilityLabel={`Playback speed ${playbackRate}x`}
-              >
-                <Text style={themedStyles.speedButtonText}>{playbackRate}x</Text>
-              </Pressable>
-              {drawingEnabled && (
-                <Pressable
-                  style={[themedStyles.overlayButton, isDrawMode && themedStyles.overlayButtonActive]}
-                  onPress={toggleDrawMode}
-                  accessibilityRole="button"
-                  accessibilityLabel={isDrawMode ? 'Exit drawing mode' : 'Enter drawing mode'}
-                  accessibilityState={{ selected: isDrawMode }}
-                >
-                  <Ionicons name="pencil" size={22} color={isDrawMode ? theme.colors.text : '#fff'} />
-                </Pressable>
-              )}
-              {analysisEnabled && (
-                <Pressable
-                  style={[themedStyles.overlayButton, showShaftOverlay && themedStyles.overlayButtonActive]}
-                  onPress={handleAnalyzePress}
-                  onLongPress={handleAnalyzeLongPress}
-                  accessibilityRole="button"
-                  accessibilityLabel={analysis.result ? 'Toggle shaft overlay' : 'Analyze swing'}
-                >
-                  <Ionicons
-                    name="analytics-outline"
-                    size={22}
-                    color={showShaftOverlay ? theme.colors.text : '#fff'}
-                  />
-                </Pressable>
-              )}
-              <Pressable
-                style={themedStyles.overlayButton}
-                onPress={handleSave}
-                accessibilityRole="button"
-                accessibilityLabel="Save"
-              >
-                <Ionicons name="download-outline" size={22} color="#fff" />
-              </Pressable>
-              <Pressable
-                style={themedStyles.overlayButton}
-                onPress={handleShare}
-                accessibilityRole="button"
-                accessibilityLabel="Share"
-              >
-                <Ionicons name="share-outline" size={22} color="#fff" />
-              </Pressable>
+              {renderButtonRow()}
             </View>
           </View>
         )}
+
         {/* Portrait controls overlay — anchored to bottom of video content, auto-hides */}
         {showControlsSection && !isLandscape && controlsVisible && videoContentRect && (
           <View style={[
@@ -835,98 +824,84 @@ export const VideoPlayer = ({
             { top: videoContentRect.y + videoContentRect.height - 60 },
           ]}>
             <View style={themedStyles.portraitButtonRow}>
-              <Pressable
-                style={themedStyles.overlayButton}
-                onPress={togglePlayPause}
-                accessibilityRole="button"
-                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              >
-                <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color="#fff" />
-              </Pressable>
-              <Pressable
-                style={themedStyles.overlayButton}
-                onPress={cyclePlaybackSpeed}
-                accessibilityRole="button"
-                accessibilityLabel={`Playback speed ${playbackRate}x`}
-              >
-                <Text style={themedStyles.speedButtonText}>{playbackRate}x</Text>
-              </Pressable>
-              {drawingEnabled && (
-                <Pressable
-                  style={[themedStyles.overlayButton, isDrawMode && themedStyles.overlayButtonActive]}
-                  onPress={toggleDrawMode}
-                  accessibilityRole="button"
-                  accessibilityLabel={isDrawMode ? 'Exit drawing mode' : 'Enter drawing mode'}
-                  accessibilityState={{ selected: isDrawMode }}
-                >
-                  <Ionicons name="pencil" size={22} color={isDrawMode ? theme.colors.text : '#fff'} />
-                </Pressable>
-              )}
-              {analysisEnabled && (
-                <Pressable
-                  style={[themedStyles.overlayButton, showShaftOverlay && themedStyles.overlayButtonActive]}
-                  onPress={handleAnalyzePress}
-                  onLongPress={handleAnalyzeLongPress}
-                  accessibilityRole="button"
-                  accessibilityLabel={analysis.result ? 'Toggle shaft overlay' : 'Analyze swing'}
-                >
-                  <Ionicons
-                    name="analytics-outline"
-                    size={22}
-                    color={showShaftOverlay ? theme.colors.text : '#fff'}
-                  />
-                </Pressable>
-              )}
-              <Pressable
-                style={themedStyles.overlayButton}
-                onPress={handleSave}
-                accessibilityRole="button"
-                accessibilityLabel="Save"
-              >
-                <Ionicons name="download-outline" size={22} color="#fff" />
-              </Pressable>
-              <Pressable
-                style={themedStyles.overlayButton}
-                onPress={handleShare}
-                accessibilityRole="button"
-                accessibilityLabel="Share"
-              >
-                <Ionicons name="share-outline" size={22} color="#fff" />
-              </Pressable>
+              {renderButtonRow()}
             </View>
           </View>
         )}
       </Pressable>
 
-      {/* Translucent header — portrait only, auto-hides, covers status bar area */}
-      {controlsVisible && !isLandscape && headerTitle && (
-        <View style={[themedStyles.headerOverlay, { paddingTop: insets.top + 10 }]}>
-          <View style={themedStyles.headerTitleGroup}>
-            <Text style={themedStyles.headerTitleText} numberOfLines={1}>{headerTitle}</Text>
-            {headerSubtitle && (
-              <Text style={themedStyles.headerSubtitleText} numberOfLines={1}>{headerSubtitle}</Text>
-            )}
-          </View>
-          {onBack && (
-            <Pressable
-              style={themedStyles.headerBackButton}
-              onPress={onBack}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={headerBackTitle ? `Back to ${headerBackTitle}` : 'Go back'}
-            >
-              <Ionicons name="chevron-back" size={22} color="#fff" />
-              {headerBackTitle && (
-                <Text style={themedStyles.headerBackTitle}>{headerBackTitle}</Text>
+      {/* Translucent header — both orientations, auto-hides */}
+      {controlsVisible && headerTitle && (
+        <View style={[
+          themedStyles.headerOverlay,
+          isLandscape
+            ? {
+                paddingTop: 8,
+                paddingLeft: insets.left + 8,
+                paddingRight: insets.right + 8,
+              }
+            : {
+                paddingTop: insets.top + 10,
+              },
+        ]}>
+          {isLandscape ? (
+            // Landscape: compact single-line header
+            <View style={themedStyles.headerLandscapeRow}>
+              {onBack && (
+                <Pressable
+                  style={themedStyles.headerBackButtonLandscape}
+                  onPress={onBack}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={headerBackTitle ? `Back to ${headerBackTitle}` : 'Go back'}
+                >
+                  <Ionicons name="chevron-back" size={22} color="#fff" />
+                  {headerBackTitle && (
+                    <Text style={themedStyles.headerBackTitle}>{headerBackTitle}</Text>
+                  )}
+                </Pressable>
               )}
-            </Pressable>
+              <Text style={themedStyles.headerLandscapeTitle} numberOfLines={1}>
+                {headerTitle}
+                {headerSubtitle ? ` · ${headerSubtitle}` : ''}
+              </Text>
+            </View>
+          ) : (
+            // Portrait: centered two-line header with absolute back button
+            <>
+              <View style={themedStyles.headerTitleGroup}>
+                <Text style={themedStyles.headerTitleText} numberOfLines={1}>{headerTitle}</Text>
+                {headerSubtitle && (
+                  <Text style={themedStyles.headerSubtitleText} numberOfLines={1}>{headerSubtitle}</Text>
+                )}
+              </View>
+              {onBack && (
+                <Pressable
+                  style={themedStyles.headerBackButton}
+                  onPress={onBack}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={headerBackTitle ? `Back to ${headerBackTitle}` : 'Go back'}
+                >
+                  <Ionicons name="chevron-back" size={22} color="#fff" />
+                  {headerBackTitle && (
+                    <Text style={themedStyles.headerBackTitle}>{headerBackTitle}</Text>
+                  )}
+                </Pressable>
+              )}
+            </>
           )}
         </View>
       )}
 
-      {/* FrameScrubber — portrait only, always visible */}
-      {showControlsSection && !isLandscape && (
-        <View style={{ paddingBottom: insets.bottom, backgroundColor: theme.colors.background }}>
+      {/* FrameScrubber — always visible in both orientations */}
+      {showControlsSection && (
+        <View style={{
+          paddingBottom: isLandscape ? 0 : insets.bottom,
+          paddingLeft: isLandscape ? insets.left : 0,
+          paddingRight: isLandscape ? insets.right : 0,
+          backgroundColor: theme.colors.background,
+        }}>
           <FrameScrubber
             duration={duration}
             position={position}
@@ -1016,6 +991,12 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     height: 40,
     zIndex: 1,
   },
+  headerBackButtonLandscape: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    height: 32,
+    marginRight: 12,
+  },
   headerBackTitle: {
     fontFamily: theme.fontFamily.body,
     fontSize: 17,
@@ -1040,14 +1021,29 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     textTransform: 'lowercase' as const,
     marginTop: 1,
   },
-  controlsOverlay: {
+  headerLandscapeRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    width: '100%' as const,
+  },
+  headerLandscapeTitle: {
+    fontFamily: theme.fontFamily.display,
+    fontSize: 15,
+    color: '#fff',
+    textTransform: 'uppercase' as const,
+    letterSpacing: -0.3,
+    flex: 1,
+    textAlign: 'center' as const,
+    marginRight: 40,
+  },
+  landscapeButtonOverlay: {
     position: 'absolute' as const,
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingVertical: 8,
   },
   buttonRowOverlay: {
     flexDirection: 'row' as const,
