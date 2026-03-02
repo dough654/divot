@@ -589,7 +589,7 @@ export const VideoPlayer = ({
     <View style={themedStyles.container}>
       <Pressable
         ref={videoContainerRef}
-        style={[themedStyles.videoContainer, isLandscape && themedStyles.videoContainerLandscape]}
+        style={themedStyles.videoContainer}
         onPress={handleVideoTap}
         disabled={isDrawMode}
         onLayout={(event) => {
@@ -755,7 +755,7 @@ export const VideoPlayer = ({
 
         {/* Translucent header — portrait only, auto-hides */}
         {controlsVisible && !isLandscape && headerTitle && (
-          <View style={[themedStyles.headerOverlay, { paddingTop: insets.top + 8 }]}>
+          <View style={[themedStyles.headerOverlay, { paddingTop: insets.top }]}>
             {onBack && (
               <Pressable
                 style={themedStyles.headerBackButton}
@@ -956,16 +956,13 @@ export const VideoPlayer = ({
 const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#000',
   },
   videoContainer: {
     flex: 1,
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
     overflow: 'hidden' as const,
-    backgroundColor: theme.colors.background,
-  },
-  videoContainerLandscape: {
     backgroundColor: '#000',
   },
   video: {

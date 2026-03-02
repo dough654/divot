@@ -103,7 +103,11 @@ export default function PlaybackScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen options={{
+        headerShown: false,
+        statusBarTranslucent: true,
+        statusBarStyle: 'light',
+      }} />
       <View style={styles.container}>
         <VideoPlayer
           uri={clip.path}
