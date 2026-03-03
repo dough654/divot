@@ -1,9 +1,9 @@
 package com.divotgolf.posedetection
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
-import com.google.mediapipe.framework.image.ByteBufferImageBuilder
-import com.google.mediapipe.framework.image.MPImage
+import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
@@ -19,7 +19,7 @@ import java.nio.ByteBuffer
  *
  * Coordinate system:
  *   - MediaPipe returns landmark positions normalized 0-1 relative to image
- *   - Image is rotated before inference so coordinates are in display space
+ *   - Coordinates are rotated post-detection into display space
  *   - Y is already top-left origin (no flip needed)
  */
 class MediaPipePoseDetector(private val context: Context) {
@@ -28,10 +28,11 @@ class MediaPipePoseDetector(private val context: Context) {
   private var initFailed = false
   private var errorCount = 0L
 
-  // Pre-allocated NV21 buffer, reused across frames to avoid per-frame allocation
-  private var nv21Buffer: ByteBuffer? = null
-  private var nv21Width = 0
-  private var nv21Height = 0
+  // Pre-allocated RGB conversion buffers, reused across frames
+  private var rgbPixels: IntArray? = null
+  private var rgbBitmap: Bitmap? = null
+  private var rgbWidth = 0
+  private var rgbHeight = 0
 
   /** Whether the model loaded successfully and is ready for inference. */
   val isReady: Boolean get() = poseLandmarker != null && !initFailed
@@ -142,10 +143,9 @@ class MediaPipePoseDetector(private val context: Context) {
    * Runs pose detection on pre-downsampled YUV frame data.
    *
    * Called from a background thread with YUV bytes already downsampled 3x
-   * by the plugin. Constructs an NV21 buffer and passes it directly to
-   * MediaPipe via ByteBufferImageBuilder, skipping YUV→RGB conversion entirely.
-   * Rotation is applied to landmark coordinates post-detection (cheap arithmetic
-   * on 72 doubles) instead of rotating a bitmap.
+   * by the plugin (stride == width, no padding). Converts to RGB bitmap
+   * via BitmapImageBuilder, then applies rotation to landmark coordinates
+   * post-detection instead of rotating the bitmap.
    */
   fun detectPoseFromYuv(
     yBytes: ByteArray, uBytes: ByteArray, vBytes: ByteArray,
@@ -156,34 +156,16 @@ class MediaPipePoseDetector(private val context: Context) {
     val landmarker = poseLandmarker ?: return null
     if (initFailed) return null
 
-    val ySize = width * height
-    val uvWidth = width / 2
-    val uvHeight = height / 2
-    val nv21Size = ySize + width * uvHeight
-
-    // Reuse NV21 buffer across frames, reallocate only on dimension change
-    val buf = ensureNv21Buffer(width, height, nv21Size)
-    buf.clear()
-
-    // Y plane: straight copy from pre-downsampled data
-    buf.put(yBytes, 0, ySize)
-
-    // VU interleaved plane for NV21
-    val uvPixelCount = uvWidth * uvHeight
-    for (i in 0 until uvPixelCount) {
-      buf.put(vBytes[i])
-      buf.put(uBytes[i])
-    }
-    buf.rewind()
-
-    val mpImage = try {
-      ByteBufferImageBuilder(buf, width, height, MPImage.IMAGE_FORMAT_NV21).build()
+    val bitmap = try {
+      yuvToRgbBitmap(yBytes, uBytes, vBytes, width, height)
     } catch (e: Exception) {
       if (errorCount++ % 60L == 0L) {
-        Log.e(TAG, "NV21 image creation failed (error #$errorCount): ${e.message}")
+        Log.e(TAG, "YUV conversion failed (error #$errorCount): ${e.message}")
       }
       return null
     }
+
+    val mpImage = BitmapImageBuilder(bitmap).build()
 
     val result = try {
       landmarker.detectForVideo(mpImage, timestampMs)
@@ -229,8 +211,8 @@ class MediaPipePoseDetector(private val context: Context) {
       output[offset + 2] = if (vis.isPresent) vis.get().toDouble() else 0.0
     }
 
-    // Apply rotation to landmark coordinates (landscape buffer → display space).
-    // Much cheaper than rotating the entire bitmap before inference.
+    // Rotate landmark coordinates from landscape buffer space → display space.
+    // Cheaper than creating a rotated bitmap before inference.
     if (rotationDegrees != 0) {
       for (i in 0 until output.size step 3) {
         val x = output[i]
@@ -246,13 +228,44 @@ class MediaPipePoseDetector(private val context: Context) {
     return output
   }
 
-  /** Ensure the pre-allocated NV21 ByteBuffer matches the expected dimensions. */
-  private fun ensureNv21Buffer(width: Int, height: Int, size: Int): ByteBuffer {
-    if (nv21Buffer == null || nv21Width != width || nv21Height != height) {
-      nv21Buffer = ByteBuffer.allocateDirect(size)
-      nv21Width = width
-      nv21Height = height
+  /**
+   * Convert pre-downsampled YUV byte arrays to an ARGB_8888 Bitmap.
+   * Input data has stride == width (no padding) and separate U/V arrays
+   * with stride == width/2. Reuses pre-allocated IntArray and Bitmap.
+   */
+  private fun yuvToRgbBitmap(
+    yBytes: ByteArray, uBytes: ByteArray, vBytes: ByteArray,
+    width: Int, height: Int,
+  ): Bitmap {
+    if (rgbWidth != width || rgbHeight != height) {
+      rgbPixels = IntArray(width * height)
+      rgbBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+      rgbWidth = width
+      rgbHeight = height
     }
-    return nv21Buffer!!
+
+    val pixels = rgbPixels!!
+    val bitmap = rgbBitmap!!
+    val uvWidth = width / 2
+
+    for (row in 0 until height) {
+      val yRowOffset = row * width
+      val uvRowOffset = (row shr 1) * uvWidth
+      for (col in 0 until width) {
+        val yVal = (yBytes[yRowOffset + col].toInt() and 0xFF).toFloat()
+        val uvIdx = uvRowOffset + (col shr 1)
+        val uVal = (uBytes[uvIdx].toInt() and 0xFF).toFloat() - 128f
+        val vVal = (vBytes[uvIdx].toInt() and 0xFF).toFloat() - 128f
+
+        val r = (yVal + 1.370705f * vVal).toInt().coerceIn(0, 255)
+        val g = (yVal - 0.337633f * uVal - 0.698001f * vVal).toInt().coerceIn(0, 255)
+        val b = (yVal + 1.732446f * uVal).toInt().coerceIn(0, 255)
+
+        pixels[yRowOffset + col] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+      }
+    }
+
+    bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
+    return bitmap
   }
 }
