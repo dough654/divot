@@ -15,7 +15,7 @@ import Animated, {
 import { useFeatureFlag } from 'posthog-react-native';
 
 import { useTheme, useToast, useSettings } from '@/src/context';
-import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, useAdaptiveBitrate, getPresetLabel, useCameraAngleDetection } from '@/src/hooks';
 import type { Theme } from '@/src/context';
 import { QRCodeDisplay, ConnectionRequestModal } from '@/src/components/pairing';
 import { ConnectionStatus, TransportBadge } from '@/src/components/connection';
@@ -62,7 +62,7 @@ type CameraState = 'connecting' | 'previewing' | 'recording' | 'reviewing';
 export default function CameraScreen() {
   useScreenOrientation({ lock: 'portrait' });
   const { theme } = useTheme();
-  const { settings } = useSettings();
+  const { settings, setCameraAngle } = useSettings();
 
   // PostHog feature flags gate native ML inference
   const poseDetectionFlag = useFeatureFlag('pose-detection-enabled');
@@ -111,6 +111,28 @@ export default function CameraScreen() {
   // Also required when swing classifier is enabled (needs joint data)
   const poseDetectionEnabled = !!poseDetectionFlag && (settings.poseOverlayEnabled || settings.swingClassifierEnabled);
   const { rawPoseData } = usePoseDetection({ enabled: poseDetectionEnabled });
+
+  // Camera angle auto-detection — runs while armed with pose data, before manual override
+  const [angleManualOverride, setAngleManualOverride] = useState(false);
+  const angleAutoDetectEnabled = isArmed && poseDetectionEnabled && cameraState === 'previewing' && !angleManualOverride;
+  const { detectedAngle, isDetecting: isDetectingAngle } = useCameraAngleDetection({
+    enabled: angleAutoDetectEnabled,
+    rawPoseData: rawPoseData ?? null,
+  });
+
+  // Apply auto-detected angle
+  useEffect(() => {
+    if (detectedAngle !== null && !angleManualOverride) {
+      setCameraAngle(detectedAngle);
+    }
+  }, [detectedAngle, angleManualOverride, setCameraAngle]);
+
+  // Reset manual override when disarming
+  useEffect(() => {
+    if (!isArmed) {
+      setAngleManualOverride(false);
+    }
+  }, [isArmed]);
 
   // Auto-detection pipeline: motion + audio → swing detection → rolling recorder
   // Decoupled from pose detection — uses frame differencing instead
@@ -276,6 +298,7 @@ export default function CameraScreen() {
     enabled: rollingRecorderEnabled,
     recordingFps,
     sessionId: activeSession?.id ?? null,
+    cameraAngle: settings.cameraAngle,
     onClipSaved: handleRollingClipSaved,
     onError: handleRollingError,
   });
@@ -297,6 +320,7 @@ export default function CameraScreen() {
     detectionState: classifierResult.debugInfo.detectionState,
     recordingFps,
     sessionId: activeSession?.id ?? null,
+    cameraAngle: settings.cameraAngle,
     onClipSaved: handleSwingClipSaved,
     onError: handleSwingError,
   });
@@ -706,6 +730,40 @@ export default function CameraScreen() {
             )}
           </View>
         </View>
+
+        {/* Camera Angle Badge — auto-detected or manual override */}
+        {(cameraState === 'connecting' || cameraState === 'previewing') && (
+          <Pressable
+            style={styles.angleBadgeContainer}
+            onPress={() => {
+              const nextAngle = settings.cameraAngle === 'dtl' ? 'face-on' : 'dtl';
+              setCameraAngle(nextAngle);
+              setAngleManualOverride(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isDetectingAngle
+                ? 'Detecting camera angle'
+                : `Camera angle: ${settings.cameraAngle === 'dtl' ? 'Down the line' : 'Face on'}. Tap to change.`
+            }
+          >
+            {isDetectingAngle ? (
+              <>
+                <ActivityIndicator size={10} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.angleBadgeText}>Detecting…</Text>
+              </>
+            ) : (
+              <>
+                {!angleManualOverride && detectedAngle !== null && (
+                  <Ionicons name="sparkles" size={10} color="rgba(255,255,255,0.8)" />
+                )}
+                <Text style={styles.angleBadgeTextActive}>
+                  {settings.cameraAngle === 'dtl' ? 'DTL' : 'Face-On'}
+                </Text>
+              </>
+            )}
+          </Pressable>
+        )}
 
         {/* Floating QR Button — bottom-left */}
         {(cameraState === 'connecting' || (cameraState === 'previewing' && !isConnected)) && (
@@ -1156,5 +1214,28 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   pillQuality: {
     backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  angleBadgeContainer: {
+    position: 'absolute' as const,
+    top: 12,
+    alignSelf: 'center' as const,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    zIndex: 10,
+  },
+  angleBadgeText: {
+    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.body,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  angleBadgeTextActive: {
+    fontSize: theme.fontSize.xs,
+    fontFamily: theme.fontFamily.bodySemiBold,
+    color: theme.palette.white,
   },
 }));
