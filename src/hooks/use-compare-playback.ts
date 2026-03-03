@@ -42,6 +42,8 @@ export type ComparePlaybackActions = {
   clearSync: () => void;
   /** Seek a specific panel and, if synced, apply the offset to the other. */
   seekWithSync: (panel: 'left' | 'right', positionMs: number) => Promise<void>;
+  /** Seek only the OTHER panel with sync offset applied. No-op if not synced. */
+  seekOther: (sourcePanel: 'left' | 'right', sourcePositionMs: number) => Promise<void>;
   /** Reset state for a slot (when clip changes). */
   resetSlot: (panel: 'left' | 'right') => void;
 };
@@ -137,6 +139,15 @@ export const useComparePlayback = (
     }
   }, [leftRef, rightRef, offsetMs]);
 
+  const seekOther = useCallback(async (sourcePanel: 'left' | 'right', sourcePositionMs: number) => {
+    if (!isSynced) return;
+    const targetRef = sourcePanel === 'left' ? rightRef : leftRef;
+    const targetPosition = computeSyncedPosition(sourcePositionMs, offsetMs, sourcePanel);
+    if (targetPosition !== null && targetRef.current) {
+      await targetRef.current.seekTo(targetPosition);
+    }
+  }, [leftRef, rightRef, isSynced, offsetMs]);
+
   const resetSlot = useCallback((panel: 'left' | 'right') => {
     setSyncState((prev) => ({
       ...prev,
@@ -158,6 +169,7 @@ export const useComparePlayback = (
     setRightSyncPoint,
     clearSync,
     seekWithSync,
+    seekOther,
     resetSlot,
   };
 };

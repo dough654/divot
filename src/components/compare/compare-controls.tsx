@@ -1,15 +1,14 @@
 /**
- * CompareControls — Bottom control bar with embedded jog-wheel scrubber.
+ * CompareControls — Shared control bar for the compare view.
  *
- * Left ~1/3: play/pause, step, speed, sync badge (compact column).
- * Right ~2/3: FrameScrubber jog-wheel driving both videos.
+ * Play both, step forward/backward, speed cycling, and sync status.
+ * Scrubbing is handled per-panel by each CompareVideoPanel's jog-wheel.
  */
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
-import { FrameScrubber } from '@/src/components/playback';
 import type { Theme } from '@/src/context';
 
 export type CompareControlsProps = {
@@ -19,10 +18,6 @@ export type CompareControlsProps = {
   playbackRate: number;
   /** Whether sync mode is active (both sync points set). */
   isSynced: boolean;
-  /** Current position for the jog-wheel (ms). */
-  position: number;
-  /** Duration for the jog-wheel (ms). */
-  duration: number;
   /** Toggle play/pause for both videos. */
   onTogglePlay: () => void;
   /** Step both videos one frame backward. */
@@ -33,28 +28,17 @@ export type CompareControlsProps = {
   onCycleSpeed: () => void;
   /** Clear sync points. */
   onClearSync: () => void;
-  /** Called when jog-wheel scrub begins. */
-  onSeekStart: () => void;
-  /** Called continuously during jog-wheel scrub. */
-  onSeekChange: (positionMs: number) => void;
-  /** Called when jog-wheel scrub ends. */
-  onSeekComplete: (positionMs: number) => void;
 };
 
 export const CompareControls = ({
   isPlaying,
   playbackRate,
   isSynced,
-  position,
-  duration,
   onTogglePlay,
   onStepBackward,
   onStepForward,
   onCycleSpeed,
   onClearSync,
-  onSeekStart,
-  onSeekChange,
-  onSeekComplete,
 }: CompareControlsProps) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -84,82 +68,69 @@ export const CompareControls = ({
 
   return (
     <View style={styles.container}>
-      {/* Left: compact button column */}
-      <View style={styles.buttonsColumn}>
-        <View style={styles.buttonRow}>
-          <Pressable
-            style={styles.controlButton}
-            onPress={handleStepBackward}
-            accessibilityRole="button"
-            accessibilityLabel="Step backward"
-          >
-            <Ionicons name="play-back" size={16} color={theme.colors.text} />
-          </Pressable>
+      {/* Step backward */}
+      <Pressable
+        style={styles.controlButton}
+        onPress={handleStepBackward}
+        accessibilityRole="button"
+        accessibilityLabel="Step backward"
+      >
+        <Ionicons name="play-back" size={18} color={theme.colors.text} />
+      </Pressable>
 
-          <Pressable
-            style={styles.playButton}
-            onPress={handleTogglePlay}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? 'Pause both' : 'Play both'}
-          >
-            <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
-              size={18}
-              color={theme.isDark ? theme.palette.black : theme.palette.white}
-            />
-          </Pressable>
-
-          <Pressable
-            style={styles.controlButton}
-            onPress={handleStepForward}
-            accessibilityRole="button"
-            accessibilityLabel="Step forward"
-          >
-            <Ionicons name="play-forward" size={16} color={theme.colors.text} />
-          </Pressable>
-        </View>
-
-        <View style={styles.badgeRow}>
-          <Pressable
-            style={styles.speedButton}
-            onPress={handleCycleSpeed}
-            accessibilityRole="button"
-            accessibilityLabel={`Playback speed ${rateLabel}`}
-          >
-            <Text style={styles.speedText}>{rateLabel}</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.syncBadge, isSynced && styles.syncBadgeActive]}
-            onPress={isSynced ? onClearSync : undefined}
-            disabled={!isSynced}
-            accessibilityRole="button"
-            accessibilityLabel={isSynced ? 'Synced — tap to clear' : 'Not synced'}
-          >
-            <Ionicons
-              name={isSynced ? 'link' : 'unlink'}
-              size={12}
-              color={isSynced
-                ? (theme.isDark ? theme.palette.black : theme.palette.white)
-                : theme.colors.textTertiary}
-            />
-            <Text style={[styles.syncText, isSynced && styles.syncTextActive]}>
-              {isSynced ? 'synced' : 'no sync'}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {/* Right: jog-wheel scrubber */}
-      <View style={styles.scrubberArea}>
-        <FrameScrubber
-          duration={duration}
-          position={position}
-          onSeekStart={onSeekStart}
-          onSeekChange={onSeekChange}
-          onSeekComplete={onSeekComplete}
+      {/* Play / Pause both */}
+      <Pressable
+        style={styles.playButton}
+        onPress={handleTogglePlay}
+        accessibilityRole="button"
+        accessibilityLabel={isPlaying ? 'Pause both' : 'Play both'}
+      >
+        <Ionicons
+          name={isPlaying ? 'pause' : 'play'}
+          size={20}
+          color={theme.isDark ? theme.palette.black : theme.palette.white}
         />
-      </View>
+      </Pressable>
+
+      {/* Step forward */}
+      <Pressable
+        style={styles.controlButton}
+        onPress={handleStepForward}
+        accessibilityRole="button"
+        accessibilityLabel="Step forward"
+      >
+        <Ionicons name="play-forward" size={18} color={theme.colors.text} />
+      </Pressable>
+
+      {/* Speed */}
+      <Pressable
+        style={styles.speedButton}
+        onPress={handleCycleSpeed}
+        accessibilityRole="button"
+        accessibilityLabel={`Playback speed ${rateLabel}`}
+      >
+        <Text style={styles.speedText}>{rateLabel}</Text>
+      </Pressable>
+
+      {/* Sync status */}
+      <Pressable
+        style={[styles.syncBadge, isSynced && styles.syncBadgeActive]}
+        onPress={isSynced ? onClearSync : undefined}
+        disabled={!isSynced}
+        accessibilityRole="button"
+        accessibilityLabel={isSynced ? 'Synced — tap to clear' : 'Not synced'}
+      >
+        <Ionicons
+          name={isSynced ? 'link' : 'unlink'}
+          size={14}
+          color={isSynced
+            ? (theme.isDark ? theme.palette.black : theme.palette.white)
+            : theme.colors.textTertiary}
+        />
+        <Text style={[styles.syncText, isSynced && styles.syncTextActive]}>
+          {isSynced ? 'synced' : 'no sync'}
+        </Text>
+      </Pressable>
     </View>
   );
 };
@@ -168,59 +139,46 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   container: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    paddingVertical: 4,
-    paddingHorizontal: theme.spacing.sm,
-    backgroundColor: theme.colors.background,
+    justifyContent: 'center' as const,
     gap: theme.spacing.sm,
-  },
-  buttonsColumn: {
-    alignItems: 'center' as const,
-    gap: 2,
-  },
-  buttonRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 2,
-  },
-  badgeRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 4,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.lg,
+    backgroundColor: theme.colors.background,
   },
   controlButton: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     borderRadius: theme.borderRadius.full,
   },
   playButton: {
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.accent,
   },
   speedButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: theme.borderRadius.xs,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 3,
+    borderRadius: theme.borderRadius.sm,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   speedText: {
     fontFamily: theme.fontFamily.mono,
-    fontSize: 11,
+    fontSize: 12,
     color: theme.colors.text,
     fontVariant: ['tabular-nums' as const],
   },
   syncBadge: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    gap: 4,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 3,
     borderRadius: theme.borderRadius.full,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -231,14 +189,11 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   syncText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 10,
+    fontSize: 11,
     color: theme.colors.textTertiary,
     textTransform: 'lowercase' as const,
   },
   syncTextActive: {
     color: theme.isDark ? theme.palette.black : theme.palette.white,
-  },
-  scrubberArea: {
-    flex: 2,
   },
 }));

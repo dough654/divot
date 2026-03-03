@@ -2,7 +2,8 @@
  * CompareVideoPanel — Lightweight single-video player for the compare view.
  *
  * Wraps expo-av Video with an imperative ref API for coordinated playback.
- * No scrubber — scrubbing is handled by the shared jog-wheel in CompareControls.
+ * Includes a per-panel FrameScrubber jog-wheel below the video. When synced,
+ * scrubbing notifies the parent to seek the other panel via onSyncSeek.
  */
 import { View, Text, Pressable } from 'react-native';
 import {
@@ -17,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import { FrameScrubber } from '@/src/components/playback';
 import type { Theme } from '@/src/context';
 
 /** Assumed frame duration for step operations (30fps). */
@@ -39,14 +41,12 @@ export type CompareVideoPanelProps = {
   slotLabel: string;
   /** Sync point in ms, or null if unset. */
   syncPointMs: number | null;
-  /** When true, suppresses position updates from playback status (external scrubbing). */
-  isSeeking?: boolean;
   /** Called when user taps "set sync" pill. */
   onSetSyncPoint?: (positionMs: number) => void;
   /** Called when user taps the empty slot or loaded video to pick a clip. */
   onPickClip?: () => void;
-  /** Called on each playback status update with current position/duration/playing state. */
-  onPlaybackUpdate?: (update: { position: number; duration: number; isPlaying: boolean }) => void;
+  /** Called during scrubbing so the parent can seek the other panel (sync coordination). */
+  onSyncSeek?: (positionMs: number) => void;
 };
 
 /**
@@ -68,15 +68,19 @@ const safeSeek = async (videoRef: React.RefObject<Video | null>, positionMs: num
 };
 
 export const CompareVideoPanel = forwardRef<CompareVideoPanelHandle, CompareVideoPanelProps>(
-  ({ uri, slotLabel, syncPointMs, isSeeking = false, onSetSyncPoint, onPickClip, onPlaybackUpdate }, ref) => {
+  ({ uri, slotLabel, syncPointMs, onSetSyncPoint, onPickClip, onSyncSeek }, ref) => {
     const { theme } = useTheme();
     const styles = useThemedStyles(createStyles);
     const videoRef = useRef<Video | null>(null);
 
+    const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isSeeking, setIsSeeking] = useState(false);
 
+    const lastSeekTime = useRef(0);
+    const pendingSeek = useRef<number | null>(null);
     const positionRef = useRef(0);
 
     const handlePlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
@@ -86,15 +90,28 @@ export const CompareVideoPanel = forwardRef<CompareVideoPanelHandle, CompareVide
       }
       setIsLoaded(true);
       setIsPlaying(status.isPlaying);
-      const dur = status.durationMillis || 0;
-      setDuration(dur);
-
+      setDuration(status.durationMillis || 0);
       if (!isSeeking) {
         const pos = status.positionMillis || 0;
+        setPosition(pos);
         positionRef.current = pos;
-        onPlaybackUpdate?.({ position: pos, duration: dur, isPlaying: status.isPlaying });
       }
-    }, [isSeeking, onPlaybackUpdate]);
+    }, [isSeeking]);
+
+    /** Throttled seek — limits to one seek per 50ms, queues the rest. */
+    const throttledSeek = useCallback(async (value: number) => {
+      setPosition(value);
+      positionRef.current = value;
+      const now = Date.now();
+      if (now - lastSeekTime.current < 50) {
+        pendingSeek.current = value;
+        return;
+      }
+      lastSeekTime.current = now;
+      pendingSeek.current = null;
+      await safeSeek(videoRef, value);
+      onSyncSeek?.(value);
+    }, [onSyncSeek]);
 
     useImperativeHandle(ref, () => ({
       play: async () => {
@@ -105,6 +122,7 @@ export const CompareVideoPanel = forwardRef<CompareVideoPanelHandle, CompareVide
       },
       seekTo: async (positionMs: number) => {
         positionRef.current = positionMs;
+        setPosition(positionMs);
         await safeSeek(videoRef, positionMs);
       },
       setRate: async (rate: number) => {
@@ -116,9 +134,26 @@ export const CompareVideoPanel = forwardRef<CompareVideoPanelHandle, CompareVide
         const delta = direction === 'forward' ? FRAME_DURATION_MS : -FRAME_DURATION_MS;
         const target = Math.max(0, Math.min(duration, positionRef.current + delta));
         positionRef.current = target;
+        setPosition(target);
         await safeSeek(videoRef, target);
       },
     }), [duration]);
+
+    const handleSeekStart = useCallback(() => {
+      setIsSeeking(true);
+    }, []);
+
+    const handleSeekChange = useCallback((value: number) => {
+      throttledSeek(value);
+    }, [throttledSeek]);
+
+    const handleSeekComplete = useCallback(async (value: number) => {
+      setIsSeeking(false);
+      const seekTarget = pendingSeek.current ?? value;
+      pendingSeek.current = null;
+      await safeSeek(videoRef, seekTarget);
+      onSyncSeek?.(seekTarget);
+    }, [onSyncSeek]);
 
     // Empty slot
     if (!uri) {
@@ -164,6 +199,14 @@ export const CompareVideoPanel = forwardRef<CompareVideoPanelHandle, CompareVide
             </Pressable>
           )}
         </Pressable>
+
+        <FrameScrubber
+          duration={duration}
+          position={position}
+          onSeekStart={handleSeekStart}
+          onSeekChange={handleSeekChange}
+          onSeekComplete={handleSeekComplete}
+        />
       </View>
     );
   },
