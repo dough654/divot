@@ -1,8 +1,8 @@
 /**
  * Compare screen — Side-by-side swing comparison.
  *
- * Two video slots with synchronized scrubbing, sync point alignment,
- * and shared playback controls. Pro-gated feature.
+ * Two video slots with a shared jog-wheel scrubber, sync point alignment,
+ * and coordinated playback controls. Pro-gated feature.
  */
 import { View } from 'react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -37,6 +37,11 @@ export default function CompareScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerSlot, setPickerSlot] = useState<'left' | 'right'>('left');
 
+  // Jog-wheel state — driven by left panel's playback updates
+  const [scrubPosition, setScrubPosition] = useState(0);
+  const [scrubDuration, setScrubDuration] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
+
   const leftRef = useRef<CompareVideoPanelHandle | null>(null);
   const rightRef = useRef<CompareVideoPanelHandle | null>(null);
 
@@ -67,9 +72,34 @@ export default function CompareScreen() {
     }
   }, [pickerSlot, playback]);
 
+  // Left panel drives the jog-wheel position/duration
+  const handleLeftPlaybackUpdate = useCallback((update: { position: number; duration: number }) => {
+    setScrubPosition(update.position);
+    setScrubDuration(update.duration);
+  }, []);
+
+  // Jog-wheel seek → drive both panels via seekWithSync
+  const handleSeekStart = useCallback(() => {
+    setIsSeeking(true);
+    playback.pauseBoth();
+  }, [playback]);
+
+  const handleSeekChange = useCallback((positionMs: number) => {
+    setScrubPosition(positionMs);
+    playback.seekWithSync('left', positionMs);
+  }, [playback]);
+
+  const handleSeekComplete = useCallback((positionMs: number) => {
+    setScrubPosition(positionMs);
+    playback.seekWithSync('left', positionMs);
+    setIsSeeking(false);
+  }, [playback]);
+
+  // In portrait, the stack header already handles top safe area.
+  // In landscape, we need horizontal safe area only.
   const containerPadding = isLandscape
     ? { paddingLeft: insets.left, paddingRight: insets.right }
-    : { paddingTop: insets.top, paddingBottom: insets.bottom };
+    : { paddingBottom: insets.bottom };
 
   return (
     <View style={[styles.container, containerPadding]}>
@@ -87,14 +117,17 @@ export default function CompareScreen() {
             uri={leftClip?.path ?? null}
             slotLabel="A"
             syncPointMs={playback.syncState.leftSyncPointMs}
+            isSeeking={isSeeking}
             onSetSyncPoint={playback.setLeftSyncPoint}
             onPickClip={() => openPicker('left')}
+            onPlaybackUpdate={handleLeftPlaybackUpdate}
           />
           <CompareVideoPanel
             ref={rightRef}
             uri={rightClip?.path ?? null}
             slotLabel="B"
             syncPointMs={playback.syncState.rightSyncPointMs}
+            isSeeking={isSeeking}
             onSetSyncPoint={playback.setRightSyncPoint}
             onPickClip={() => openPicker('right')}
           />
@@ -104,11 +137,16 @@ export default function CompareScreen() {
           isPlaying={playback.isPlaying}
           playbackRate={playback.playbackRate}
           isSynced={playback.isSynced}
+          position={scrubPosition}
+          duration={scrubDuration}
           onTogglePlay={playback.togglePlayBoth}
           onStepBackward={() => playback.stepBoth('backward')}
           onStepForward={() => playback.stepBoth('forward')}
           onCycleSpeed={playback.cycleSpeed}
           onClearSync={playback.clearSync}
+          onSeekStart={handleSeekStart}
+          onSeekChange={handleSeekChange}
+          onSeekComplete={handleSeekComplete}
         />
       </ProGate>
 

@@ -1,6 +1,3 @@
-export { CompareScrubber } from './compare-scrubber';
-export type { CompareScrubberProps } from './compare-scrubber';
-
 export { CompareVideoPanel } from './compare-video-panel';
 export type { CompareVideoPanelHandle, CompareVideoPanelProps } from './compare-video-panel';
 
