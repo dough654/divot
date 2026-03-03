@@ -18,6 +18,10 @@ export type CompareControlsProps = {
   playbackRate: number;
   /** Whether sync mode is active (both sync points set). */
   isSynced: boolean;
+  /** Whether side-by-side (split) layout is active. */
+  isSplit: boolean;
+  /** Whether the layout toggle should be visible (hidden in landscape). */
+  showLayoutToggle: boolean;
   /** Toggle play/pause for both videos. */
   onTogglePlay: () => void;
   /** Step both videos one frame backward. */
@@ -28,17 +32,22 @@ export type CompareControlsProps = {
   onCycleSpeed: () => void;
   /** Clear sync points. */
   onClearSync: () => void;
+  /** Toggle between stacked and side-by-side layout. */
+  onToggleLayout: () => void;
 };
 
 export const CompareControls = ({
   isPlaying,
   playbackRate,
   isSynced,
+  isSplit,
+  showLayoutToggle,
   onTogglePlay,
   onStepBackward,
   onStepForward,
   onCycleSpeed,
   onClearSync,
+  onToggleLayout,
 }: CompareControlsProps) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -131,6 +140,23 @@ export const CompareControls = ({
           {isSynced ? 'synced' : 'no sync'}
         </Text>
       </Pressable>
+
+      {/* Layout toggle — only in portrait */}
+      {showLayoutToggle && (
+        <Pressable
+          style={[styles.layoutBadge, isSplit && styles.layoutBadgeActive]}
+          onPress={() => {
+            haptics.light();
+            onToggleLayout();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={isSplit ? 'Switch to stacked layout' : 'Switch to side-by-side layout'}
+        >
+          <Text style={[styles.layoutText, isSplit && styles.layoutTextActive]}>
+            {isSplit ? 'split' : 'stack'}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 };
@@ -194,6 +220,26 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     textTransform: 'lowercase' as const,
   },
   syncTextActive: {
+    color: theme.isDark ? theme.palette.black : theme.palette.white,
+  },
+  layoutBadge: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 3,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  layoutBadgeActive: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+  layoutText: {
+    fontFamily: theme.fontFamily.bodySemiBold,
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    textTransform: 'lowercase' as const,
+  },
+  layoutTextActive: {
     color: theme.isDark ? theme.palette.black : theme.palette.white,
   },
 }));

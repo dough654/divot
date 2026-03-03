@@ -37,6 +37,7 @@ export default function CompareScreen() {
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerSlot, setPickerSlot] = useState<'left' | 'right'>('left');
+  const [portraitSplit, setPortraitSplit] = useState(false);
 
   const leftRef = useRef<CompareVideoPanelHandle | null>(null);
   const rightRef = useRef<CompareVideoPanelHandle | null>(null);
@@ -92,7 +93,7 @@ export default function CompareScreen() {
       >
         <View style={[
           styles.videoPanels,
-          { flexDirection: isLandscape ? 'row' as const : 'column' as const },
+          { flexDirection: (isLandscape || portraitSplit) ? 'row' as const : 'column' as const },
         ]}>
           <CompareVideoPanel
             ref={leftRef}
@@ -118,11 +119,14 @@ export default function CompareScreen() {
           isPlaying={playback.isPlaying}
           playbackRate={playback.playbackRate}
           isSynced={playback.isSynced}
+          isSplit={portraitSplit}
+          showLayoutToggle={!isLandscape}
           onTogglePlay={playback.togglePlayBoth}
           onStepBackward={() => playback.stepBoth('backward')}
           onStepForward={() => playback.stepBoth('forward')}
           onCycleSpeed={playback.cycleSpeed}
           onClearSync={playback.clearSync}
+          onToggleLayout={() => setPortraitSplit((prev) => !prev)}
         />
       </ProGate>
 
