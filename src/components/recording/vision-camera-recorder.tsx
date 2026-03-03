@@ -24,10 +24,6 @@ export type VisionCameraRecorderProps = {
   poseOverlayVisible?: boolean;
   /** Raw 42-element pose array for overlay rendering (polled from native by parent). */
   poseData?: number[] | null;
-  /** Whether club detection should run on frames. */
-  clubDetectionEnabled?: boolean;
-  /** Target fps for club detection. Defaults to 3. */
-  clubDetectionFps?: number;
   /** Whether frame differencing should run on frames. */
   frameDiffEnabled?: boolean;
   /** Target fps for frame differencing. Defaults to 15. */
@@ -54,7 +50,6 @@ const IS_ANDROID = Platform.OS === 'android';
 // available in the worklet closure without going through React refs.
 const forwardPlugin = VisionCameraProxy.initFrameProcessorPlugin('forwardToWebRTC', {});
 const posePlugin = VisionCameraProxy.initFrameProcessorPlugin('detectPose', {});
-const clubPlugin = VisionCameraProxy.initFrameProcessorPlugin('detectClub', {});
 const frameDiffPlugin = VisionCameraProxy.initFrameProcessorPlugin('frameDiff', {});
 
 /**
@@ -76,7 +71,6 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
     device, isActive, audio = true, format, fps,
     poseDetectionEnabled = false, poseDetectionFps = 10,
     poseOverlayVisible = false, poseData,
-    clubDetectionEnabled = false, clubDetectionFps = 3,
     frameDiffEnabled = false, frameDiffFps = 15,
   }, ref) => {
     const cameraRef = useRef<Camera>(null);
@@ -106,14 +100,6 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
         });
       }
 
-      // Club detection — runs at lower fps (~3), gated by address state
-      if (clubDetectionEnabled && clubPlugin) {
-        runAtTargetFps(clubDetectionFps, () => {
-          'worklet';
-          clubPlugin.call(frame);
-        });
-      }
-
       // Frame differencing — runs at ~15fps for motion detection
       if (frameDiffEnabled && frameDiffPlugin) {
         runAtTargetFps(frameDiffFps, () => {
@@ -121,7 +107,7 @@ export const VisionCameraRecorder = forwardRef<VisionCameraRecorderRef, VisionCa
           frameDiffPlugin.call(frame);
         });
       }
-    }, [poseDetectionEnabled, poseDetectionFps, isFrontCamera, clubDetectionEnabled, clubDetectionFps, frameDiffEnabled, frameDiffFps]);
+    }, [poseDetectionEnabled, poseDetectionFps, isFrontCamera, frameDiffEnabled, frameDiffFps]);
 
     // Counter-rotation style for Android preview correction.
     const cameraWrapperStyle = useAnimatedStyle(() => {

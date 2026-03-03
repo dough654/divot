@@ -1,9 +1,0 @@
-{
-  "platforms": ["ios", "android"],
-  "ios": {
-    "modules": ["VisionCameraClubDetectionModule"]
-  },
-  "android": {
-    "modules": ["com.divotgolf.clubdetection.VisionCameraClubDetectionModule"]
-  }
-}

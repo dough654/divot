@@ -8,6 +8,7 @@ import android.media.Image
 import android.util.Log
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import java.nio.ByteBuffer
@@ -91,24 +92,47 @@ class MediaPipePoseDetector(private val context: Context) {
       }
       Log.d(TAG, "Model loaded into buffer: ${modelBuffer.capacity()} bytes")
 
-      val baseOptions = BaseOptions.builder()
-        .setModelAssetBuffer(modelBuffer)
-        .build()
+      poseLandmarker = createLandmarker(modelBuffer, useGpu = true)
+        ?: createLandmarker(modelBuffer, useGpu = false)
 
+      if (poseLandmarker != null) {
+        Log.d(TAG, "MediaPipe PoseLandmarker created successfully")
+      } else {
+        Log.e(TAG, "Failed to create PoseLandmarker with both GPU and CPU delegates")
+        initFailed = true
+      }
+    } catch (e: Throwable) {
+      Log.e(TAG, "Failed to create PoseLandmarker: ${e.javaClass.simpleName}: ${e.message}")
+      initFailed = true
+    }
+  }
+
+  /** Attempt to create a PoseLandmarker with the given delegate. Returns null on failure. */
+  private fun createLandmarker(modelBuffer: ByteBuffer, useGpu: Boolean): PoseLandmarker? {
+    return try {
+      modelBuffer.rewind()
+      val baseOptionsBuilder = BaseOptions.builder()
+        .setModelAssetBuffer(modelBuffer)
+      if (useGpu) {
+        baseOptionsBuilder.setDelegate(Delegate.GPU)
+      }
+
+      // VIDEO mode enables temporal tracking between frames (2-3x faster than IMAGE mode)
       val options = PoseLandmarker.PoseLandmarkerOptions.builder()
-        .setBaseOptions(baseOptions)
-        .setRunningMode(RunningMode.IMAGE)
+        .setBaseOptions(baseOptionsBuilder.build())
+        .setRunningMode(RunningMode.VIDEO)
         .setNumPoses(1)
         .setMinPoseDetectionConfidence(0.5f)
         .setMinPosePresenceConfidence(0.5f)
         .setMinTrackingConfidence(0.5f)
         .build()
 
-      poseLandmarker = PoseLandmarker.createFromOptions(context, options)
-      Log.d(TAG, "MediaPipe PoseLandmarker created successfully")
+      val landmarker = PoseLandmarker.createFromOptions(context, options)
+      Log.d(TAG, "PoseLandmarker created with ${if (useGpu) "GPU" else "CPU"} delegate")
+      landmarker
     } catch (e: Throwable) {
-      Log.e(TAG, "Failed to create PoseLandmarker: ${e.javaClass.simpleName}: ${e.message}")
-      initFailed = true
+      Log.w(TAG, "${if (useGpu) "GPU" else "CPU"} delegate failed: ${e.message}")
+      null
     }
   }
 
@@ -124,6 +148,7 @@ class MediaPipePoseDetector(private val context: Context) {
     width: Int, height: Int,
     yRowStride: Int, uvRowStride: Int, uvPixelStride: Int,
     rotationDegrees: Int,
+    timestampMs: Long,
   ): List<Double>? {
     val landmarker = poseLandmarker ?: return null
     if (initFailed) return null
@@ -148,7 +173,7 @@ class MediaPipePoseDetector(private val context: Context) {
     val mpImage = BitmapImageBuilder(bitmap).build()
 
     val result = try {
-      landmarker.detect(mpImage)
+      landmarker.detectForVideo(mpImage, timestampMs)
     } catch (e: Exception) {
       if (errorCount++ % 60L == 0L) {
         Log.e(TAG, "PoseLandmarker.detect() failed (error #$errorCount): ${e.message}")

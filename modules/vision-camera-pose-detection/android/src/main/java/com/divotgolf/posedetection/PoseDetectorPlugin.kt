@@ -73,6 +73,7 @@ class PoseDetectorPlugin(private val appContext: Context) : FrameProcessorPlugin
     val yRowStride = yPlane.rowStride
     val uvRowStride = uPlane.rowStride
     val uvPixelStride = uPlane.pixelStride
+    val timestampMs = frame.timestamp / 1_000_000L  // ns → ms for MediaPipe VIDEO mode
 
     // Dispatch detection to background thread — frame processor returns immediately
     detectionInProgress.set(true)
@@ -83,6 +84,7 @@ class PoseDetectorPlugin(private val appContext: Context) : FrameProcessorPlugin
           width, height,
           yRowStride, uvRowStride, uvPixelStride,
           rotationDegrees,
+          timestampMs,
         )
 
         // Always flip x-coordinates to match the camera preview:

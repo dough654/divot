@@ -23,11 +23,9 @@ import {
   ArmButton,
   VisionCameraRecorder,
   VisionCameraRecorderRef,
-  ClubPlaneLineOverlay,
   DetectionDebugOverlay,
 } from '@/src/components/recording';
 import { usePoseDetection } from '@/src/hooks/use-pose-detection';
-import { useClubDetection } from '@/src/hooks/use-club-detection';
 import { useSwingFeedback } from '@/src/hooks/use-swing-feedback';
 import { useMotionDetection } from '@/src/hooks/use-motion-detection';
 import { useAudioMetering } from '@/src/hooks/use-audio-metering';
@@ -215,9 +213,6 @@ export default function CameraScreen() {
     }
     prevIsStillRef.current = isStill;
   }, [isStill, playAddressReady]);
-
-  // Club detection — runs continuously when auto-detect is enabled (like pose)
-  const { clubKeypoints, cameraAspectRatio } = useClubDetection({ enabled: autoDetectEnabled });
 
   const {
     connectionState: signalingConnectionState,
@@ -691,7 +686,6 @@ export default function CameraScreen() {
                 poseDetectionEnabled={poseDetectionEnabled}
                 poseOverlayVisible={poseDetectionEnabled}
                 poseData={rawPoseData}
-                clubDetectionEnabled={autoDetectEnabled}
                 frameDiffEnabled={useMotionDetect}
               />
             ) : (
@@ -700,12 +694,6 @@ export default function CameraScreen() {
                   {hasCameraPermission ? 'No camera device found' : 'Camera permission required'}
                 </Text>
               </View>
-            )}
-            {autoDetectEnabled && clubKeypoints && (
-              <ClubPlaneLineOverlay
-                clubKeypoints={clubKeypoints}
-                visible={true}
-              />
             )}
             {autoDetectEnabled && settings.debugOverlayEnabled && (
               <DetectionDebugOverlay
