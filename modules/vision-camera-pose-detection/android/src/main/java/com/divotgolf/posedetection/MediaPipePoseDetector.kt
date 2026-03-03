@@ -6,7 +6,6 @@ import com.google.mediapipe.framework.image.ByteBufferImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
-import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import java.nio.ByteBuffer
@@ -145,7 +144,8 @@ class MediaPipePoseDetector(private val context: Context) {
    * Called from a background thread with YUV bytes already downsampled 3x
    * by the plugin. Constructs an NV21 buffer and passes it directly to
    * MediaPipe via ByteBufferImageBuilder, skipping YUV→RGB conversion entirely.
-   * Rotation is handled via ImageProcessingOptions instead of bitmap rotation.
+   * Rotation is applied to landmark coordinates post-detection (cheap arithmetic
+   * on 72 doubles) instead of rotating a bitmap.
    */
   fun detectPoseFromYuv(
     yBytes: ByteArray, uBytes: ByteArray, vBytes: ByteArray,
@@ -185,13 +185,8 @@ class MediaPipePoseDetector(private val context: Context) {
       return null
     }
 
-    // Let MediaPipe handle rotation instead of rotating a bitmap
-    val options = ImageProcessingOptions.builder()
-      .setRotationDegrees(rotationDegrees)
-      .build()
-
     val result = try {
-      landmarker.detectForVideo(mpImage, timestampMs, options)
+      landmarker.detectForVideo(mpImage, timestampMs)
     } catch (e: Exception) {
       if (errorCount++ % 60L == 0L) {
         Log.e(TAG, "PoseLandmarker.detect() failed (error #$errorCount): ${e.message}")
@@ -232,6 +227,20 @@ class MediaPipePoseDetector(private val context: Context) {
       output[offset + 1] = lm.y().toDouble()
       val vis = lm.visibility()
       output[offset + 2] = if (vis.isPresent) vis.get().toDouble() else 0.0
+    }
+
+    // Apply rotation to landmark coordinates (landscape buffer → display space).
+    // Much cheaper than rotating the entire bitmap before inference.
+    if (rotationDegrees != 0) {
+      for (i in 0 until output.size step 3) {
+        val x = output[i]
+        val y = output[i + 1]
+        when (rotationDegrees) {
+          90  -> { output[i] = 1.0 - y; output[i + 1] = x }
+          180 -> { output[i] = 1.0 - x; output[i + 1] = 1.0 - y }
+          270 -> { output[i] = y;        output[i + 1] = 1.0 - x }
+        }
+      }
     }
 
     return output
