@@ -96,6 +96,7 @@ const screenHeaderConfig: Record<string, { title: string; headerBackTitle?: stri
   clips: { title: 'Clips', headerBackTitle: 'Home' },
   sessions: { title: 'Sessions', headerBackTitle: 'Home' },
   'session/[id]': { title: 'Session', headerBackTitle: 'Sessions' },
+  compare: { title: 'Compare', headerBackTitle: 'Clips' },
   'sign-in': { title: 'Account', headerBackTitle: 'Back', presentation: 'modal' },
   paywall: { title: 'Divot Pro', headerBackTitle: 'Back', presentation: 'modal' },
 };

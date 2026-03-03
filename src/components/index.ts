@@ -5,3 +5,4 @@ export * from './connection';
 export * from './recording';
 export * from './playback';
 export * from './annotation';
+export * from './compare';

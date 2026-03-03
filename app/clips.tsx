@@ -2,6 +2,8 @@ import { View, Text, FlatList, Pressable, RefreshControl, Alert, Modal, TextInpu
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 
+import { Ionicons } from '@expo/vector-icons';
+
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
@@ -165,6 +167,17 @@ export default function ClipsScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.headerCount}>{clips.length} clip{clips.length !== 1 ? 's' : ''}</Text>
+            {clips.length >= 2 && (
+              <Pressable
+                style={styles.compareButton}
+                onPress={() => router.push('/compare')}
+                accessibilityRole="button"
+                accessibilityLabel="Compare swings"
+              >
+                <Ionicons name="git-compare-outline" size={16} color={theme.colors.accent} />
+                <Text style={styles.compareButtonText}>compare</Text>
+              </Pressable>
+            )}
           </View>
         }
         refreshControl={
@@ -234,8 +247,27 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     backgroundColor: theme.colors.background,
   },
   header: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: 4,
     marginBottom: theme.spacing.sm,
+  },
+  compareButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+  },
+  compareButtonText: {
+    fontFamily: theme.fontFamily.bodySemiBold,
+    fontSize: 13,
+    color: theme.colors.accent,
+    textTransform: 'lowercase' as const,
   },
   headerCount: {
     fontFamily: theme.fontFamily.body,
