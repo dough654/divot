@@ -1,14 +1,12 @@
 package com.divotgolf.posedetection
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.ImageFormat
-import android.graphics.Matrix
-import android.media.Image
 import android.util.Log
-import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.framework.image.ByteBufferImageBuilder
+import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
+import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import java.nio.ByteBuffer
@@ -30,6 +28,11 @@ class MediaPipePoseDetector(private val context: Context) {
   private var poseLandmarker: PoseLandmarker? = null
   private var initFailed = false
   private var errorCount = 0L
+
+  // Pre-allocated NV21 buffer, reused across frames to avoid per-frame allocation
+  private var nv21Buffer: ByteBuffer? = null
+  private var nv21Width = 0
+  private var nv21Height = 0
 
   /** Whether the model loaded successfully and is ready for inference. */
   val isReady: Boolean get() = poseLandmarker != null && !initFailed
@@ -137,43 +140,58 @@ class MediaPipePoseDetector(private val context: Context) {
   }
 
   /**
-   * Runs pose detection on pre-copied YUV frame data.
+   * Runs pose detection on pre-downsampled YUV frame data.
    *
-   * Called from a background thread with YUV bytes copied from the camera
-   * frame. Converts YUV→RGB, rotates the bitmap, and runs inference.
-   * Coordinates are returned in the rotated (display) space.
+   * Called from a background thread with YUV bytes already downsampled 3x
+   * by the plugin. Constructs an NV21 buffer and passes it directly to
+   * MediaPipe via ByteBufferImageBuilder, skipping YUV→RGB conversion entirely.
+   * Rotation is handled via ImageProcessingOptions instead of bitmap rotation.
    */
   fun detectPoseFromYuv(
     yBytes: ByteArray, uBytes: ByteArray, vBytes: ByteArray,
     width: Int, height: Int,
-    yRowStride: Int, uvRowStride: Int, uvPixelStride: Int,
     rotationDegrees: Int,
     timestampMs: Long,
   ): List<Double>? {
     val landmarker = poseLandmarker ?: return null
     if (initFailed) return null
 
-    // YUV → ARGB_8888 Bitmap (downsampled 3x to ~640x360 — reduces allocations ~9x)
-    var bitmap = try {
-      yuvToRgbBitmap(yBytes, uBytes, vBytes, width, height, yRowStride, uvRowStride, uvPixelStride, downsample = 3)
+    val ySize = width * height
+    val uvWidth = width / 2
+    val uvHeight = height / 2
+    val nv21Size = ySize + width * uvHeight
+
+    // Reuse NV21 buffer across frames, reallocate only on dimension change
+    val buf = ensureNv21Buffer(width, height, nv21Size)
+    buf.clear()
+
+    // Y plane: straight copy from pre-downsampled data
+    buf.put(yBytes, 0, ySize)
+
+    // VU interleaved plane for NV21
+    val uvPixelCount = uvWidth * uvHeight
+    for (i in 0 until uvPixelCount) {
+      buf.put(vBytes[i])
+      buf.put(uBytes[i])
+    }
+    buf.rewind()
+
+    val mpImage = try {
+      ByteBufferImageBuilder(buf, width, height, MPImage.IMAGE_FORMAT_NV21).build()
     } catch (e: Exception) {
       if (errorCount++ % 60L == 0L) {
-        Log.e(TAG, "YUV conversion failed (error #$errorCount): ${e.message}")
+        Log.e(TAG, "NV21 image creation failed (error #$errorCount): ${e.message}")
       }
       return null
-    } ?: return null
-
-    // Rotate bitmap so coordinates are in display (portrait) space
-    if (rotationDegrees != 0) {
-      val matrix = Matrix()
-      matrix.postRotate(rotationDegrees.toFloat())
-      bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    val mpImage = BitmapImageBuilder(bitmap).build()
+    // Let MediaPipe handle rotation instead of rotating a bitmap
+    val options = ImageProcessingOptions.builder()
+      .setRotationDegrees(rotationDegrees)
+      .build()
 
     val result = try {
-      landmarker.detectForVideo(mpImage, timestampMs)
+      landmarker.detectForVideo(mpImage, timestampMs, options)
     } catch (e: Exception) {
       if (errorCount++ % 60L == 0L) {
         Log.e(TAG, "PoseLandmarker.detect() failed (error #$errorCount): ${e.message}")
@@ -219,41 +237,13 @@ class MediaPipePoseDetector(private val context: Context) {
     return output
   }
 
-  /**
-   * Convert YUV_420_888 byte arrays directly to an ARGB_8888 Bitmap.
-   * Handles variable row/pixel strides across devices.
-   */
-  private fun yuvToRgbBitmap(
-    yBytes: ByteArray, uBytes: ByteArray, vBytes: ByteArray,
-    width: Int, height: Int,
-    yRowStride: Int, uvRowStride: Int, uvPixelStride: Int,
-    downsample: Int = 1,
-  ): Bitmap? {
-    val outW = width / downsample
-    val outH = height / downsample
-    val pixels = IntArray(outW * outH)
-
-    for (outRow in 0 until outH) {
-      for (outCol in 0 until outW) {
-        val srcRow = outRow * downsample
-        val srcCol = outCol * downsample
-        val yIndex = srcRow * yRowStride + srcCol
-        val uvRow = srcRow shr 1
-        val uvCol = srcCol shr 1
-        val uvIndex = uvRow * uvRowStride + uvCol * uvPixelStride
-
-        val y = (yBytes[yIndex].toInt() and 0xFF).toFloat()
-        val u = (uBytes[uvIndex].toInt() and 0xFF).toFloat() - 128f
-        val v = (vBytes[uvIndex].toInt() and 0xFF).toFloat() - 128f
-
-        val r = (y + 1.370705f * v).toInt().coerceIn(0, 255)
-        val g = (y - 0.337633f * u - 0.698001f * v).toInt().coerceIn(0, 255)
-        val b = (y + 1.732446f * u).toInt().coerceIn(0, 255)
-
-        pixels[outRow * outW + outCol] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
-      }
+  /** Ensure the pre-allocated NV21 ByteBuffer matches the expected dimensions. */
+  private fun ensureNv21Buffer(width: Int, height: Int, size: Int): ByteBuffer {
+    if (nv21Buffer == null || nv21Width != width || nv21Height != height) {
+      nv21Buffer = ByteBuffer.allocateDirect(size)
+      nv21Width = width
+      nv21Height = height
     }
-
-    return Bitmap.createBitmap(pixels, outW, outH, Bitmap.Config.ARGB_8888)
+    return nv21Buffer!!
   }
 }
