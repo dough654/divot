@@ -5,15 +5,16 @@
  * are set on both clips, scrubbing either jog-wheel moves both videos
  * with the correct offset. Shared controls for play both, step, speed.
  */
-import { View } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
+import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { useProAccess } from '@/src/hooks/use-pro-access';
 import { useComparePlayback } from '@/src/hooks/use-compare-playback';
+import { useTheme } from '@/src/context';
 import { ProGate } from '@/src/components/pro-gate';
 import {
   CompareVideoPanel,
@@ -25,11 +26,31 @@ import { getClip } from '@/src/services/recording/clip-storage';
 import type { Theme } from '@/src/context';
 import type { Clip } from '@/src/types/recording';
 
+/** Miniature layout icon — two rectangles arranged to represent the layout. */
+const LayoutIcon = ({ variant, color }: { variant: 'stack' | 'split'; color: string }) => {
+  if (variant === 'stack') {
+    return (
+      <View style={{ alignItems: 'center', gap: 2 }}>
+        <View style={{ width: 16, height: 6, borderRadius: 1, borderWidth: 1, borderColor: color }} />
+        <View style={{ width: 16, height: 6, borderRadius: 1, borderWidth: 1, borderColor: color }} />
+      </View>
+    );
+  }
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+      <View style={{ width: 7, height: 13, borderRadius: 1, borderWidth: 1, borderColor: color }} />
+      <View style={{ width: 7, height: 13, borderRadius: 1, borderWidth: 1, borderColor: color }} />
+    </View>
+  );
+};
+
 export default function CompareScreen() {
   const { isLandscape } = useScreenOrientation();
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { isPro } = useProAccess();
+  const { theme } = useTheme();
+  const haptics = useHaptics();
   const { clipId } = useLocalSearchParams<{ clipId?: string }>();
 
   const [leftClip, setLeftClip] = useState<Clip | null>(null);
@@ -38,6 +59,9 @@ export default function CompareScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerSlot, setPickerSlot] = useState<'left' | 'right'>('left');
   const [portraitSplit, setPortraitSplit] = useState(false);
+
+  const activeIconColor = theme.isDark ? theme.palette.black : theme.palette.white;
+  const inactiveIconColor = theme.colors.textTertiary;
 
   const leftRef = useRef<CompareVideoPanelHandle | null>(null);
   const rightRef = useRef<CompareVideoPanelHandle | null>(null);
@@ -84,8 +108,40 @@ export default function CompareScreen() {
     ? { paddingLeft: insets.left, paddingRight: insets.right }
     : { paddingBottom: insets.bottom };
 
+  const headerRight = isLandscape ? undefined : () => (
+    <View style={styles.layoutToggle}>
+      <Pressable
+        style={[styles.layoutSegment, !portraitSplit && styles.layoutSegmentActive]}
+        onPress={() => {
+          if (portraitSplit) {
+            haptics.light();
+            setPortraitSplit(false);
+          }
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Stacked layout"
+      >
+        <LayoutIcon variant="stack" color={!portraitSplit ? activeIconColor : inactiveIconColor} />
+      </Pressable>
+      <Pressable
+        style={[styles.layoutSegment, portraitSplit && styles.layoutSegmentActive]}
+        onPress={() => {
+          if (!portraitSplit) {
+            haptics.light();
+            setPortraitSplit(true);
+          }
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Side-by-side layout"
+      >
+        <LayoutIcon variant="split" color={portraitSplit ? activeIconColor : inactiveIconColor} />
+      </Pressable>
+    </View>
+  );
+
   return (
     <View style={[styles.container, containerPadding]}>
+      <Stack.Screen options={{ headerRight }} />
       <ProGate
         isPro={isPro}
         featureName="Swing Compare"
@@ -119,14 +175,11 @@ export default function CompareScreen() {
           isPlaying={playback.isPlaying}
           playbackRate={playback.playbackRate}
           isSynced={playback.isSynced}
-          isSplit={portraitSplit}
-          showLayoutToggle={!isLandscape}
           onTogglePlay={playback.togglePlayBoth}
           onStepBackward={() => playback.stepBoth('backward')}
           onStepForward={() => playback.stepBoth('forward')}
           onCycleSpeed={playback.cycleSpeed}
           onClearSync={playback.clearSync}
-          onToggleLayout={() => setPortraitSplit((prev) => !prev)}
         />
       </ProGate>
 
@@ -148,5 +201,21 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   videoPanels: {
     flex: 1,
     gap: 2,
+  },
+  layoutToggle: {
+    flexDirection: 'row' as const,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    overflow: 'hidden' as const,
+  },
+  layoutSegment: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  layoutSegmentActive: {
+    backgroundColor: theme.colors.accent,
   },
 }));
