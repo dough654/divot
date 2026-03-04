@@ -24,11 +24,18 @@ export const FOLLOW_THROUGH_ROTATION_THRESHOLD = 0.08;
 export const ROTATION_TIMEOUT_MS = 5000;
 
 /**
- * Lower threshold for tempo takeaway detection (3% frame width).
- * Above typical baseline drift (0.5–2%) but well below backswing threshold (8%).
- * Captures the actual start of shoulder rotation for accurate tempo.
+ * Lower threshold for tempo takeaway detection (1.5% frame width).
+ * Slightly above typical baseline drift (0.5–1%) to catch very early rotation.
+ * Only evaluated after address is confirmed, so drift during non-address is irrelevant.
  */
-export const TAKEAWAY_ROTATION_THRESHOLD = 0.03;
+export const TAKEAWAY_ROTATION_THRESHOLD = 0.015;
+
+/**
+ * Fraction of peak rotation that defines "near baseline" for impact detection.
+ * At impact, shoulders are roughly back to address position — not fully through
+ * to opposite sign. 15% of peak captures this moment before zero crossing.
+ */
+export const IMPACT_PEAK_FRACTION = 0.15;
 
 // ============================================
 // JOINT LAYOUT
@@ -74,7 +81,7 @@ export type RotationTrackingState = {
   followThroughTimestamp: number | null;
   /** Timestamp when delta first exceeds TAKEAWAY_THRESHOLD (actual start of rotation for tempo). */
   takeawayTimestamp: number | null;
-  /** Timestamp when delta crosses zero after peak (approximate impact for tempo). */
+  /** Timestamp when shoulders return near baseline after peak (approximate impact for tempo). */
   impactTimestamp: number | null;
 };
 
@@ -195,14 +202,20 @@ export const updateRotationTracking = (
     ? timestamp
     : state.takeawayTimestamp;
 
-  // Tempo: detect impact (first zero crossing after backswing peak).
-  // After backswing is detected, when delta crosses to opposite sign, that's
-  // approximately impact — capture only the first crossing.
-  const isOppositeSign = state.backswingDetected &&
-    (state.backswingSign > 0 ? delta < 0 : delta > 0);
-  const impactTimestamp = state.impactTimestamp === null && isOppositeSign
+  // Tempo: detect approximate impact (shoulders return near baseline after peak).
+  // At impact, shoulders are roughly back to address position — they haven't
+  // crossed to the opposite side yet. Detect when absDelta drops below a
+  // fraction of peak, indicating shoulders are nearly back to baseline.
+  const nearBaseline = state.backswingDetected &&
+    state.peakAbsDelta > 0 &&
+    absDelta < state.peakAbsDelta * IMPACT_PEAK_FRACTION;
+  const impactTimestamp = state.impactTimestamp === null && nearBaseline
     ? timestamp
     : state.impactTimestamp;
+
+  // Follow-through detection still uses zero crossing (different from impact)
+  const isOppositeSign = state.backswingDetected &&
+    (state.backswingSign > 0 ? delta < 0 : delta > 0);
 
   // Check timeout: if backswing detected but no follow-through within timeout, reset
   if (

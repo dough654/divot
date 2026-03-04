@@ -6,6 +6,8 @@ import {
   BACKSWING_ROTATION_THRESHOLD,
   FOLLOW_THROUGH_ROTATION_THRESHOLD,
   ROTATION_TIMEOUT_MS,
+  TAKEAWAY_ROTATION_THRESHOLD,
+  IMPACT_PEAK_FRACTION,
   type RotationTrackingState,
   type ShoulderRotationSample,
 } from '../shoulder-rotation';
@@ -537,14 +539,14 @@ describe('updateRotationTracking', () => {
       let state = startRotationTracking(baseline);
       let t = t0;
 
-      // Very small delta (below takeaway threshold 0.03) — no takeaway
-      const r1 = updateRotationTracking(state, validSample(baseline + 0.02), t);
+      // Very small delta (below takeaway threshold) — no takeaway
+      const r1 = updateRotationTracking(state, validSample(baseline + 0.01), t);
       expect(r1.state.takeawayTimestamp).toBeNull();
       state = r1.state;
       t += 100;
 
       // Crosses takeaway threshold — takeaway captured
-      const r2 = updateRotationTracking(state, validSample(baseline + 0.04), t);
+      const r2 = updateRotationTracking(state, validSample(baseline + TAKEAWAY_ROTATION_THRESHOLD + 0.001), t);
       expect(r2.state.takeawayTimestamp).toBe(t);
       const takeawayTime = t;
       state = r2.state;
@@ -555,37 +557,37 @@ describe('updateRotationTracking', () => {
       expect(r3.state.takeawayTimestamp).toBe(takeawayTime);
     });
 
-    it('sets impactTimestamp when delta crosses zero after backswing', () => {
+    it('sets impactTimestamp when delta returns near baseline after peak', () => {
       let state = startRotationTracking(baseline);
       let t = t0;
 
-      // Backswing (positive direction)
+      // Backswing (positive direction) — peak = 0.12
       const r1 = updateRotationTracking(state, validSample(baseline + 0.12), t);
       expect(r1.state.impactTimestamp).toBeNull();
       state = r1.state;
       t += 300;
 
-      // Peak
+      // Higher peak = 0.18
       const r2 = updateRotationTracking(state, validSample(baseline + 0.18), t);
       expect(r2.state.impactTimestamp).toBeNull();
       state = r2.state;
       t += 200;
 
-      // Still positive — not yet crossed zero
-      const r3 = updateRotationTracking(state, validSample(baseline + 0.03), t);
+      // Still well above baseline (0.05 > 0.18 * 0.15 = 0.027) — no impact yet
+      const r3 = updateRotationTracking(state, validSample(baseline + 0.05), t);
       expect(r3.state.impactTimestamp).toBeNull();
       state = r3.state;
       t += 50;
 
-      // Crosses zero (delta goes negative) — impact captured
-      const r4 = updateRotationTracking(state, validSample(baseline - 0.01), t);
+      // Near baseline (0.02 < 0.18 * 0.15 = 0.027) — impact captured
+      const r4 = updateRotationTracking(state, validSample(baseline + 0.02), t);
       expect(r4.state.impactTimestamp).toBe(t);
       const impactTime = t;
       state = r4.state;
       t += 50;
 
-      // Further into follow-through — impact should NOT update (first crossing only)
-      const r5 = updateRotationTracking(state, validSample(baseline - 0.10), t);
+      // Further toward follow-through — impact should NOT update (first detection only)
+      const r5 = updateRotationTracking(state, validSample(baseline - 0.02), t);
       expect(r5.state.impactTimestamp).toBe(impactTime);
     });
 
@@ -595,24 +597,24 @@ describe('updateRotationTracking', () => {
 
       // Takeaway (low threshold crossed)
       t += 50;
-      const r1 = updateRotationTracking(state, validSample(baseline + 0.04), t);
+      const r1 = updateRotationTracking(state, validSample(baseline + TAKEAWAY_ROTATION_THRESHOLD + 0.001), t);
       const takeawayTime = t;
       state = r1.state;
 
-      // Backswing detected
+      // Backswing detected — peak = 0.12
       t += 100;
       const r2 = updateRotationTracking(state, validSample(baseline + 0.12), t);
       state = r2.state;
 
-      // Peak
+      // Peak = 0.18
       t += 300;
       const r3 = updateRotationTracking(state, validSample(baseline + 0.18), t);
       const peakTime = t;
       state = r3.state;
 
-      // Impact (zero crossing)
+      // Impact (near baseline: 0.02 < 0.18 * 0.15 = 0.027)
       t += 150;
-      const r4 = updateRotationTracking(state, validSample(baseline - 0.01), t);
+      const r4 = updateRotationTracking(state, validSample(baseline + 0.02), t);
       const impactTime = t;
       state = r4.state;
 
