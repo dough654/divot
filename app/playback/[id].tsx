@@ -40,7 +40,7 @@ export default function PlaybackScreen() {
   const [error, setError] = useState<string | null>(null);
 
   // Reactive tempo from background analysis
-  const { tempo: analysisTempo } = useClipAnalysis(id ?? null);
+  const { tempo: analysisTempo, status: analysisStatus } = useClipAnalysis(id ?? null);
 
   useEffect(() => {
     const loadClip = async () => {
@@ -126,6 +126,7 @@ export default function PlaybackScreen() {
           tempoData={analysisTempo ?? (clip.tempoRatio != null && clip.backswingDurationMs != null && clip.downswingDurationMs != null
             ? { tempoRatio: clip.tempoRatio, backswingDurationMs: clip.backswingDurationMs, downswingDurationMs: clip.downswingDurationMs }
             : undefined)}
+          isAnalyzing={analysisStatus === 'analyzing' || analysisStatus === 'loading'}
         />
       </View>
     </>

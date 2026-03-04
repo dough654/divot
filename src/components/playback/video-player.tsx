@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, Pressable, Image, Platform } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Image, Platform, ActivityIndicator } from 'react-native';
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Video, ResizeMode, AVPlaybackStatus, VideoReadyForDisplayEvent } from 'expo-av';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -56,6 +56,8 @@ export type VideoPlayerProps = {
   headerBackTitle?: string;
   /** Tempo data to display between video and scrubber. */
   tempoData?: TempoData;
+  /** Whether background pose analysis is in progress. */
+  isAnalyzing?: boolean;
 };
 
 const CONTROLS_AUTO_HIDE_MS = 3000;
@@ -80,6 +82,7 @@ export const VideoPlayer = ({
   onBack,
   headerBackTitle,
   tempoData,
+  isAnalyzing = false,
 }: VideoPlayerProps) => {
   const videoRef = useRef<Video>(null);
   const videoContainerRef = useRef<View>(null);
@@ -899,10 +902,15 @@ export const VideoPlayer = ({
         </View>
       )}
 
-      {/* TempoBar — always visible when tempo data exists */}
-      {tempoData && showControlsSection && (
+      {/* TempoBar — always visible when tempo data exists, or analyzing indicator */}
+      {showControlsSection && (tempoData ? (
         <TempoBar tempo={tempoData} />
-      )}
+      ) : isAnalyzing ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, backgroundColor: theme.colors.surface, gap: 8 }}>
+          <ActivityIndicator size="small" color={theme.colors.textTertiary} />
+          <Text style={{ fontFamily: theme.fontFamily.body, fontSize: 14, color: theme.colors.textTertiary, textTransform: 'lowercase' }}>analyzing tempo...</Text>
+        </View>
+      ) : null)}
 
       {/* FrameScrubber — always visible in both orientations */}
       {showControlsSection && (

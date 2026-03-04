@@ -8,7 +8,7 @@
  * `import { useClipAnalysis } from '@/src/hooks/use-clip-analysis'`
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { loadPoseAnalysis } from '@/src/services/analysis/analysis-storage';
 import { isClipQueued } from '@/src/services/analysis/analysis-queue';
 import { onAnalysisEvent } from '@/src/services/analysis/analysis-events';
@@ -35,6 +35,7 @@ type ClipAnalysisResult = {
 export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
   const [status, setStatus] = useState<ClipAnalysisStatus>('loading');
   const [tempo, setTempo] = useState<SwingTempo | null>(null);
+  const mountedRef = useRef(true);
 
   const loadData = useCallback(async () => {
     if (!clipId) {
@@ -45,6 +46,8 @@ export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
 
     // First check clip metadata for already-computed tempo
     const clip = await getClip(clipId);
+    if (!mountedRef.current) return;
+
     if (clip?.tempoRatio != null && clip.backswingDurationMs != null && clip.downswingDurationMs != null) {
       setTempo({
         tempoRatio: clip.tempoRatio,
@@ -57,10 +60,10 @@ export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
 
     // Check if analysis exists on disk but tempo wasn't saved to clip
     const poseAnalysis = await loadPoseAnalysis(clipId);
+    if (!mountedRef.current) return;
+
     if (poseAnalysis) {
       setStatus('complete');
-      // Tempo should already be in clip metadata if analysis completed,
-      // but we can still show complete status
       return;
     }
 
@@ -74,34 +77,41 @@ export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
     setStatus('none');
   }, [clipId]);
 
+  // Subscribe to analysis events FIRST, then load data.
+  // This prevents a race where analysis completes between load and subscribe.
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    mountedRef.current = true;
 
-  // Subscribe to analysis events for this clip
-  useEffect(() => {
-    if (!clipId) return;
+    if (!clipId) {
+      setStatus('none');
+      setTempo(null);
+      return;
+    }
 
     const unsubStarted = onAnalysisEvent('started', (payload) => {
-      if (payload.clipId === clipId) {
+      if (payload.clipId === clipId && mountedRef.current) {
         setStatus('analyzing');
       }
     });
 
     const unsubCompleted = onAnalysisEvent('completed', (payload) => {
-      if (payload.clipId === clipId) {
-        // Reload data to get computed tempo
+      if (payload.clipId === clipId && mountedRef.current) {
         loadData();
       }
     });
 
     const unsubFailed = onAnalysisEvent('failed', (payload) => {
-      if (payload.clipId === clipId) {
+      if (payload.clipId === clipId && mountedRef.current) {
         setStatus('none');
       }
     });
 
+    // Now load data — if analysis already completed, we'll find it.
+    // If it completes during/after loadData, the event handler above catches it.
+    loadData();
+
     return () => {
+      mountedRef.current = false;
       unsubStarted();
       unsubCompleted();
       unsubFailed();

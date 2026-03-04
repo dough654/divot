@@ -70,7 +70,7 @@ const processNext = async (): Promise<void> => {
     );
 
     console.log(
-      `[AnalysisQueue] Analysis complete: ${result.analyzedFrames}/${result.totalFrames} frames in ${Math.round(result.analysisTimeMs)}ms`,
+      `[AnalysisQueue] Analysis complete: ${result.analyzedFrames}/${result.totalFrames} frames in ${Math.round(result.analysisTimeMs)}ms (${result.fps.toFixed(0)} fps, ${result.resolution.width}x${result.resolution.height})`,
     );
 
     // Save detailed pose data
@@ -84,7 +84,9 @@ const processNext = async (): Promise<void> => {
         backswingDurationMs: tempo.backswingDurationMs,
         downswingDurationMs: tempo.downswingDurationMs,
       });
-      console.log(`[AnalysisQueue] Tempo: ${tempo.tempoRatio.toFixed(1)}:1`);
+      console.log(`[AnalysisQueue] Tempo: ${tempo.tempoRatio.toFixed(1)}:1 (backswing=${tempo.backswingDurationMs}ms, downswing=${tempo.downswingDurationMs}ms)`);
+    } else {
+      console.warn(`[AnalysisQueue] No tempo detected from ${result.analyzedFrames} pose frames`);
     }
 
     emitAnalysisEvent('completed', { clipId: item.clipId });
@@ -110,6 +112,7 @@ const processNext = async (): Promise<void> => {
  * Deduplicates — if the clip is already queued, it won't be added again.
  */
 export const enqueueAnalysis = async (clipId: string, clipPath: string): Promise<void> => {
+  console.log(`[AnalysisQueue] enqueueAnalysis called: clipId=${clipId}, path=${clipPath}`);
   await initialize();
 
   // Deduplicate
