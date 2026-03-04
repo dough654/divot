@@ -331,23 +331,23 @@ describe('updateRotationTracking', () => {
   });
 
   describe('telemetry fields — peakAbsDelta and followThroughDelta', () => {
-    it('tracks peak absolute delta across multiple frames', () => {
+    it('tracks peak absolute delta across backswing frames', () => {
       let state = startRotationTracking(baseline);
       let t = t0;
 
-      // Small delta
+      // Pre-backswing: below threshold, peak stays 0
       const r1 = updateRotationTracking(state, validSample(baseline + 0.03), t);
-      expect(r1.state.peakAbsDelta).toBeCloseTo(0.03);
+      expect(r1.state.peakAbsDelta).toBe(0);
       state = r1.state;
       t += 100;
 
-      // Larger delta — peak should update
+      // Backswing detection — peak set to current absDelta
       const r2 = updateRotationTracking(state, validSample(baseline + 0.12), t);
       expect(r2.state.peakAbsDelta).toBeCloseTo(0.12);
       state = r2.state;
       t += 100;
 
-      // Smaller delta — peak should NOT decrease
+      // Same direction, smaller delta — peak should NOT decrease
       const r3 = updateRotationTracking(state, validSample(baseline + 0.05), t);
       expect(r3.state.peakAbsDelta).toBeCloseTo(0.12);
     });
@@ -402,25 +402,31 @@ describe('updateRotationTracking', () => {
   });
 
   describe('tempo timestamps — peakTimestamp and followThroughTimestamp', () => {
-    it('sets peakTimestamp when peakAbsDelta increases', () => {
+    it('sets peakTimestamp when peakAbsDelta increases during backswing', () => {
       let state = startRotationTracking(baseline);
       let t = t0;
 
-      // Small delta — first peak
+      // Pre-backswing: below threshold, peakTimestamp stays null
       const r1 = updateRotationTracking(state, validSample(baseline + 0.03), t);
-      expect(r1.state.peakTimestamp).toBe(t);
+      expect(r1.state.peakTimestamp).toBeNull();
       state = r1.state;
       t += 100;
 
-      // Larger delta — peak should update timestamp
+      // Backswing detection — peakTimestamp set
       const r2 = updateRotationTracking(state, validSample(baseline + 0.12), t);
       expect(r2.state.peakTimestamp).toBe(t);
       state = r2.state;
       t += 100;
 
-      // Smaller delta — peak timestamp should NOT change
-      const r3 = updateRotationTracking(state, validSample(baseline + 0.05), t);
-      expect(r3.state.peakTimestamp).toBe(t - 100); // still the previous timestamp
+      // Higher peak — timestamp should update
+      const r3 = updateRotationTracking(state, validSample(baseline + 0.18), t);
+      expect(r3.state.peakTimestamp).toBe(t);
+      state = r3.state;
+      t += 100;
+
+      // Smaller delta (still backswing direction) — timestamp should NOT change
+      const r4 = updateRotationTracking(state, validSample(baseline + 0.10), t);
+      expect(r4.state.peakTimestamp).toBe(t - 100); // still the previous timestamp
     });
 
     it('sets followThroughTimestamp when follow-through is confirmed', () => {
@@ -481,6 +487,63 @@ describe('updateRotationTracking', () => {
       const state = startRotationTracking(0.05);
       expect(state.peakTimestamp).toBeNull();
       expect(state.followThroughTimestamp).toBeNull();
+    });
+
+    it('does not update peakTimestamp during follow-through phase', () => {
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Backswing detected (positive direction)
+      t += 100;
+      const r1 = updateRotationTracking(state, validSample(baseline + 0.12), t);
+      expect(r1.state.backswingDetected).toBe(true);
+      state = r1.state;
+
+      // Peak of backswing at 0.15
+      t += 200;
+      const r2 = updateRotationTracking(state, validSample(baseline + 0.15), t);
+      const peakTime = t;
+      expect(r2.state.peakAbsDelta).toBeCloseTo(0.15);
+      expect(r2.state.peakTimestamp).toBe(peakTime);
+      state = r2.state;
+
+      // Returning through zero
+      t += 100;
+      const r3 = updateRotationTracking(state, validSample(baseline - 0.02), t);
+      state = r3.state;
+
+      // Follow-through with LARGER absDelta than backswing peak (0.20 > 0.15)
+      // Peak should NOT be overwritten — it should stay at backswing value
+      t += 100;
+      const r4 = updateRotationTracking(state, validSample(baseline - 0.20), t);
+      expect(r4.swingConfirmed).toBe(true);
+      expect(r4.state.peakAbsDelta).toBeCloseTo(0.15); // backswing peak preserved
+      expect(r4.state.peakTimestamp).toBe(peakTime); // backswing timestamp preserved
+      expect(r4.state.followThroughDelta).toBeCloseTo(0.20);
+      expect(r4.state.followThroughTimestamp).toBe(t);
+    });
+
+    it('freezes peak at backswing maximum on follow-through confirmation', () => {
+      // Fast swing: backswing detection frame is also peak frame,
+      // follow-through has larger absDelta
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Backswing detected at exactly threshold — this is also the peak so far
+      t += 100;
+      const r1 = updateRotationTracking(state, validSample(baseline + 0.09), t);
+      expect(r1.state.backswingDetected).toBe(true);
+      expect(r1.state.peakAbsDelta).toBeCloseTo(0.09);
+      const backswingPeakTime = t;
+      state = r1.state;
+
+      // Immediate follow-through with larger magnitude
+      t += 50;
+      const r2 = updateRotationTracking(state, validSample(baseline - 0.12), t);
+      expect(r2.swingConfirmed).toBe(true);
+      // Peak should be the backswing value, not the follow-through value
+      expect(r2.state.peakAbsDelta).toBeCloseTo(0.09);
+      expect(r2.state.peakTimestamp).toBe(backswingPeakTime);
     });
   });
 });

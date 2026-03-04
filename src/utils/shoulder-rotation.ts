@@ -166,8 +166,12 @@ export const updateRotationTracking = (
   const delta = sample.diff - state.baselineDiff;
   const absDelta = Math.abs(delta);
 
-  // Track running peak |delta| and its timestamp for tempo calculation
-  const peakUpdated = absDelta > state.peakAbsDelta;
+  // Track running peak |delta| and its timestamp for tempo calculation.
+  // Only update during backswing phase — once we're in follow-through direction,
+  // the opposite-sign absDelta could exceed backswing peak and overwrite it.
+  const inBackswingPhase = state.backswingDetected &&
+    (state.backswingSign > 0 ? delta >= 0 : delta <= 0);
+  const peakUpdated = inBackswingPhase && absDelta > state.peakAbsDelta;
   const peakAbsDelta = peakUpdated ? absDelta : state.peakAbsDelta;
   const peakTimestamp = peakUpdated ? timestamp : state.peakTimestamp;
 
@@ -192,7 +196,7 @@ export const updateRotationTracking = (
           backswingDetected: true,
           backswingSign: delta > 0 ? 1 : -1,
           backswingTimestamp: timestamp,
-          peakAbsDelta,
+          peakAbsDelta: absDelta,
           peakTimestamp: timestamp,
         },
         swingConfirmed: false,
@@ -208,8 +212,9 @@ export const updateRotationTracking = (
       state: {
         ...state,
         followThroughDetected: true,
-        peakAbsDelta,
-        peakTimestamp,
+        // Freeze peak at backswing maximum — don't let follow-through overwrite
+        peakAbsDelta: state.peakAbsDelta,
+        peakTimestamp: state.peakTimestamp,
         followThroughDelta: absDelta,
         followThroughTimestamp: timestamp,
       },
