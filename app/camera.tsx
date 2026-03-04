@@ -313,9 +313,6 @@ export default function CameraScreen() {
       analyticsSnapshot.rotationState
     ) {
       swingTempoRef.current = calculateSwingTempo(analyticsSnapshot.rotationState);
-    } else if (analyticsSnapshot?.transition === 'swinging_to_idle') {
-      // Reset after swing completes so next recording starts clean
-      swingTempoRef.current = null;
     }
   }, [analyticsSnapshot]);
 
