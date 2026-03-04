@@ -14,7 +14,7 @@
  *   import { useSwingClassifier } from '@/src/hooks/use-swing-classifier';
  */
 
-import { useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   classifyWindow,
   compileWeights,
@@ -304,6 +304,11 @@ export const useSwingClassifier = ({
   // Sliding window buffer: 30 frames x 16 features
   const windowBufferRef = useRef<Float32Array[]>([]);
   const stateRef = useRef<StateMachineState>({ ...INITIAL_STATE });
+
+  // React state for detectionState — triggers re-renders so downstream hooks
+  // (useSwingRecorder) see transitions even when pose data stops changing
+  // (e.g. golfer standing still in address → pose polls skip setState)
+  const [reactDetectionState, setReactDetectionState] = useState<'idle' | 'address' | 'swinging'>('idle');
   const classifierOutputRef = useRef<ClassifierOutput | null>(null);
   const frameCountRef = useRef(0);
   const windowFilledRef = useRef(false);
@@ -340,6 +345,7 @@ export const useSwingClassifier = ({
       rotationActiveRef.current = false;
       analyticsSnapshotRef.current = null;
       framesInCurrentStateRef.current = 0;
+      setReactDetectionState('idle');
     }
   }, [enabled]);
 
@@ -541,6 +547,11 @@ export const useSwingClassifier = ({
 
     stateRef.current = newState;
 
+    // Trigger re-render on detection state changes so downstream hooks see it
+    if (newState.detectionState !== prevState.detectionState) {
+      setReactDetectionState(newState.detectionState);
+    }
+
     if (__DEV__) {
       const postureTag = postureCheck.isAddressPosture ? '' : ` [posture:${postureCheck.reason}]`;
       const motionTag = shouldForceAddress ? ` [POSE→addr still=${stillCountRef.current}]` : postureTag;
@@ -601,8 +612,8 @@ export const useSwingClassifier = ({
 
   return {
     phase: currentState.rawPhase,
-    isInAddress: currentState.detectionState === 'address',
-    isSwinging: currentState.detectionState === 'swinging',
+    isInAddress: reactDetectionState === 'address',
+    isSwinging: reactDetectionState === 'swinging',
     isModelTrained: WEIGHTS_ARE_TRAINED,
     classifierOutput: currentOutput,
     analyticsSnapshot: analyticsSnapshotRef.current,
@@ -611,8 +622,8 @@ export const useSwingClassifier = ({
       confidence: currentOutput?.confidence ?? 0,
       probabilities: currentOutput?.probabilities ?? Array(7).fill(0),
       windowFill: windowBufferRef.current.length,
-      inSwing: currentState.detectionState === 'swinging',
-      detectionState: currentState.detectionState,
+      inSwing: reactDetectionState === 'swinging',
+      detectionState: reactDetectionState,
       confirmCount: currentState.confirmCount,
       pendingState: currentState.pendingState,
     },

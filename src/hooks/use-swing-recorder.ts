@@ -336,13 +336,13 @@ export const useSwingRecorder = ({
 
   // Watch detectionState for state machine transitions
   useEffect(() => {
-    if (__DEV__) {
-      console.log(`[SwingRecorder] EFFECT: detectionState=${detectionState} enabled=${enabled} suspended=${suspendedRef.current} recorderState=${stateRef.current}`);
-    }
-
     if (!enabled || suspendedRef.current) return;
 
     const currentRecorderState = stateRef.current;
+
+    if (__DEV__) {
+      console.log(`[SwingRecorder] detectionState=${detectionState} recorderState=${currentRecorderState}`);
+    }
 
     switch (currentRecorderState) {
       case 'idle':
