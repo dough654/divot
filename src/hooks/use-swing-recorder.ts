@@ -293,6 +293,29 @@ export const useSwingRecorder = ({
     }, maxRecordingDurationMs);
   }, [recorderRef, maxRecordingDurationMs, cancelRecording, clearPostRollTimer, clearMaxDurationTimer]);
 
+  /** Transition to post-rolling state with timer. Used when swing is detected. */
+  const transitionToPostRolling = useCallback(() => {
+    if (__DEV__) console.log(`[SwingRecorder] → post-rolling (${postRollMsRef.current}ms timer)`);
+    stateRef.current = 'post-rolling';
+    clearMaxDurationTimer();
+    clearPostRollTimer();
+    postRollTimerRef.current = setTimeout(() => {
+      if (!mountedRef.current) return;
+
+      // If still swinging when timer fires, defer stop
+      if (detectionStateRef.current === 'swinging') {
+        if (__DEV__) console.log('[SwingRecorder] post-roll expired but still swinging — deferring stop');
+        postRollExpiredRef.current = true;
+        return;
+      }
+
+      // Timer expired and not swinging — stop and save
+      if (stateRef.current === 'post-rolling') {
+        stopAndSave();
+      }
+    }, postRollMsRef.current);
+  }, [clearMaxDurationTimer, clearPostRollTimer, stopAndSave]);
+
   /** Stop all recording and clean up timers. */
   const stopAll = useCallback(() => {
     const currentState = stateRef.current;
@@ -327,37 +350,23 @@ export const useSwingRecorder = ({
         if (detectionState === 'address') {
           startRecording();
         }
-        // Fallback: if we somehow missed address and see swinging while idle,
-        // start recording now so we at least capture the swing
+        // Fallback: if we missed address and see swinging while idle,
+        // start recording and immediately transition to post-rolling
         else if (detectionState === 'swinging') {
           if (__DEV__) console.log('[SwingRecorder] missed address → starting recording on swinging');
           startRecording();
+          // Skip 'recording' state — go straight to post-rolling so that
+          // swinging→idle doesn't hit the cancel path
+          if (stateRef.current === 'recording') {
+            transitionToPostRolling();
+          }
         }
         break;
 
       case 'recording':
         // Swing started — transition to post-rolling with timer
         if (detectionState === 'swinging') {
-          if (__DEV__) console.log(`[SwingRecorder] swing detected → post-rolling (${postRollMsRef.current}ms timer)`);
-          stateRef.current = 'post-rolling';
-          clearMaxDurationTimer();
-
-          clearPostRollTimer();
-          postRollTimerRef.current = setTimeout(() => {
-            if (!mountedRef.current) return;
-
-            // If still swinging when timer fires, defer stop
-            if (detectionStateRef.current === 'swinging') {
-              if (__DEV__) console.log('[SwingRecorder] post-roll expired but still swinging — deferring stop');
-              postRollExpiredRef.current = true;
-              return;
-            }
-
-            // Timer expired and not swinging — stop and save
-            if (stateRef.current === 'post-rolling') {
-              stopAndSave();
-            }
-          }, postRollMsRef.current);
+          transitionToPostRolling();
         }
         // No swing, back to idle — cancel and discard
         else if (detectionState === 'idle') {
@@ -377,7 +386,7 @@ export const useSwingRecorder = ({
 
       // stopping/cancelling: no-op, waiting for VisionCamera callbacks
     }
-  }, [enabled, detectionState, startRecording, cancelRecording, stopAndSave, clearPostRollTimer, clearMaxDurationTimer]);
+  }, [enabled, detectionState, startRecording, cancelRecording, stopAndSave, transitionToPostRolling]);
 
   // Enable/disable effect
   useEffect(() => {
