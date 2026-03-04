@@ -163,6 +163,8 @@ describe('updateRotationTracking', () => {
       peakTimestamp: t0,
       followThroughDelta: 0,
       followThroughTimestamp: null,
+      takeawayTimestamp: t0 - 50,
+      impactTimestamp: null,
     };
 
     it('does not detect follow-through when delta is on same side as backswing', () => {
@@ -277,6 +279,8 @@ describe('updateRotationTracking', () => {
         peakTimestamp: t0,
         followThroughDelta: 0,
         followThroughTimestamp: null,
+        takeawayTimestamp: t0 - 50,
+        impactTimestamp: null,
       };
 
       const expired = t0 + ROTATION_TIMEOUT_MS;
@@ -297,6 +301,8 @@ describe('updateRotationTracking', () => {
         peakTimestamp: t0,
         followThroughDelta: 0,
         followThroughTimestamp: null,
+        takeawayTimestamp: t0 - 50,
+        impactTimestamp: null,
       };
 
       const notExpired = t0 + ROTATION_TIMEOUT_MS - 1;
@@ -323,6 +329,8 @@ describe('updateRotationTracking', () => {
         peakTimestamp: t0,
         followThroughDelta: 0,
         followThroughTimestamp: null,
+        takeawayTimestamp: t0 - 50,
+        impactTimestamp: null,
       };
       const result = updateRotationTracking(afterBackswing, invalidSample(), t0 + 100);
       expect(result.state).toBe(afterBackswing);
@@ -391,6 +399,8 @@ describe('updateRotationTracking', () => {
         peakTimestamp: t0 + 500,
         followThroughDelta: 0.10,
         followThroughTimestamp: t0 + 800,
+        takeawayTimestamp: t0 - 50,
+        impactTimestamp: t0 + 700,
       };
 
       const r1 = updateRotationTracking(confirmed, validSample(baseline + 0.05), t0 + 100);
@@ -521,6 +531,98 @@ describe('updateRotationTracking', () => {
       expect(r4.state.peakTimestamp).toBe(peakTime); // backswing timestamp preserved
       expect(r4.state.followThroughDelta).toBeCloseTo(0.20);
       expect(r4.state.followThroughTimestamp).toBe(t);
+    });
+
+    it('sets takeawayTimestamp when delta first exceeds low threshold', () => {
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Very small delta (below takeaway threshold 0.03) — no takeaway
+      const r1 = updateRotationTracking(state, validSample(baseline + 0.02), t);
+      expect(r1.state.takeawayTimestamp).toBeNull();
+      state = r1.state;
+      t += 100;
+
+      // Crosses takeaway threshold — takeaway captured
+      const r2 = updateRotationTracking(state, validSample(baseline + 0.04), t);
+      expect(r2.state.takeawayTimestamp).toBe(t);
+      const takeawayTime = t;
+      state = r2.state;
+      t += 100;
+
+      // Larger delta — takeaway should NOT update (first crossing only)
+      const r3 = updateRotationTracking(state, validSample(baseline + 0.12), t);
+      expect(r3.state.takeawayTimestamp).toBe(takeawayTime);
+    });
+
+    it('sets impactTimestamp when delta crosses zero after backswing', () => {
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Backswing (positive direction)
+      const r1 = updateRotationTracking(state, validSample(baseline + 0.12), t);
+      expect(r1.state.impactTimestamp).toBeNull();
+      state = r1.state;
+      t += 300;
+
+      // Peak
+      const r2 = updateRotationTracking(state, validSample(baseline + 0.18), t);
+      expect(r2.state.impactTimestamp).toBeNull();
+      state = r2.state;
+      t += 200;
+
+      // Still positive — not yet crossed zero
+      const r3 = updateRotationTracking(state, validSample(baseline + 0.03), t);
+      expect(r3.state.impactTimestamp).toBeNull();
+      state = r3.state;
+      t += 50;
+
+      // Crosses zero (delta goes negative) — impact captured
+      const r4 = updateRotationTracking(state, validSample(baseline - 0.01), t);
+      expect(r4.state.impactTimestamp).toBe(t);
+      const impactTime = t;
+      state = r4.state;
+      t += 50;
+
+      // Further into follow-through — impact should NOT update (first crossing only)
+      const r5 = updateRotationTracking(state, validSample(baseline - 0.10), t);
+      expect(r5.state.impactTimestamp).toBe(impactTime);
+    });
+
+    it('carries takeaway and impact through full swing sequence', () => {
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Takeaway (low threshold crossed)
+      t += 50;
+      const r1 = updateRotationTracking(state, validSample(baseline + 0.04), t);
+      const takeawayTime = t;
+      state = r1.state;
+
+      // Backswing detected
+      t += 100;
+      const r2 = updateRotationTracking(state, validSample(baseline + 0.12), t);
+      state = r2.state;
+
+      // Peak
+      t += 300;
+      const r3 = updateRotationTracking(state, validSample(baseline + 0.18), t);
+      const peakTime = t;
+      state = r3.state;
+
+      // Impact (zero crossing)
+      t += 150;
+      const r4 = updateRotationTracking(state, validSample(baseline - 0.01), t);
+      const impactTime = t;
+      state = r4.state;
+
+      // Follow-through confirmed
+      t += 50;
+      const r5 = updateRotationTracking(state, validSample(baseline - 0.10), t);
+      expect(r5.swingConfirmed).toBe(true);
+      expect(r5.state.takeawayTimestamp).toBe(takeawayTime);
+      expect(r5.state.peakTimestamp).toBe(peakTime);
+      expect(r5.state.impactTimestamp).toBe(impactTime);
     });
 
     it('freezes peak at backswing maximum on follow-through confirmation', () => {

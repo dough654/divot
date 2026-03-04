@@ -23,6 +23,13 @@ export const FOLLOW_THROUGH_ROTATION_THRESHOLD = 0.08;
 /** Maximum time between backswing detection and follow-through before reset (ms). */
 export const ROTATION_TIMEOUT_MS = 5000;
 
+/**
+ * Lower threshold for tempo takeaway detection (3% frame width).
+ * Above typical baseline drift (0.5–2%) but well below backswing threshold (8%).
+ * Captures the actual start of shoulder rotation for accurate tempo.
+ */
+export const TAKEAWAY_ROTATION_THRESHOLD = 0.03;
+
 // ============================================
 // JOINT LAYOUT
 // ============================================
@@ -63,8 +70,12 @@ export type RotationTrackingState = {
   peakTimestamp: number | null;
   /** |delta from baseline| at the moment follow-through was confirmed (for telemetry). */
   followThroughDelta: number;
-  /** Timestamp when follow-through was confirmed (for tempo calculation). */
+  /** Timestamp when follow-through was confirmed (for swing detection). */
   followThroughTimestamp: number | null;
+  /** Timestamp when delta first exceeds TAKEAWAY_THRESHOLD (actual start of rotation for tempo). */
+  takeawayTimestamp: number | null;
+  /** Timestamp when delta crosses zero after peak (approximate impact for tempo). */
+  impactTimestamp: number | null;
 };
 
 export type RotationTrackingResult = {
@@ -85,6 +96,8 @@ export const INITIAL_ROTATION_STATE: RotationTrackingState = {
   peakTimestamp: null,
   followThroughDelta: 0,
   followThroughTimestamp: null,
+  takeawayTimestamp: null,
+  impactTimestamp: null,
 };
 
 // ============================================
@@ -134,6 +147,8 @@ export const startRotationTracking = (baselineDiff: number): RotationTrackingSta
   peakTimestamp: null,
   followThroughDelta: 0,
   followThroughTimestamp: null,
+  takeawayTimestamp: null,
+  impactTimestamp: null,
 });
 
 /**
@@ -175,6 +190,20 @@ export const updateRotationTracking = (
   const peakAbsDelta = peakUpdated ? absDelta : state.peakAbsDelta;
   const peakTimestamp = peakUpdated ? timestamp : state.peakTimestamp;
 
+  // Tempo: detect takeaway (first time delta exceeds low threshold)
+  const takeawayTimestamp = state.takeawayTimestamp === null && absDelta >= TAKEAWAY_ROTATION_THRESHOLD
+    ? timestamp
+    : state.takeawayTimestamp;
+
+  // Tempo: detect impact (first zero crossing after backswing peak).
+  // After backswing is detected, when delta crosses to opposite sign, that's
+  // approximately impact — capture only the first crossing.
+  const isOppositeSign = state.backswingDetected &&
+    (state.backswingSign > 0 ? delta < 0 : delta > 0);
+  const impactTimestamp = state.impactTimestamp === null && isOppositeSign
+    ? timestamp
+    : state.impactTimestamp;
+
   // Check timeout: if backswing detected but no follow-through within timeout, reset
   if (
     state.backswingDetected &&
@@ -198,15 +227,16 @@ export const updateRotationTracking = (
           backswingTimestamp: timestamp,
           peakAbsDelta: absDelta,
           peakTimestamp: timestamp,
+          takeawayTimestamp,
+          impactTimestamp,
         },
         swingConfirmed: false,
       };
     }
-    return { state: { ...state, peakAbsDelta, peakTimestamp }, swingConfirmed: false };
+    return { state: { ...state, peakAbsDelta, peakTimestamp, takeawayTimestamp, impactTimestamp }, swingConfirmed: false };
   }
 
   // Phase 2: detect follow-through (opposite direction from backswing)
-  const isOppositeSign = state.backswingSign > 0 ? delta < 0 : delta > 0;
   if (isOppositeSign && absDelta >= FOLLOW_THROUGH_ROTATION_THRESHOLD) {
     return {
       state: {
@@ -217,10 +247,12 @@ export const updateRotationTracking = (
         peakTimestamp: state.peakTimestamp,
         followThroughDelta: absDelta,
         followThroughTimestamp: timestamp,
+        takeawayTimestamp,
+        impactTimestamp,
       },
       swingConfirmed: true,
     };
   }
 
-  return { state: { ...state, peakAbsDelta, peakTimestamp }, swingConfirmed: false };
+  return { state: { ...state, peakAbsDelta, peakTimestamp, takeawayTimestamp, impactTimestamp }, swingConfirmed: false };
 };

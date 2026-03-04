@@ -16,12 +16,14 @@ const makeRotationState = (overrides: Partial<RotationTrackingState> = {}): Rota
   baselineDiff: 0.01,
   backswingDetected: true,
   backswingSign: 1,
-  backswingTimestamp: 1000,
+  backswingTimestamp: 1100,
   followThroughDetected: true,
   peakAbsDelta: 0.15,
   peakTimestamp: 1900,
   followThroughDelta: 0.10,
-  followThroughTimestamp: 2200,
+  followThroughTimestamp: 2300,
+  takeawayTimestamp: 1000,
+  impactTimestamp: 2200,
   ...overrides,
 });
 
@@ -30,11 +32,11 @@ const makeRotationState = (overrides: Partial<RotationTrackingState> = {}): Rota
 // ============================================
 
 describe('calculateSwingTempo', () => {
-  it('calculates correct tempo for a 3:1 ratio (900ms backswing, 300ms downswing)', () => {
+  it('calculates correct tempo for a 3:1 ratio using takeaway and impact timestamps', () => {
     const state = makeRotationState({
-      backswingTimestamp: 1000,
+      takeawayTimestamp: 1000,
       peakTimestamp: 1900,
-      followThroughTimestamp: 2200,
+      impactTimestamp: 2200,
     });
     const result = calculateSwingTempo(state);
     expect(result).not.toBeNull();
@@ -45,9 +47,9 @@ describe('calculateSwingTempo', () => {
 
   it('calculates correct tempo for a 2:1 ratio', () => {
     const state = makeRotationState({
-      backswingTimestamp: 1000,
+      takeawayTimestamp: 1000,
       peakTimestamp: 1600,
-      followThroughTimestamp: 1900,
+      impactTimestamp: 1900,
     });
     const result = calculateSwingTempo(state);
     expect(result).not.toBeNull();
@@ -56,8 +58,32 @@ describe('calculateSwingTempo', () => {
     expect(result!.tempoRatio).toBeCloseTo(2.0);
   });
 
-  it('returns null when backswingTimestamp is missing', () => {
-    const state = makeRotationState({ backswingTimestamp: null });
+  it('falls back to backswingTimestamp when takeawayTimestamp is null', () => {
+    const state = makeRotationState({
+      takeawayTimestamp: null,
+      backswingTimestamp: 1000,
+      peakTimestamp: 1900,
+      impactTimestamp: 2200,
+    });
+    const result = calculateSwingTempo(state);
+    expect(result).not.toBeNull();
+    expect(result!.backswingDurationMs).toBe(900);
+  });
+
+  it('falls back to followThroughTimestamp when impactTimestamp is null', () => {
+    const state = makeRotationState({
+      takeawayTimestamp: 1000,
+      peakTimestamp: 1900,
+      impactTimestamp: null,
+      followThroughTimestamp: 2200,
+    });
+    const result = calculateSwingTempo(state);
+    expect(result).not.toBeNull();
+    expect(result!.downswingDurationMs).toBe(300);
+  });
+
+  it('returns null when all start timestamps are missing', () => {
+    const state = makeRotationState({ takeawayTimestamp: null, backswingTimestamp: null });
     expect(calculateSwingTempo(state)).toBeNull();
   });
 
@@ -66,43 +92,43 @@ describe('calculateSwingTempo', () => {
     expect(calculateSwingTempo(state)).toBeNull();
   });
 
-  it('returns null when followThroughTimestamp is missing', () => {
-    const state = makeRotationState({ followThroughTimestamp: null });
+  it('returns null when all end timestamps are missing', () => {
+    const state = makeRotationState({ impactTimestamp: null, followThroughTimestamp: null });
     expect(calculateSwingTempo(state)).toBeNull();
   });
 
-  it('returns null when backswing duration is zero (peak == backswing start)', () => {
+  it('returns null when backswing duration is zero (peak == takeaway)', () => {
     const state = makeRotationState({
-      backswingTimestamp: 1000,
+      takeawayTimestamp: 1000,
       peakTimestamp: 1000,
-      followThroughTimestamp: 1300,
+      impactTimestamp: 1300,
     });
     expect(calculateSwingTempo(state)).toBeNull();
   });
 
-  it('returns null when downswing duration is zero (followThrough == peak)', () => {
+  it('returns null when downswing duration is zero (impact == peak)', () => {
     const state = makeRotationState({
-      backswingTimestamp: 1000,
+      takeawayTimestamp: 1000,
       peakTimestamp: 1900,
-      followThroughTimestamp: 1900,
+      impactTimestamp: 1900,
     });
     expect(calculateSwingTempo(state)).toBeNull();
   });
 
   it('returns null when backswing duration is negative', () => {
     const state = makeRotationState({
-      backswingTimestamp: 2000,
+      takeawayTimestamp: 2000,
       peakTimestamp: 1000,
-      followThroughTimestamp: 2500,
+      impactTimestamp: 2500,
     });
     expect(calculateSwingTempo(state)).toBeNull();
   });
 
   it('returns null when downswing duration is negative', () => {
     const state = makeRotationState({
-      backswingTimestamp: 1000,
+      takeawayTimestamp: 1000,
       peakTimestamp: 2000,
-      followThroughTimestamp: 1500,
+      impactTimestamp: 1500,
     });
     expect(calculateSwingTempo(state)).toBeNull();
   });

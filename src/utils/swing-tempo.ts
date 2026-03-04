@@ -40,28 +40,32 @@ export type TempoRating = 'ideal' | 'fast' | 'slow';
 /**
  * Calculates swing tempo from rotation tracking state.
  *
- * Requires all three timestamps to be present:
- * - backswingTimestamp (start of backswing)
+ * Uses tempo-specific timestamps for accuracy:
+ * - takeawayTimestamp (first motion above low threshold — actual start of rotation)
  * - peakTimestamp (top of backswing)
- * - followThroughTimestamp (follow-through confirmed)
+ * - impactTimestamp (zero crossing after peak — approximate impact)
+ *
+ * Falls back to detection timestamps if tempo timestamps aren't available.
  *
  * @returns Tempo data, or null if timestamps are missing or invalid
  */
 export const calculateSwingTempo = (
   rotationState: RotationTrackingState,
 ): SwingTempo | null => {
-  const { backswingTimestamp, peakTimestamp, followThroughTimestamp } = rotationState;
+  const { peakTimestamp } = rotationState;
+  const startTimestamp = rotationState.takeawayTimestamp ?? rotationState.backswingTimestamp;
+  const endTimestamp = rotationState.impactTimestamp ?? rotationState.followThroughTimestamp;
 
   if (
-    backswingTimestamp === null ||
+    startTimestamp === null ||
     peakTimestamp === null ||
-    followThroughTimestamp === null
+    endTimestamp === null
   ) {
     return null;
   }
 
-  const backswingDurationMs = peakTimestamp - backswingTimestamp;
-  const downswingDurationMs = followThroughTimestamp - peakTimestamp;
+  const backswingDurationMs = peakTimestamp - startTimestamp;
+  const downswingDurationMs = endTimestamp - peakTimestamp;
 
   if (backswingDurationMs <= 0 || downswingDurationMs <= 0) {
     return null;
