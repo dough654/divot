@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateTempoFromPoseFrames } from '../video-pose-tempo';
+import { calculateTempoFromPoseFrames, computeEmaAlpha } from '../video-pose-tempo';
 import type { PoseFrame } from '../../../modules/video-pose-analysis/src/types';
 
 // ============================================
@@ -185,7 +185,7 @@ describe('calculateTempoFromPoseFrames', () => {
     expect(result!.tempoRatio).toBeGreaterThan(1.0);
   });
 
-  it('uses first valid frame as baseline', () => {
+  it('skips invalid frames and averages baseline from valid ones', () => {
     // First 5 frames have zero confidence, then valid frames
     const invalidFrames = Array.from({ length: 5 }, (_, i) => ({
       frameIndex: i,
@@ -207,5 +207,87 @@ describe('calculateTempoFromPoseFrames', () => {
     const result = calculateTempoFromPoseFrames(frames, 240);
     // Should still work — skips invalid frames for baseline
     expect(result).not.toBeNull();
+  });
+
+  it('rejects noise during address that would false-trigger takeaway', () => {
+    // Simulate 240fps with ±0.02 noise during a 700ms address period,
+    // then a real swing. Without smoothing, the 0.015 takeaway threshold
+    // would trigger almost immediately on noise.
+    const fps = 240;
+    const frameDuration = 1000 / fps;
+    const frames: PoseFrame[] = [];
+    const baselineLeft = 0.55;
+    const baselineRight = 0.45;
+
+    // 700ms of noisy address
+    for (let t = 0; t < 700; t += frameDuration) {
+      const noise = (Math.sin(t * 0.1) * 0.02); // Oscillating noise ±0.02
+      frames.push(makePoseFrame(
+        Math.round(t / frameDuration),
+        t,
+        baselineLeft + noise * 0.5,
+        baselineRight - noise * 0.5,
+      ));
+    }
+
+    // Then a real swing: 700ms backswing, 250ms downswing
+    const takeawayMs = 700;
+    const peakMs = 1400;
+    const impactMs = 1650;
+    const followMs = 1800;
+    const endMs = 2200;
+
+    for (let t = takeawayMs; t <= endMs; t += frameDuration) {
+      let leftX = baselineLeft;
+      let rightX = baselineRight;
+
+      if (t < peakMs) {
+        const progress = (t - takeawayMs) / (peakMs - takeawayMs);
+        const extraDiff = 0.12 * progress;
+        leftX = baselineLeft + extraDiff * 0.5;
+        rightX = baselineRight - extraDiff * 0.5;
+      } else if (t < impactMs) {
+        const progress = (t - peakMs) / (impactMs - peakMs);
+        const extraDiff = 0.12 * (1 - progress);
+        leftX = baselineLeft + extraDiff * 0.5;
+        rightX = baselineRight - extraDiff * 0.5;
+      } else if (t < followMs) {
+        const progress = (t - impactMs) / (followMs - impactMs);
+        leftX = baselineLeft - 0.05 * progress;
+        rightX = baselineRight + 0.05 * progress;
+      } else {
+        leftX = baselineLeft - 0.05;
+        rightX = baselineRight + 0.05;
+      }
+
+      frames.push(makePoseFrame(Math.round(t / frameDuration), t, leftX, rightX));
+    }
+
+    const result = calculateTempoFromPoseFrames(frames, fps);
+    expect(result).not.toBeNull();
+    // Takeaway should NOT be at 0ms — noise should be smoothed out.
+    // It should be detected near the actual takeaway (~700ms), allowing
+    // some lag from EMA smoothing.
+    expect(result!.takeawayTimestampMs).toBeGreaterThan(500);
+    // Backswing duration should be roughly 700ms, not 1400ms
+    expect(result!.backswingDurationMs).toBeGreaterThan(400);
+    expect(result!.backswingDurationMs).toBeLessThan(1000);
+  });
+});
+
+describe('computeEmaAlpha', () => {
+  it('returns higher alpha (less smoothing) for low fps', () => {
+    const alpha30 = computeEmaAlpha(30);
+    const alpha240 = computeEmaAlpha(240);
+    expect(alpha30).toBeGreaterThan(alpha240);
+    // At 30fps, alpha should be relatively high (minimal smoothing)
+    expect(alpha30).toBeGreaterThan(0.5);
+    // At 240fps, alpha should be low (significant smoothing)
+    expect(alpha240).toBeLessThan(0.15);
+  });
+
+  it('never returns alpha greater than 1', () => {
+    expect(computeEmaAlpha(1)).toBeLessThanOrEqual(1);
+    expect(computeEmaAlpha(10)).toBeLessThanOrEqual(1);
   });
 });
