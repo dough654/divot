@@ -1,4 +1,9 @@
 /**
+ * Camera angle used when recording a clip.
+ */
+export type CameraAngle = 'dtl' | 'face-on';
+
+/**
  * Recording state machine states.
  */
 export type RecordingState = 'idle' | 'recording';
@@ -37,6 +42,14 @@ export type Clip = {
   name?: string;
   /** Session this clip belongs to, if any. */
   sessionId?: string;
+  /** Camera angle used when recording (DTL or face-on). */
+  cameraAngle?: CameraAngle;
+  /** Swing tempo ratio (backswing:downswing, e.g. 3.0 for 3:1). */
+  tempoRatio?: number;
+  /** Backswing duration in milliseconds. */
+  backswingDurationMs?: number;
+  /** Downswing duration in milliseconds. */
+  downswingDurationMs?: number;
 };
 
 /**

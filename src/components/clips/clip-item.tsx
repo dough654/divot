@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, usePressAnimation } from '@/src/hooks';
 import { formatRelativeDate, formatDuration, formatFileSize } from '@/src/utils/format';
+import { getTempoRating } from '@/src/utils/swing-tempo';
 import type { Theme } from '@/src/context';
 import type { Clip } from '@/src/types/recording';
 
@@ -31,6 +32,10 @@ export const ClipItem = ({ clip, index, onPress, onMenuPress }: ClipItemProps) =
   });
 
   const clipName = clip.name || `Swing ${formatRelativeDate(clip.timestamp)}`;
+  const hasTempo = clip.tempoRatio != null;
+  const tempoColor = hasTempo
+    ? getTempoRating(clip.tempoRatio!) === 'ideal' ? theme.colors.success : theme.colors.warning
+    : undefined;
 
   return (
     <AnimatedPressable
@@ -49,7 +54,7 @@ export const ClipItem = ({ clip, index, onPress, onMenuPress }: ClipItemProps) =
           {clipName}
         </Text>
         <Text style={styles.meta}>
-          {formatDuration(clip.duration)} · {formatFileSize(clip.fileSize)} · {clip.fps}fps
+          {formatDuration(clip.duration)} · {formatFileSize(clip.fileSize)} · {clip.fps}fps{clip.cameraAngle ? ` · ${clip.cameraAngle === 'dtl' ? 'DTL' : 'FO'}` : ''}{hasTempo && <Text style={{ color: tempoColor }}> · {clip.tempoRatio!.toFixed(1)}:1</Text>}
         </Text>
       </View>
       <Pressable

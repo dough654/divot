@@ -50,6 +50,8 @@ import { useRollingRecorder } from '@/src/hooks/use-rolling-recorder';
 import { useSwingRecorder } from '@/src/hooks/use-swing-recorder';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { formatRoomCode, resolveNetworkTransport } from '@/src/utils';
+import { calculateSwingTempo } from '@/src/utils/swing-tempo';
+import type { SwingTempo } from '@/src/utils/swing-tempo';
 import type { ConnectionStep, ConnectionRequest } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
 
@@ -298,6 +300,21 @@ export default function CameraScreen() {
     onError: handleRollingError,
   });
 
+  // Tempo calculation — extract from analytics snapshot at address→swinging transition
+  const swingTempoRef = useRef<SwingTempo | null>(null);
+  const analyticsSnapshot = classifierResult.analyticsSnapshot;
+  useEffect(() => {
+    if (
+      analyticsSnapshot?.transition === 'address_to_swinging' &&
+      analyticsSnapshot.rotationState
+    ) {
+      swingTempoRef.current = calculateSwingTempo(analyticsSnapshot.rotationState);
+    } else if (analyticsSnapshot?.transition === 'swinging_to_idle') {
+      // Reset after swing completes so next recording starts clean
+      swingTempoRef.current = null;
+    }
+  }, [analyticsSnapshot]);
+
   // Swing recorder — classifier-driven, watches detectionState directly
   const swingRecorderEnabled = useClassifier && cameraState === 'previewing';
   const handleSwingClipSaved = useCallback((clip: Clip) => {
@@ -316,6 +333,7 @@ export default function CameraScreen() {
     recordingFps,
     sessionId: activeSession?.id ?? null,
     cameraAngle: settings.cameraAngle,
+    swingTempo: swingTempoRef.current,
     onClipSaved: handleSwingClipSaved,
     onError: handleSwingError,
   });

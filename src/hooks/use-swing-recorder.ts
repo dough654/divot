@@ -2,7 +2,8 @@ import { useRef, useEffect, useCallback } from 'react';
 import type { RefObject } from 'react';
 import type { VideoFile } from 'react-native-vision-camera';
 import type { VisionCameraRecorderRef } from '@/src/components/recording/vision-camera-recorder';
-import type { Clip } from '@/src/types/recording';
+import type { Clip, CameraAngle } from '@/src/types/recording';
+import type { SwingTempo } from '@/src/utils/swing-tempo';
 import { saveClip } from '@/src/services/recording/clip-storage';
 
 /**
@@ -41,6 +42,10 @@ export type UseSwingRecorderOptions = {
   recordingFps?: number;
   /** Session ID for saved clips. */
   sessionId?: string | null;
+  /** Camera angle used when recording. */
+  cameraAngle?: CameraAngle;
+  /** Swing tempo data calculated from shoulder rotation. */
+  swingTempo?: SwingTempo | null;
   /** Called when a clip is saved after post-roll completes. */
   onClipSaved: (clip: Clip) => void;
   /** Called on recording errors. */
@@ -79,6 +84,8 @@ export const useSwingRecorder = ({
   maxRecordingDurationMs = DEFAULT_MAX_RECORDING_MS,
   recordingFps = 30,
   sessionId = null,
+  cameraAngle,
+  swingTempo = null,
   onClipSaved,
   onError,
 }: UseSwingRecorderOptions): UseSwingRecorderReturn => {
@@ -106,6 +113,10 @@ export const useSwingRecorder = ({
   recordingFpsRef.current = recordingFps;
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
+  const cameraAngleRef = useRef(cameraAngle);
+  cameraAngleRef.current = cameraAngle;
+  const swingTempoRef = useRef(swingTempo);
+  swingTempoRef.current = swingTempo;
   const postRollMsRef = useRef(postRollDurationMs);
   postRollMsRef.current = postRollDurationMs;
   const enabledRef = useRef(enabled);
@@ -211,11 +222,16 @@ export const useSwingRecorder = ({
           const duration = Math.round((Date.now() - recordingStartTimeRef.current) / 1000);
           if (__DEV__) console.log(`[SwingRecorder] saving clip duration=${duration}s`);
           try {
+            const tempo = swingTempoRef.current;
             const clip = await saveClip({
               path: video.path,
               duration,
               fps: recordingFpsRef.current,
               sessionId: sessionIdRef.current ?? undefined,
+              cameraAngle: cameraAngleRef.current,
+              tempoRatio: tempo?.tempoRatio,
+              backswingDurationMs: tempo?.backswingDurationMs,
+              downswingDurationMs: tempo?.downswingDurationMs,
             });
             stateRef.current = 'idle';
             if (__DEV__) console.log(`[SwingRecorder] clip saved id=${clip.id}`);

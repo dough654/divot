@@ -1,0 +1,145 @@
+import { describe, it, expect } from 'vitest';
+import {
+  calculateSwingTempo,
+  getTempoRating,
+  IDEAL_TEMPO_MIN,
+  IDEAL_TEMPO_MAX,
+} from '../swing-tempo';
+import type { RotationTrackingState } from '../shoulder-rotation';
+
+// ============================================
+// HELPERS
+// ============================================
+
+/** Creates a complete rotation state with all timestamps set. */
+const makeRotationState = (overrides: Partial<RotationTrackingState> = {}): RotationTrackingState => ({
+  baselineDiff: 0.01,
+  backswingDetected: true,
+  backswingSign: 1,
+  backswingTimestamp: 1000,
+  followThroughDetected: true,
+  peakAbsDelta: 0.15,
+  peakTimestamp: 1900,
+  followThroughDelta: 0.10,
+  followThroughTimestamp: 2200,
+  ...overrides,
+});
+
+// ============================================
+// calculateSwingTempo
+// ============================================
+
+describe('calculateSwingTempo', () => {
+  it('calculates correct tempo for a 3:1 ratio (900ms backswing, 300ms downswing)', () => {
+    const state = makeRotationState({
+      backswingTimestamp: 1000,
+      peakTimestamp: 1900,
+      followThroughTimestamp: 2200,
+    });
+    const result = calculateSwingTempo(state);
+    expect(result).not.toBeNull();
+    expect(result!.backswingDurationMs).toBe(900);
+    expect(result!.downswingDurationMs).toBe(300);
+    expect(result!.tempoRatio).toBeCloseTo(3.0);
+  });
+
+  it('calculates correct tempo for a 2:1 ratio', () => {
+    const state = makeRotationState({
+      backswingTimestamp: 1000,
+      peakTimestamp: 1600,
+      followThroughTimestamp: 1900,
+    });
+    const result = calculateSwingTempo(state);
+    expect(result).not.toBeNull();
+    expect(result!.backswingDurationMs).toBe(600);
+    expect(result!.downswingDurationMs).toBe(300);
+    expect(result!.tempoRatio).toBeCloseTo(2.0);
+  });
+
+  it('returns null when backswingTimestamp is missing', () => {
+    const state = makeRotationState({ backswingTimestamp: null });
+    expect(calculateSwingTempo(state)).toBeNull();
+  });
+
+  it('returns null when peakTimestamp is missing', () => {
+    const state = makeRotationState({ peakTimestamp: null });
+    expect(calculateSwingTempo(state)).toBeNull();
+  });
+
+  it('returns null when followThroughTimestamp is missing', () => {
+    const state = makeRotationState({ followThroughTimestamp: null });
+    expect(calculateSwingTempo(state)).toBeNull();
+  });
+
+  it('returns null when backswing duration is zero (peak == backswing start)', () => {
+    const state = makeRotationState({
+      backswingTimestamp: 1000,
+      peakTimestamp: 1000,
+      followThroughTimestamp: 1300,
+    });
+    expect(calculateSwingTempo(state)).toBeNull();
+  });
+
+  it('returns null when downswing duration is zero (followThrough == peak)', () => {
+    const state = makeRotationState({
+      backswingTimestamp: 1000,
+      peakTimestamp: 1900,
+      followThroughTimestamp: 1900,
+    });
+    expect(calculateSwingTempo(state)).toBeNull();
+  });
+
+  it('returns null when backswing duration is negative', () => {
+    const state = makeRotationState({
+      backswingTimestamp: 2000,
+      peakTimestamp: 1000,
+      followThroughTimestamp: 2500,
+    });
+    expect(calculateSwingTempo(state)).toBeNull();
+  });
+
+  it('returns null when downswing duration is negative', () => {
+    const state = makeRotationState({
+      backswingTimestamp: 1000,
+      peakTimestamp: 2000,
+      followThroughTimestamp: 1500,
+    });
+    expect(calculateSwingTempo(state)).toBeNull();
+  });
+});
+
+// ============================================
+// getTempoRating
+// ============================================
+
+describe('getTempoRating', () => {
+  it('returns "ideal" for tour-average 3:1 ratio', () => {
+    expect(getTempoRating(3.0)).toBe('ideal');
+  });
+
+  it('returns "ideal" at the minimum boundary', () => {
+    expect(getTempoRating(IDEAL_TEMPO_MIN)).toBe('ideal');
+  });
+
+  it('returns "ideal" at the maximum boundary', () => {
+    expect(getTempoRating(IDEAL_TEMPO_MAX)).toBe('ideal');
+  });
+
+  it('returns "fast" below minimum', () => {
+    expect(getTempoRating(2.0)).toBe('fast');
+    expect(getTempoRating(1.5)).toBe('fast');
+  });
+
+  it('returns "slow" above maximum', () => {
+    expect(getTempoRating(4.0)).toBe('slow');
+    expect(getTempoRating(5.0)).toBe('slow');
+  });
+
+  it('returns "fast" just below minimum', () => {
+    expect(getTempoRating(IDEAL_TEMPO_MIN - 0.01)).toBe('fast');
+  });
+
+  it('returns "slow" just above maximum', () => {
+    expect(getTempoRating(IDEAL_TEMPO_MAX + 0.01)).toBe('slow');
+  });
+});

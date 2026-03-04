@@ -25,6 +25,8 @@ import { useProAccess } from '@/src/hooks/use-pro-access';
 import { useVideoExport } from '@/src/hooks/use-video-export';
 import { ExportProgressModal } from '@/src/components/export';
 import { FormatPickerModal } from '@/src/components/playback/format-picker-modal';
+import { TempoBar } from '@/src/components/playback/tempo-bar';
+import type { TempoData } from '@/src/components/playback/tempo-bar';
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import type { Theme } from '@/src/context';
@@ -52,6 +54,8 @@ export type VideoPlayerProps = {
   onBack?: () => void;
   /** Label shown next to the back chevron (e.g. "Clips"). */
   headerBackTitle?: string;
+  /** Tempo data to display between video and scrubber. */
+  tempoData?: TempoData;
 };
 
 const CONTROLS_AUTO_HIDE_MS = 3000;
@@ -75,6 +79,7 @@ export const VideoPlayer = ({
   headerSubtitle,
   onBack,
   headerBackTitle,
+  tempoData,
 }: VideoPlayerProps) => {
   const videoRef = useRef<Video>(null);
   const videoContainerRef = useRef<View>(null);
@@ -892,6 +897,11 @@ export const VideoPlayer = ({
             </>
           )}
         </View>
+      )}
+
+      {/* TempoBar — always visible when tempo data exists */}
+      {tempoData && showControlsSection && (
+        <TempoBar tempo={tempoData} />
       )}
 
       {/* FrameScrubber — always visible in both orientations */}

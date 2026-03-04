@@ -59,8 +59,12 @@ export type RotationTrackingState = {
   followThroughDetected: boolean;
   /** Running maximum of |delta from baseline| across all samples (for telemetry). */
   peakAbsDelta: number;
+  /** Timestamp when peakAbsDelta was last updated (top of backswing for tempo). */
+  peakTimestamp: number | null;
   /** |delta from baseline| at the moment follow-through was confirmed (for telemetry). */
   followThroughDelta: number;
+  /** Timestamp when follow-through was confirmed (for tempo calculation). */
+  followThroughTimestamp: number | null;
 };
 
 export type RotationTrackingResult = {
@@ -78,7 +82,9 @@ export const INITIAL_ROTATION_STATE: RotationTrackingState = {
   backswingTimestamp: null,
   followThroughDetected: false,
   peakAbsDelta: 0,
+  peakTimestamp: null,
   followThroughDelta: 0,
+  followThroughTimestamp: null,
 };
 
 // ============================================
@@ -125,7 +131,9 @@ export const startRotationTracking = (baselineDiff: number): RotationTrackingSta
   backswingTimestamp: null,
   followThroughDetected: false,
   peakAbsDelta: 0,
+  peakTimestamp: null,
   followThroughDelta: 0,
+  followThroughTimestamp: null,
 });
 
 /**
@@ -158,8 +166,10 @@ export const updateRotationTracking = (
   const delta = sample.diff - state.baselineDiff;
   const absDelta = Math.abs(delta);
 
-  // Track running peak |delta| for telemetry
-  const peakAbsDelta = Math.max(state.peakAbsDelta, absDelta);
+  // Track running peak |delta| and its timestamp for tempo calculation
+  const peakUpdated = absDelta > state.peakAbsDelta;
+  const peakAbsDelta = peakUpdated ? absDelta : state.peakAbsDelta;
+  const peakTimestamp = peakUpdated ? timestamp : state.peakTimestamp;
 
   // Check timeout: if backswing detected but no follow-through within timeout, reset
   if (
@@ -183,11 +193,12 @@ export const updateRotationTracking = (
           backswingSign: delta > 0 ? 1 : -1,
           backswingTimestamp: timestamp,
           peakAbsDelta,
+          peakTimestamp: timestamp,
         },
         swingConfirmed: false,
       };
     }
-    return { state: { ...state, peakAbsDelta }, swingConfirmed: false };
+    return { state: { ...state, peakAbsDelta, peakTimestamp }, swingConfirmed: false };
   }
 
   // Phase 2: detect follow-through (opposite direction from backswing)
@@ -198,11 +209,13 @@ export const updateRotationTracking = (
         ...state,
         followThroughDetected: true,
         peakAbsDelta,
+        peakTimestamp,
         followThroughDelta: absDelta,
+        followThroughTimestamp: timestamp,
       },
       swingConfirmed: true,
     };
   }
 
-  return { state: { ...state, peakAbsDelta }, swingConfirmed: false };
+  return { state: { ...state, peakAbsDelta, peakTimestamp }, swingConfirmed: false };
 };

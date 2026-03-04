@@ -1,7 +1,7 @@
 import { File, Directory, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Clip, ClipMetadata } from '@/src/types/recording';
+import type { Clip, ClipMetadata, CameraAngle } from '@/src/types/recording';
 import { deleteAnnotations } from '@/src/services/annotation/annotation-storage';
 import { deleteAnalysis } from '@/src/services/analysis/analysis-storage';
 import { removeClipFromSession } from '@/src/services/session/session-storage';
@@ -74,6 +74,14 @@ export type SaveClipOptions = {
   name?: string;
   /** Session ID to associate this clip with. */
   sessionId?: string;
+  /** Camera angle used when recording. */
+  cameraAngle?: CameraAngle;
+  /** Swing tempo ratio (backswing:downswing). */
+  tempoRatio?: number;
+  /** Backswing duration in milliseconds. */
+  backswingDurationMs?: number;
+  /** Downswing duration in milliseconds. */
+  downswingDurationMs?: number;
 };
 
 /**
@@ -91,7 +99,7 @@ const toFileUri = (path: string): string => {
  * Copies the video file to the clips directory and updates metadata.
  */
 export const saveClip = async (options: SaveClipOptions): Promise<Clip> => {
-  const { path: sourcePath, duration, fps, name, sessionId } = options;
+  const { path: sourcePath, duration, fps, name, sessionId, cameraAngle, tempoRatio, backswingDurationMs, downswingDurationMs } = options;
 
   ensureClipsDirectory();
 
@@ -118,6 +126,10 @@ export const saveClip = async (options: SaveClipOptions): Promise<Clip> => {
     fps,
     name,
     sessionId,
+    cameraAngle,
+    tempoRatio,
+    backswingDurationMs,
+    downswingDurationMs,
   };
 
   // Update metadata

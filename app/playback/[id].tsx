@@ -119,6 +119,9 @@ export default function PlaybackScreen() {
           headerSubtitle={formatDate(clip.timestamp)}
           onBack={() => router.back()}
           headerBackTitle="Clips"
+          tempoData={clip.tempoRatio != null && clip.backswingDurationMs != null && clip.downswingDurationMs != null
+            ? { tempoRatio: clip.tempoRatio, backswingDurationMs: clip.backswingDurationMs, downswingDurationMs: clip.downswingDurationMs }
+            : undefined}
         />
       </View>
     </>
