@@ -112,27 +112,8 @@ export default function CameraScreen() {
   const poseDetectionEnabled = !!poseDetectionFlag && (settings.poseOverlayEnabled || settings.swingClassifierEnabled);
   const { rawPoseData } = usePoseDetection({ enabled: poseDetectionEnabled });
 
-  // Camera angle auto-detection — runs while armed with pose data, before manual override
+  // Angle state — hook call moved below classifier, but state declared here
   const [angleManualOverride, setAngleManualOverride] = useState(false);
-  const angleAutoDetectEnabled = isArmed && poseDetectionEnabled && cameraState === 'previewing' && !angleManualOverride;
-  const { detectedAngle, isDetecting: isDetectingAngle } = useCameraAngleDetection({
-    enabled: angleAutoDetectEnabled,
-    rawPoseData: rawPoseData ?? null,
-  });
-
-  // Apply auto-detected angle
-  useEffect(() => {
-    if (detectedAngle !== null && !angleManualOverride) {
-      setCameraAngle(detectedAngle);
-    }
-  }, [detectedAngle, angleManualOverride, setCameraAngle]);
-
-  // Reset manual override when disarming
-  useEffect(() => {
-    if (!isArmed) {
-      setAngleManualOverride(false);
-    }
-  }, [isArmed]);
 
   // Auto-detection pipeline: motion + audio → swing detection → rolling recorder
   // Decoupled from pose detection — uses frame differencing instead
@@ -215,6 +196,29 @@ export default function CameraScreen() {
     }
     prevIsStillRef.current = isStill;
   }, [isStill, playAddressReady]);
+
+  // Camera angle auto-detection — paused during address/swinging because backswing
+  // shoulder separation exceeds DTL_THRESHOLD and would flip detection to face-on
+  const classifierActive = classifierResult.isInAddress || classifierResult.isSwinging;
+  const angleAutoDetectEnabled = isArmed && poseDetectionEnabled && cameraState === 'previewing' && !angleManualOverride && !classifierActive;
+  const { detectedAngle, isDetecting: isDetectingAngle } = useCameraAngleDetection({
+    enabled: angleAutoDetectEnabled,
+    rawPoseData: rawPoseData ?? null,
+  });
+
+  // Apply auto-detected angle
+  useEffect(() => {
+    if (detectedAngle !== null && !angleManualOverride) {
+      setCameraAngle(detectedAngle);
+    }
+  }, [detectedAngle, angleManualOverride, setCameraAngle]);
+
+  // Reset manual override when disarming
+  useEffect(() => {
+    if (!isArmed) {
+      setAngleManualOverride(false);
+    }
+  }, [isArmed]);
 
   const {
     connectionState: signalingConnectionState,
