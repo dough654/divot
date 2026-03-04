@@ -149,6 +149,27 @@ export const listClips = async (): Promise<Clip[]> => {
 };
 
 /**
+ * Updates a clip's metadata fields without replacing the entire clip.
+ * Only the provided fields are merged; unspecified fields are left unchanged.
+ */
+export const updateClip = async (
+  clipId: string,
+  fields: Partial<Pick<Clip, 'tempoRatio' | 'backswingDurationMs' | 'downswingDurationMs' | 'name' | 'cameraAngle'>>,
+): Promise<Clip | null> => {
+  const metadata = await loadMetadata();
+  const clip = metadata.clips.find((c) => c.id === clipId);
+
+  if (!clip) {
+    return null;
+  }
+
+  Object.assign(clip, fields);
+  await saveMetadata(metadata);
+
+  return clip;
+};
+
+/**
  * Gets a clip by ID.
  */
 export const getClip = async (clipId: string): Promise<Clip | null> => {

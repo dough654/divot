@@ -50,8 +50,7 @@ import { useRollingRecorder } from '@/src/hooks/use-rolling-recorder';
 import { useSwingRecorder } from '@/src/hooks/use-swing-recorder';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { formatRoomCode, resolveNetworkTransport } from '@/src/utils';
-import { calculateSwingTempo } from '@/src/utils/swing-tempo';
-import type { SwingTempo } from '@/src/utils/swing-tempo';
+import { enqueueAnalysis } from '@/src/services/analysis/analysis-queue';
 import type { ConnectionStep, ConnectionRequest } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
 
@@ -288,6 +287,8 @@ export default function CameraScreen() {
     if (clip.sessionId) {
       tagClip(clip.id);
     }
+    // Enqueue background pose analysis for tempo calculation
+    enqueueAnalysis(clip.id, clip.path);
     // Stay in previewing — rolling recorder re-arms automatically
     showToast(`Swing captured (${clip.duration}s)`, { variant: 'success' });
   }, [tagClip, showToast]);
@@ -304,24 +305,14 @@ export default function CameraScreen() {
     onError: handleRollingError,
   });
 
-  // Tempo calculation — extract from analytics snapshot at address→swinging transition
-  const swingTempoRef = useRef<SwingTempo | null>(null);
-  const analyticsSnapshot = classifierResult.analyticsSnapshot;
-  useEffect(() => {
-    if (
-      analyticsSnapshot?.transition === 'address_to_swinging' &&
-      analyticsSnapshot.rotationState
-    ) {
-      swingTempoRef.current = calculateSwingTempo(analyticsSnapshot.rotationState);
-    }
-  }, [analyticsSnapshot]);
-
   // Swing recorder — classifier-driven, watches detectionState directly
   const swingRecorderEnabled = useClassifier && cameraState === 'previewing';
   const handleSwingClipSaved = useCallback((clip: Clip) => {
     if (clip.sessionId) {
       tagClip(clip.id);
     }
+    // Enqueue background pose analysis for tempo calculation
+    enqueueAnalysis(clip.id, clip.path);
     showToast(`Swing captured (${clip.duration}s)`, { variant: 'success' });
   }, [tagClip, showToast]);
   const handleSwingError = useCallback((error: string) => {
@@ -334,7 +325,6 @@ export default function CameraScreen() {
     recordingFps,
     sessionId: activeSession?.id ?? null,
     cameraAngle: settings.cameraAngle,
-    swingTempo: swingTempoRef.current,
     onClipSaved: handleSwingClipSaved,
     onError: handleSwingError,
   });

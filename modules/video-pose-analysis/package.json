@@ -1,0 +1,5 @@
+{
+  "name": "video-pose-analysis",
+  "version": "1.0.0",
+  "main": "src/index.ts"
+}

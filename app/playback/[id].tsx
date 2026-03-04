@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
+import { useClipAnalysis } from '@/src/hooks/use-clip-analysis';
 import type { Theme } from '@/src/context';
 import { VideoPlayer } from '@/src/components/playback';
 import { getClip } from '@/src/services/recording/clip-storage';
@@ -37,6 +38,9 @@ export default function PlaybackScreen() {
   const [clip, setClip] = useState<Clip | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Reactive tempo from background analysis
+  const { tempo: analysisTempo } = useClipAnalysis(id ?? null);
 
   useEffect(() => {
     const loadClip = async () => {
@@ -119,9 +123,9 @@ export default function PlaybackScreen() {
           headerSubtitle={formatDate(clip.timestamp)}
           onBack={() => router.back()}
           headerBackTitle="Clips"
-          tempoData={clip.tempoRatio != null && clip.backswingDurationMs != null && clip.downswingDurationMs != null
+          tempoData={analysisTempo ?? (clip.tempoRatio != null && clip.backswingDurationMs != null && clip.downswingDurationMs != null
             ? { tempoRatio: clip.tempoRatio, backswingDurationMs: clip.backswingDurationMs, downswingDurationMs: clip.downswingDurationMs }
-            : undefined}
+            : undefined)}
         />
       </View>
     </>
