@@ -313,18 +313,24 @@ export const useSwingRecorder = ({
 
   // Watch detectionState for state machine transitions
   useEffect(() => {
+    if (__DEV__) {
+      console.log(`[SwingRecorder] EFFECT: detectionState=${detectionState} enabled=${enabled} suspended=${suspendedRef.current} recorderState=${stateRef.current}`);
+    }
+
     if (!enabled || suspendedRef.current) return;
 
     const currentRecorderState = stateRef.current;
-
-    if (__DEV__) {
-      console.log(`[SwingRecorder] detectionState=${detectionState} recorderState=${currentRecorderState}`);
-    }
 
     switch (currentRecorderState) {
       case 'idle':
         // Start recording when address is detected
         if (detectionState === 'address') {
+          startRecording();
+        }
+        // Fallback: if we somehow missed address and see swinging while idle,
+        // start recording now so we at least capture the swing
+        else if (detectionState === 'swinging') {
+          if (__DEV__) console.log('[SwingRecorder] missed address → starting recording on swinging');
           startRecording();
         }
         break;
