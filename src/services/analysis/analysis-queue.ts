@@ -83,6 +83,9 @@ const processNext = async (): Promise<void> => {
         tempoRatio: tempo.tempoRatio,
         backswingDurationMs: tempo.backswingDurationMs,
         downswingDurationMs: tempo.downswingDurationMs,
+        takeawayTimestampMs: tempo.takeawayTimestampMs,
+        peakTimestampMs: tempo.peakTimestampMs,
+        impactTimestampMs: tempo.impactTimestampMs,
       });
       console.log(`[AnalysisQueue] Tempo: ${tempo.tempoRatio.toFixed(1)}:1 (backswing=${tempo.backswingDurationMs}ms, downswing=${tempo.downswingDurationMs}ms)`);
     } else {

@@ -10,6 +10,12 @@ export type TempoData = {
   tempoRatio: number;
   backswingDurationMs: number;
   downswingDurationMs: number;
+  /** Takeaway timestamp in ms (relative to video start). */
+  takeawayTimestampMs?: number;
+  /** Top-of-backswing timestamp in ms. */
+  peakTimestampMs?: number;
+  /** Impact timestamp in ms. */
+  impactTimestampMs?: number;
 };
 
 export type TempoBarProps = {
@@ -31,6 +37,18 @@ const getRatingColor = (rating: TempoRating, theme: Theme): string => {
 };
 
 /**
+ * Formats milliseconds as a video timestamp: M:SS.T (e.g. 0:01.4).
+ */
+const formatVideoTimestamp = (ms: number): string => {
+  const totalSeconds = ms / 1000;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const wholeSeconds = Math.floor(seconds);
+  const tenths = Math.floor((seconds - wholeSeconds) * 10);
+  return `${minutes}:${String(wholeSeconds).padStart(2, '0')}.${tenths}`;
+};
+
+/**
  * Formats milliseconds as seconds with one decimal place.
  */
 const formatDurationSeconds = (ms: number): string => {
@@ -40,7 +58,7 @@ const formatDurationSeconds = (ms: number): string => {
 /**
  * Persistent tempo stats bar displayed between video and frame scrubber.
  *
- * Shows tempo ratio (color-coded), backswing duration, and downswing duration.
+ * Shows tempo ratio (color-coded) and phase timing with timestamp windows.
  * Only rendered when clip has tempo data.
  */
 export const TempoBar = ({ tempo }: TempoBarProps) => {
@@ -50,18 +68,35 @@ export const TempoBar = ({ tempo }: TempoBarProps) => {
   const rating = getTempoRating(tempo.tempoRatio);
   const ratingColor = getRatingColor(rating, theme);
 
+  const hasTimestamps = tempo.takeawayTimestampMs != null &&
+    tempo.peakTimestampMs != null &&
+    tempo.impactTimestampMs != null;
+
   return (
     <View style={styles.container}>
       <Text style={[styles.ratio, { color: ratingColor }]}>
         {tempo.tempoRatio.toFixed(1)} : 1
       </Text>
       <View style={styles.durations}>
-        <Text style={styles.durationText}>
-          {formatDurationSeconds(tempo.backswingDurationMs)} ↑
-        </Text>
-        <Text style={styles.durationText}>
-          {formatDurationSeconds(tempo.downswingDurationMs)} ↓
-        </Text>
+        {hasTimestamps ? (
+          <>
+            <Text style={styles.durationText}>
+              {formatVideoTimestamp(tempo.takeawayTimestampMs!)}-{formatVideoTimestamp(tempo.peakTimestampMs!)} {formatDurationSeconds(tempo.backswingDurationMs)} ↑
+            </Text>
+            <Text style={styles.durationText}>
+              {formatVideoTimestamp(tempo.peakTimestampMs!)}-{formatVideoTimestamp(tempo.impactTimestampMs!)} {formatDurationSeconds(tempo.downswingDurationMs)} ↓
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.durationText}>
+              {formatDurationSeconds(tempo.backswingDurationMs)} ↑
+            </Text>
+            <Text style={styles.durationText}>
+              {formatDurationSeconds(tempo.downswingDurationMs)} ↓
+            </Text>
+          </>
+        )}
       </View>
     </View>
   );
@@ -83,12 +118,13 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     textTransform: 'uppercase' as const,
   },
   durations: {
-    flexDirection: 'row' as const,
-    gap: theme.spacing.md,
+    flexDirection: 'column' as const,
+    alignItems: 'flex-end' as const,
+    gap: 2,
   },
   durationText: {
     fontFamily: theme.fontFamily.body,
-    fontSize: 15,
+    fontSize: 13,
     color: theme.colors.textSecondary,
   },
 }));

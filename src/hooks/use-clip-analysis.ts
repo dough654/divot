@@ -53,6 +53,9 @@ export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
         tempoRatio: clip.tempoRatio,
         backswingDurationMs: clip.backswingDurationMs,
         downswingDurationMs: clip.downswingDurationMs,
+        takeawayTimestampMs: clip.takeawayTimestampMs,
+        peakTimestampMs: clip.peakTimestampMs,
+        impactTimestampMs: clip.impactTimestampMs,
       });
       setStatus('complete');
       return;

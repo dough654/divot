@@ -50,6 +50,12 @@ export type Clip = {
   backswingDurationMs?: number;
   /** Downswing duration in milliseconds. */
   downswingDurationMs?: number;
+  /** Takeaway timestamp in ms relative to video start. */
+  takeawayTimestampMs?: number;
+  /** Top-of-backswing timestamp in ms relative to video start. */
+  peakTimestampMs?: number;
+  /** Impact timestamp in ms relative to video start. */
+  impactTimestampMs?: number;
 };
 
 /**

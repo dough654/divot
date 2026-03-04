@@ -154,7 +154,7 @@ export const listClips = async (): Promise<Clip[]> => {
  */
 export const updateClip = async (
   clipId: string,
-  fields: Partial<Pick<Clip, 'tempoRatio' | 'backswingDurationMs' | 'downswingDurationMs' | 'name' | 'cameraAngle'>>,
+  fields: Partial<Pick<Clip, 'tempoRatio' | 'backswingDurationMs' | 'downswingDurationMs' | 'takeawayTimestampMs' | 'peakTimestampMs' | 'impactTimestampMs' | 'name' | 'cameraAngle'>>,
 ): Promise<Clip | null> => {
   const metadata = await loadMetadata();
   const clip = metadata.clips.find((c) => c.id === clipId);

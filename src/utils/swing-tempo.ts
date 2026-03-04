@@ -29,6 +29,12 @@ export type SwingTempo = {
   downswingDurationMs: number;
   /** Ratio of backswing to downswing (e.g. 3.0 for 3:1). */
   tempoRatio: number;
+  /** Takeaway timestamp in ms (relative to video start for background analysis). */
+  takeawayTimestampMs?: number;
+  /** Top-of-backswing timestamp in ms. */
+  peakTimestampMs?: number;
+  /** Impact timestamp in ms. */
+  impactTimestampMs?: number;
 };
 
 export type TempoRating = 'ideal' | 'fast' | 'slow';
@@ -73,7 +79,14 @@ export const calculateSwingTempo = (
 
   const tempoRatio = backswingDurationMs / downswingDurationMs;
 
-  return { backswingDurationMs, downswingDurationMs, tempoRatio };
+  return {
+    backswingDurationMs,
+    downswingDurationMs,
+    tempoRatio,
+    takeawayTimestampMs: startTimestamp,
+    peakTimestampMs: peakTimestamp,
+    impactTimestampMs: endTimestamp,
+  };
 };
 
 /**

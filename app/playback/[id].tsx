@@ -124,7 +124,7 @@ export default function PlaybackScreen() {
           onBack={() => router.back()}
           headerBackTitle="Clips"
           tempoData={analysisTempo ?? (clip.tempoRatio != null && clip.backswingDurationMs != null && clip.downswingDurationMs != null
-            ? { tempoRatio: clip.tempoRatio, backswingDurationMs: clip.backswingDurationMs, downswingDurationMs: clip.downswingDurationMs }
+            ? { tempoRatio: clip.tempoRatio, backswingDurationMs: clip.backswingDurationMs, downswingDurationMs: clip.downswingDurationMs, takeawayTimestampMs: clip.takeawayTimestampMs, peakTimestampMs: clip.peakTimestampMs, impactTimestampMs: clip.impactTimestampMs }
             : undefined)}
           isAnalyzing={analysisStatus === 'analyzing' || analysisStatus === 'loading'}
         />
