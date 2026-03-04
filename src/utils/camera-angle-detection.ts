@@ -6,6 +6,10 @@ import type { CameraAngle } from '@/src/types/recording';
  * From DTL (side view), left and right shoulders nearly overlap horizontally —
  * X gap typically 0.01–0.04 at address, up to ~0.10 during rotation.
  * From face-on (front view), shoulders are spread wide — X gap typically 0.15–0.30+.
+ *
+ * Uses a sliding window of recent classifications so the detected angle
+ * can update as the user changes position (e.g. walking to camera face-on,
+ * then getting into a DTL stance).
  */
 
 const LEFT_SHOULDER_INDEX = 2;
@@ -23,15 +27,17 @@ const FACE_ON_THRESHOLD = 0.18;
 const DEFAULT_MIN_FRAMES = 8;
 const DEFAULT_MIN_AGREEMENT = 0.7;
 
+/** Max recent classifications to keep. At ~10fps, 12 frames ≈ 1.2s of history. */
+const WINDOW_SIZE = 12;
+
 export type AngleSignal = {
   angle: CameraAngle;
   confidence: number;
 } | null;
 
 export type AngleAccumulator = {
-  dtlCount: number;
-  faceOnCount: number;
-  totalFrames: number;
+  /** Sliding window of recent angle classifications (null signals excluded). */
+  recentAngles: CameraAngle[];
 };
 
 /**
@@ -72,16 +78,15 @@ export const classifyCameraAngle = (
   return { angle: 'face-on', confidence: 0.3 };
 };
 
-/** Create a fresh accumulator for tracking angle consensus across frames. */
+/** Create a fresh accumulator with an empty sliding window. */
 export const createAngleAccumulator = (): AngleAccumulator => ({
-  dtlCount: 0,
-  faceOnCount: 0,
-  totalFrames: 0,
+  recentAngles: [],
 });
 
 /**
- * Feed a single frame's signal into the accumulator.
+ * Feed a single frame's signal into the sliding window.
  * Returns a new accumulator (immutable). Null signals are ignored.
+ * Window is capped at WINDOW_SIZE, oldest entries slide out.
  */
 export const updateAngleAccumulator = (
   acc: AngleAccumulator,
@@ -89,15 +94,14 @@ export const updateAngleAccumulator = (
 ): AngleAccumulator => {
   if (signal === null) return acc;
 
+  const updated = [...acc.recentAngles, signal.angle];
   return {
-    dtlCount: acc.dtlCount + (signal.angle === 'dtl' ? 1 : 0),
-    faceOnCount: acc.faceOnCount + (signal.angle === 'face-on' ? 1 : 0),
-    totalFrames: acc.totalFrames + 1,
+    recentAngles: updated.length > WINDOW_SIZE ? updated.slice(-WINDOW_SIZE) : updated,
   };
 };
 
 /**
- * Check if enough frames have accumulated to confidently determine the angle.
+ * Check if the sliding window has enough agreement to determine the angle.
  * Returns the detected angle or null if consensus hasn't been reached.
  */
 export const getDetectedAngle = (
@@ -105,13 +109,18 @@ export const getDetectedAngle = (
   minFrames = DEFAULT_MIN_FRAMES,
   minAgreement = DEFAULT_MIN_AGREEMENT,
 ): CameraAngle | null => {
-  if (acc.totalFrames < minFrames) return null;
+  if (acc.recentAngles.length < minFrames) return null;
 
-  const dtlRatio = acc.dtlCount / acc.totalFrames;
-  const faceOnRatio = acc.faceOnCount / acc.totalFrames;
+  let dtlCount = 0;
+  for (const angle of acc.recentAngles) {
+    if (angle === 'dtl') dtlCount++;
+  }
 
-  if (dtlRatio >= minAgreement) return 'dtl';
-  if (faceOnRatio >= minAgreement) return 'face-on';
+  const total = acc.recentAngles.length;
+  const faceOnCount = total - dtlCount;
+
+  if (dtlCount / total >= minAgreement) return 'dtl';
+  if (faceOnCount / total >= minAgreement) return 'face-on';
 
   return null;
 };

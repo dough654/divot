@@ -157,11 +157,9 @@ describe('classifyCameraAngle', () => {
 // ============================================
 
 describe('createAngleAccumulator', () => {
-  it('creates accumulator with all zeros', () => {
+  it('creates accumulator with empty sliding window', () => {
     const acc = createAngleAccumulator();
-    expect(acc.dtlCount).toBe(0);
-    expect(acc.faceOnCount).toBe(0);
-    expect(acc.totalFrames).toBe(0);
+    expect(acc.recentAngles).toEqual([]);
   });
 });
 
@@ -170,20 +168,16 @@ describe('createAngleAccumulator', () => {
 // ============================================
 
 describe('updateAngleAccumulator', () => {
-  it('increments dtlCount for DTL signals', () => {
+  it('adds DTL signal to the window', () => {
     const acc = createAngleAccumulator();
     const updated = updateAngleAccumulator(acc, { angle: 'dtl', confidence: 0.9 });
-    expect(updated.dtlCount).toBe(1);
-    expect(updated.faceOnCount).toBe(0);
-    expect(updated.totalFrames).toBe(1);
+    expect(updated.recentAngles).toEqual(['dtl']);
   });
 
-  it('increments faceOnCount for face-on signals', () => {
+  it('adds face-on signal to the window', () => {
     const acc = createAngleAccumulator();
     const updated = updateAngleAccumulator(acc, { angle: 'face-on', confidence: 0.9 });
-    expect(updated.dtlCount).toBe(0);
-    expect(updated.faceOnCount).toBe(1);
-    expect(updated.totalFrames).toBe(1);
+    expect(updated.recentAngles).toEqual(['face-on']);
   });
 
   it('ignores null signals (no change)', () => {
@@ -195,8 +189,19 @@ describe('updateAngleAccumulator', () => {
   it('does not mutate the original accumulator', () => {
     const acc = createAngleAccumulator();
     const updated = updateAngleAccumulator(acc, { angle: 'dtl', confidence: 0.9 });
-    expect(acc.dtlCount).toBe(0);
-    expect(updated.dtlCount).toBe(1);
+    expect(acc.recentAngles).toEqual([]);
+    expect(updated.recentAngles).toEqual(['dtl']);
+  });
+
+  it('caps window at 12 entries, sliding out oldest', () => {
+    // Fill with 12 DTL, then add 1 face-on — oldest DTL should drop
+    let acc = feedSignals(12, { angle: 'dtl', confidence: 0.9 });
+    expect(acc.recentAngles).toHaveLength(12);
+
+    acc = updateAngleAccumulator(acc, { angle: 'face-on', confidence: 0.9 });
+    expect(acc.recentAngles).toHaveLength(12);
+    expect(acc.recentAngles[0]).toBe('dtl'); // second-oldest DTL is now first
+    expect(acc.recentAngles[11]).toBe('face-on'); // new entry at end
   });
 });
 
@@ -243,18 +248,6 @@ describe('getDetectedAngle', () => {
     expect(getDetectedAngle(acc)).toBe('dtl');
   });
 
-  it('returns null at just below 70% agreement', () => {
-    let acc = createAngleAccumulator();
-    // 69 DTL + 31 face-on = 69% DTL (below 70%)
-    for (let i = 0; i < 69; i++) {
-      acc = updateAngleAccumulator(acc, { angle: 'dtl', confidence: 0.9 });
-    }
-    for (let i = 0; i < 31; i++) {
-      acc = updateAngleAccumulator(acc, { angle: 'face-on', confidence: 0.9 });
-    }
-    expect(getDetectedAngle(acc)).toBeNull();
-  });
-
   it('respects custom minFrames', () => {
     const acc = feedSignals(3, { angle: 'dtl', confidence: 0.9 });
     expect(getDetectedAngle(acc, 5)).toBeNull();
@@ -274,6 +267,45 @@ describe('getDetectedAngle', () => {
     expect(getDetectedAngle(acc)).toBeNull();
     // But does meet custom 50%
     expect(getDetectedAngle(acc, 8, 0.5)).toBe('dtl');
+  });
+});
+
+// ============================================
+// Sliding window behavior
+// ============================================
+
+describe('sliding window transitions', () => {
+  it('switches from face-on to DTL as new frames slide in', () => {
+    // Start with face-on consensus
+    let acc = feedSignals(10, { angle: 'face-on', confidence: 0.9 });
+    expect(getDetectedAngle(acc)).toBe('face-on');
+
+    // Feed DTL frames — once enough face-on frames slide out, should switch
+    for (let i = 0; i < 12; i++) {
+      acc = updateAngleAccumulator(acc, { angle: 'dtl', confidence: 0.9 });
+    }
+    expect(getDetectedAngle(acc)).toBe('dtl');
+  });
+
+  it('switches from DTL to face-on as new frames slide in', () => {
+    let acc = feedSignals(10, { angle: 'dtl', confidence: 0.9 });
+    expect(getDetectedAngle(acc)).toBe('dtl');
+
+    for (let i = 0; i < 12; i++) {
+      acc = updateAngleAccumulator(acc, { angle: 'face-on', confidence: 0.9 });
+    }
+    expect(getDetectedAngle(acc)).toBe('face-on');
+  });
+
+  it('returns null during transition when window is mixed', () => {
+    let acc = feedSignals(12, { angle: 'face-on', confidence: 0.9 });
+    expect(getDetectedAngle(acc)).toBe('face-on');
+
+    // Add 5 DTL frames — window is now 7 FO + 5 DTL = 58% FO (below 70%)
+    for (let i = 0; i < 5; i++) {
+      acc = updateAngleAccumulator(acc, { angle: 'dtl', confidence: 0.9 });
+    }
+    expect(getDetectedAngle(acc)).toBeNull();
   });
 });
 
@@ -317,8 +349,26 @@ describe('end-to-end detection flow', () => {
       const pose = poseWithShoulders(0.50, 0.1, 0.52, 0.1); // low conf → null
       acc = updateAngleAccumulator(acc, classifyCameraAngle(pose));
     }
-    // Only 8 valid frames counted, all DTL
-    expect(acc.totalFrames).toBe(8);
+    // Only 8 valid frames in window (nulls ignored)
+    expect(acc.recentAngles).toHaveLength(8);
+    expect(getDetectedAngle(acc)).toBe('dtl');
+  });
+
+  it('detects face-on then switches to DTL as user repositions', () => {
+    let acc = createAngleAccumulator();
+
+    // User faces camera (face-on) for 10 frames
+    for (let i = 0; i < 10; i++) {
+      const pose = poseWithShoulders(0.35, 0.9, 0.60, 0.9);
+      acc = updateAngleAccumulator(acc, classifyCameraAngle(pose));
+    }
+    expect(getDetectedAngle(acc)).toBe('face-on');
+
+    // User walks to DTL position — 12 frames of side view
+    for (let i = 0; i < 12; i++) {
+      const pose = poseWithShoulders(0.50, 0.9, 0.52, 0.9);
+      acc = updateAngleAccumulator(acc, classifyCameraAngle(pose));
+    }
     expect(getDetectedAngle(acc)).toBe('dtl');
   });
 });
