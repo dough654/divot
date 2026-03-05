@@ -15,6 +15,7 @@ import {
   computeShoulderDiff,
   startRotationTracking,
   updateRotationTracking,
+  TAKEAWAY_ROTATION_THRESHOLD,
 } from './shoulder-rotation';
 import { calculateSwingTempo } from './swing-tempo';
 
@@ -105,5 +106,36 @@ export const calculateTempoFromPoseFrames = (
     }
   }
 
-  return calculateSwingTempo(state);
+  const tempo = calculateSwingTempo(state);
+
+  // Step 5: refine takeaway timestamp using raw (unsmoothed) data.
+  // The EMA smoothing delays threshold crossings by ~40-80ms at 240fps.
+  // Since the state machine already confirmed a real swing, we can safely
+  // walk backwards through raw diffs to find the actual takeaway moment.
+  if (tempo?.takeawayTimestampMs != null && tempo.peakTimestampMs != null) {
+    const smoothedTakeawayIdx = rawDiffs.findIndex(
+      (d) => d.timestampMs >= tempo.takeawayTimestampMs!,
+    );
+
+    if (smoothedTakeawayIdx > 0) {
+      let earliestIdx = smoothedTakeawayIdx;
+
+      for (let i = smoothedTakeawayIdx - 1; i >= 0; i--) {
+        if (!rawDiffs[i].valid) continue;
+        const rawDelta = Math.abs(rawDiffs[i].diff - baselineDiff);
+        if (rawDelta < TAKEAWAY_ROTATION_THRESHOLD) break;
+        earliestIdx = i;
+      }
+
+      const refinedTakeaway = rawDiffs[earliestIdx].timestampMs;
+      if (refinedTakeaway < tempo.takeawayTimestampMs) {
+        tempo.takeawayTimestampMs = refinedTakeaway;
+        tempo.backswingDurationMs = tempo.peakTimestampMs - refinedTakeaway;
+        tempo.downswingDurationMs = tempo.impactTimestampMs! - tempo.peakTimestampMs;
+        tempo.tempoRatio = tempo.backswingDurationMs / tempo.downswingDurationMs;
+      }
+    }
+  }
+
+  return tempo;
 };

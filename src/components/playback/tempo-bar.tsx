@@ -37,22 +37,22 @@ const getRatingColor = (rating: TempoRating, theme: Theme): string => {
 };
 
 /**
- * Formats milliseconds as a video timestamp: M:SS.T (e.g. 0:01.4).
+ * Formats milliseconds as a video timestamp: M:SS.mmm (e.g. 0:01.423).
  */
 const formatVideoTimestamp = (ms: number): string => {
   const totalSeconds = ms / 1000;
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   const wholeSeconds = Math.floor(seconds);
-  const tenths = Math.floor((seconds - wholeSeconds) * 10);
-  return `${minutes}:${String(wholeSeconds).padStart(2, '0')}.${tenths}`;
+  const millis = Math.round((seconds - wholeSeconds) * 1000);
+  return `${minutes}:${String(wholeSeconds).padStart(2, '0')}.${String(millis).padStart(3, '0')}`;
 };
 
 /**
- * Formats milliseconds as seconds with one decimal place.
+ * Formats milliseconds as seconds with three decimal places.
  */
 const formatDurationSeconds = (ms: number): string => {
-  return `${(ms / 1000).toFixed(1)}s`;
+  return `${(ms / 1000).toFixed(3)}s`;
 };
 
 /**

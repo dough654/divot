@@ -5,6 +5,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withDecay,
+  withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
@@ -29,14 +31,14 @@ export type FrameScrubberProps = {
 };
 
 /**
- * Formats milliseconds to MM:SS.t format (tenths of a second).
+ * Formats milliseconds to M:SS.mmm format (millisecond precision).
  */
 const formatTimePrecise = (millis: number): string => {
   const totalSeconds = Math.floor(millis / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  const tenths = Math.floor((millis % 1000) / 100);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}.${tenths}`;
+  const ms = Math.round(millis % 1000);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
 };
 
 /**
@@ -69,12 +71,17 @@ export const FrameScrubber = ({
     totalWidthSV.value = (duration / 1000) * PIXELS_PER_SECOND;
   }, [duration]);
 
-  // Sync offset from playback position (suppressed during gesture)
+  // Sync offset from playback position (suppressed during gesture).
+  // Uses withTiming for smooth interpolation between expo-av status updates.
   useEffect(() => {
     if (isSeeking.value) return;
     const totalWidth = (duration / 1000) * PIXELS_PER_SECOND;
     if (totalWidth <= 0 || duration <= 0) return;
-    offsetX.value = -(position / duration) * totalWidth;
+    const targetOffset = -(position / duration) * totalWidth;
+    offsetX.value = withTiming(targetOffset, {
+      duration: 250,
+      easing: Easing.linear,
+    });
   }, [position, duration]);
 
   const ticks = useMemo(() => {
