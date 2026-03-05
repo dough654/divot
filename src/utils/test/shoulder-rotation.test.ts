@@ -684,23 +684,23 @@ describe('updateRotationTracking', () => {
       expect(r2.state.peakAbsDelta).toBeCloseTo(0.18);
       state = r2.state;
 
-      // Settling at top: 0.175 is > 0.18 * 0.95 = 0.171 — still on plateau
+      // Settling at top: 0.176 is > 0.18 * 0.97 = 0.1746 — still on plateau
       t += 50;
-      const r3 = updateRotationTracking(state, validSample(baseline + 0.175), t);
+      const r3 = updateRotationTracking(state, validSample(baseline + 0.176), t);
       expect(r3.state.peakTimestamp).toBe(t); // Timestamp extended
       expect(r3.state.peakAbsDelta).toBeCloseTo(0.18); // Peak value unchanged
       state = r3.state;
 
-      // Still on plateau: 0.172 >= 0.171
+      // Still on plateau: 0.175 >= 0.1746
       t += 50;
-      const r4 = updateRotationTracking(state, validSample(baseline + 0.172), t);
+      const r4 = updateRotationTracking(state, validSample(baseline + 0.175), t);
       expect(r4.state.peakTimestamp).toBe(t); // Timestamp extended again
       const plateauEndTime = t;
       state = r4.state;
 
-      // Off plateau: 0.15 < 0.171 — timestamp freezes
+      // Off plateau: 0.17 < 0.1746 — timestamp freezes
       t += 50;
-      const r5 = updateRotationTracking(state, validSample(baseline + 0.15), t);
+      const r5 = updateRotationTracking(state, validSample(baseline + 0.17), t);
       expect(r5.state.peakTimestamp).toBe(plateauEndTime); // Not updated
       state = r5.state;
 

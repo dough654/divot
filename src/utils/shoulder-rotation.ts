@@ -44,7 +44,7 @@ export const IMPACT_PEAK_FRACTION = 0.15;
  * to the last frame where |delta| >= this fraction of the true maximum,
  * so the plateau is counted as backswing rather than downswing.
  */
-export const PEAK_PLATEAU_FRACTION = 0.95;
+export const PEAK_PLATEAU_FRACTION = 0.97;
 
 // ============================================
 // JOINT LAYOUT
