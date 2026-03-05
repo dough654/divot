@@ -34,7 +34,10 @@ export const clerkAuth = () =>
     }
 
     try {
-      const verifyOptions: Parameters<typeof verifyToken>[1] = { secretKey };
+      const verifyOptions: Parameters<typeof verifyToken>[1] = {
+        secretKey,
+        clockSkewInMs: 10_000,
+      };
 
       const authorizedParties = process.env.CLERK_AUTHORIZED_PARTIES;
       if (authorizedParties) {
@@ -45,7 +48,8 @@ export const clerkAuth = () =>
 
       c.set('clerkId', payload.sub);
       c.set('email', (payload as Record<string, unknown>).email as string | null ?? null);
-    } catch {
+    } catch (err) {
+      console.error('[Auth] Token verification failed:', err instanceof Error ? err.message : err);
       throw new HTTPException(401, { message: 'Invalid or expired token' });
     }
 
