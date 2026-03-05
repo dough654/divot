@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useTheme, useToast } from '@/src/context';
+import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { ClipItem } from '@/src/components/clips';
@@ -24,7 +24,6 @@ export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const styles = useThemedStyles(createStyles);
 
-  const { show: showToast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,26 +64,20 @@ export default function SessionDetailScreen() {
   }, [router]);
 
   const handleClipMenu = useCallback((clip: Clip) => {
-    const options: { text: string; onPress?: () => void; style?: 'destructive' | 'cancel' }[] = [
-      {
-        text: 'Play',
-        onPress: () => router.push(`/playback/${clip.id}`),
-      },
-    ];
-
-    if (clip.syncStatus !== 'synced' && clip.syncStatus !== 'uploading') {
-      options.push({
-        text: 'Back Up',
-        onPress: () => {
-          enqueueUpload(clip.id, clip.path);
-          showToast('Backing up to cloud...', { variant: 'info' });
+    Alert.alert(
+      clip.name || 'Swing Recording',
+      'What would you like to do?',
+      [
+        {
+          text: 'Play',
+          onPress: () => router.push(`/playback/${clip.id}`),
         },
-      });
-    }
-
-    options.push({ text: 'Cancel', style: 'cancel' });
-
-    Alert.alert(clip.name || 'Swing Recording', 'What would you like to do?', options);
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ],
+    );
   }, [router]);
 
   const handleEditNotes = useCallback(() => {
@@ -152,6 +145,7 @@ export default function SessionDetailScreen() {
             index={index}
             onPress={() => handleClipPress(item)}
             onMenuPress={() => handleClipMenu(item)}
+            onBackUp={() => enqueueUpload(item.id, item.path)}
           />
         )}
         contentContainerStyle={styles.listContent}

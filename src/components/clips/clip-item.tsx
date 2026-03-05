@@ -17,12 +17,14 @@ export type ClipItemProps = {
   index: number;
   onPress: () => void;
   onMenuPress: () => void;
+  /** Called when the user taps the cloud sync button. */
+  onBackUp?: () => void;
 };
 
 /**
  * A single clip row used in both the clips list and session detail screens.
  */
-export const ClipItem = ({ clip, index, onPress, onMenuPress }: ClipItemProps) => {
+export const ClipItem = ({ clip, index, onPress, onMenuPress, onBackUp }: ClipItemProps) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createItemStyles);
 
@@ -58,10 +60,20 @@ export const ClipItem = ({ clip, index, onPress, onMenuPress }: ClipItemProps) =
         </Text>
       </View>
       {clip.syncStatus === 'synced' && (
-        <Ionicons name="cloud-done-outline" size={16} color={theme.colors.success} />
+        <Ionicons name="cloud-done-outline" size={18} color={theme.colors.success} />
       )}
-      {clip.syncStatus === 'uploading' && (
+      {(clip.syncStatus === 'uploading' || clip.syncStatus === 'pending') && (
         <ActivityIndicator size="small" color={theme.colors.textTertiary} />
+      )}
+      {clip.syncStatus !== 'synced' && clip.syncStatus !== 'uploading' && clip.syncStatus !== 'pending' && onBackUp && (
+        <Pressable
+          onPress={onBackUp}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back up clip to cloud"
+        >
+          <Ionicons name="cloud-upload-outline" size={18} color={theme.colors.textTertiary} />
+        </Pressable>
       )}
       <Pressable
         style={styles.menuButton}

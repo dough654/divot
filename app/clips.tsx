@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { Ionicons } from '@expo/vector-icons';
 
-import { useTheme, useToast } from '@/src/context';
+import { useTheme } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { EmptyState, SkeletonClipItem } from '@/src/components/ui';
@@ -21,7 +21,6 @@ export default function ClipsScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
 
-  const { show: showToast } = useToast();
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -63,33 +62,29 @@ export default function ClipsScreen() {
   }, [router]);
 
   const handleClipLongPress = useCallback((clip: Clip) => {
-    const options: { text: string; onPress?: () => void; style?: 'destructive' | 'cancel' }[] = [
-      {
-        text: 'Rename',
-        onPress: () => {
-          setClipToRename(clip);
-          setRenameText(clip.name || '');
-          setRenameModalVisible(true);
+    Alert.alert(
+      clip.name || 'Swing Recording',
+      'What would you like to do?',
+      [
+        {
+          text: 'Rename',
+          onPress: () => {
+            setClipToRename(clip);
+            setRenameText(clip.name || '');
+            setRenameModalVisible(true);
+          },
         },
-      },
-    ];
-
-    if (clip.syncStatus !== 'synced' && clip.syncStatus !== 'uploading') {
-      options.push({
-        text: 'Back Up',
-        onPress: () => {
-          enqueueUpload(clip.id, clip.path);
-          showToast('Backing up to cloud...', { variant: 'info' });
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => handleDeleteClip(clip),
         },
-      });
-    }
-
-    options.push(
-      { text: 'Delete', style: 'destructive', onPress: () => handleDeleteClip(clip) },
-      { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
     );
-
-    Alert.alert(clip.name || 'Swing Recording', 'What would you like to do?', options);
   }, []);
 
   const handleDeleteClip = useCallback((clip: Clip) => {
@@ -176,6 +171,7 @@ export default function ClipsScreen() {
             index={index}
             onPress={() => handleClipPress(item)}
             onMenuPress={() => handleClipLongPress(item)}
+            onBackUp={() => enqueueUpload(item.id, item.path)}
           />
         )}
         contentContainerStyle={styles.listContent}
