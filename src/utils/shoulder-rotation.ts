@@ -197,10 +197,17 @@ export const updateRotationTracking = (
   const peakAbsDelta = peakUpdated ? absDelta : state.peakAbsDelta;
   const peakTimestamp = peakUpdated ? timestamp : state.peakTimestamp;
 
-  // Tempo: detect takeaway (first time delta exceeds low threshold)
-  const takeawayTimestamp = state.takeawayTimestamp === null && absDelta >= TAKEAWAY_ROTATION_THRESHOLD
-    ? timestamp
-    : state.takeawayTimestamp;
+  // Tempo: detect takeaway (first time delta exceeds low threshold).
+  // Reset if rotation returns below threshold before backswing is confirmed —
+  // this handles waggles that briefly cross 0.015 then return to baseline.
+  let takeawayTimestamp: number | null;
+  if (state.takeawayTimestamp === null && absDelta >= TAKEAWAY_ROTATION_THRESHOLD) {
+    takeawayTimestamp = timestamp;
+  } else if (!state.backswingDetected && state.takeawayTimestamp !== null && absDelta < TAKEAWAY_ROTATION_THRESHOLD) {
+    takeawayTimestamp = null;
+  } else {
+    takeawayTimestamp = state.takeawayTimestamp;
+  }
 
   // Tempo: detect approximate impact (shoulders return near baseline after peak).
   // At impact, shoulders are roughly back to address position — they haven't

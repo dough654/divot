@@ -557,6 +557,48 @@ describe('updateRotationTracking', () => {
       expect(r3.state.takeawayTimestamp).toBe(takeawayTime);
     });
 
+    it('resets takeawayTimestamp when rotation returns below threshold (waggle rejection)', () => {
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Waggle: crosses takeaway threshold
+      const r1 = updateRotationTracking(state, validSample(baseline + TAKEAWAY_ROTATION_THRESHOLD + 0.005), t);
+      expect(r1.state.takeawayTimestamp).toBe(t);
+      state = r1.state;
+      t += 100;
+
+      // Waggle returns to near baseline (below takeaway threshold) — reset takeaway
+      const r2 = updateRotationTracking(state, validSample(baseline + 0.005), t);
+      expect(r2.state.takeawayTimestamp).toBeNull();
+      state = r2.state;
+      t += 200;
+
+      // Real takeaway — takeaway re-set to new timestamp
+      const r3 = updateRotationTracking(state, validSample(baseline + TAKEAWAY_ROTATION_THRESHOLD + 0.001), t);
+      expect(r3.state.takeawayTimestamp).toBe(t);
+    });
+
+    it('does NOT reset takeaway once backswing is confirmed', () => {
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Takeaway
+      const r1 = updateRotationTracking(state, validSample(baseline + TAKEAWAY_ROTATION_THRESHOLD + 0.001), t);
+      const takeawayTime = t;
+      state = r1.state;
+      t += 100;
+
+      // Backswing confirmed (crosses 0.08 threshold)
+      const r2 = updateRotationTracking(state, validSample(baseline + BACKSWING_ROTATION_THRESHOLD + 0.02), t);
+      expect(r2.state.backswingDetected).toBe(true);
+      state = r2.state;
+      t += 300;
+
+      // Delta drops near baseline (impact detection) — takeaway should NOT reset
+      const r3 = updateRotationTracking(state, validSample(baseline + 0.005), t);
+      expect(r3.state.takeawayTimestamp).toBe(takeawayTime);
+    });
+
     it('sets impactTimestamp when delta returns near baseline after peak', () => {
       let state = startRotationTracking(baseline);
       let t = t0;
