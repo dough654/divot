@@ -18,12 +18,13 @@ import { Pressable } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
-import { ClerkProvider, ClerkLoaded, useUser } from '@clerk/clerk-expo';
+import { ClerkProvider, ClerkLoaded, useUser, useAuth } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import Constants from 'expo-constants';
 
-import { AppThemeProvider, ToastProvider, SettingsProvider, SubscriptionProvider, useSettings, useTheme } from '@/src/context';
+import { AppThemeProvider, ToastProvider, SettingsProvider, SubscriptionProvider, useSettings, useTheme, useSubscription } from '@/src/context';
 import { setPostHogInstance, identifyUser } from '@/src/services/analytics';
+import { setTokenGetter, setProChecker, setBackupEnabledChecker } from '@/src/services/cloud/upload-queue';
 import type { ThemeMode } from '@/src/context';
 
 export { ErrorBoundary } from 'expo-router';
@@ -71,6 +72,30 @@ const SubscriptionBridge = ({ children }: { children: ReactNode }) => {
       {children}
     </SubscriptionProvider>
   );
+};
+
+/**
+ * Wires the upload queue with Clerk auth, subscription, and settings state.
+ * Only rendered when Clerk is configured (clerkPublishableKey is set).
+ */
+const CloudSyncBridge = ({ children }: { children: ReactNode }) => {
+  const { getToken } = useAuth();
+  const { isPro } = useSubscription();
+  const { settings } = useSettings();
+
+  useEffect(() => {
+    setTokenGetter(getToken);
+  }, [getToken]);
+
+  useEffect(() => {
+    setProChecker(() => isPro);
+  }, [isPro]);
+
+  useEffect(() => {
+    setBackupEnabledChecker(() => settings.cloudBackupEnabled);
+  }, [settings.cloudBackupEnabled]);
+
+  return <>{children}</>;
 };
 
 /**
@@ -171,14 +196,12 @@ export default function RootLayout() {
     return null;
   }
 
-  const innerContent = (
-    <SettingsProvider>
-      <ThemedApp>
-        <ToastProvider>
-          <NavigationLayout />
-        </ToastProvider>
-      </ThemedApp>
-    </SettingsProvider>
+  const coreContent = (
+    <ThemedApp>
+      <ToastProvider>
+        <NavigationLayout />
+      </ToastProvider>
+    </ThemedApp>
   );
 
   const content = (
@@ -188,14 +211,20 @@ export default function RootLayout() {
           <ClerkLoaded>
             <AuthAnalyticsBridge>
               <SubscriptionBridge>
-                {innerContent}
+                <SettingsProvider>
+                  <CloudSyncBridge>
+                    {coreContent}
+                  </CloudSyncBridge>
+                </SettingsProvider>
               </SubscriptionBridge>
             </AuthAnalyticsBridge>
           </ClerkLoaded>
         </ClerkProvider>
       ) : (
         <SubscriptionProvider userId={null}>
-          {innerContent}
+          <SettingsProvider>
+            {coreContent}
+          </SettingsProvider>
         </SubscriptionProvider>
       )}
     </GestureHandlerRootView>

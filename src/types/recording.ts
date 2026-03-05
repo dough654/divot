@@ -4,6 +4,11 @@
 export type CameraAngle = 'dtl' | 'face-on';
 
 /**
+ * Cloud sync status for a clip.
+ */
+export type SyncStatus = 'pending' | 'uploading' | 'synced' | 'failed';
+
+/**
  * Recording state machine states.
  */
 export type RecordingState = 'idle' | 'recording';
@@ -56,6 +61,10 @@ export type Clip = {
   peakTimestampMs?: number;
   /** Impact timestamp in ms relative to video start. */
   impactTimestampMs?: number;
+  /** Cloud clip ID after syncing to the server. */
+  cloudClipId?: string;
+  /** Cloud sync status. */
+  syncStatus?: SyncStatus;
 };
 
 /**

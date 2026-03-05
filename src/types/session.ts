@@ -26,6 +26,8 @@ export type Session = {
   location?: SessionLocation;
   /** Which role started the session. */
   role: 'camera' | 'viewer';
+  /** Cloud session ID after syncing to the server. */
+  cloudSessionId?: string;
 };
 
 /**

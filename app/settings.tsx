@@ -8,8 +8,10 @@ import { useRouter } from 'expo-router';
 import { useTheme, useSettings, useSubscription } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
+import { useCloudSync } from '@/src/hooks/use-cloud-sync';
 import { useToast } from '@/src/context';
 import { clearAllClips, listClips } from '@/src/services/recording/clip-storage';
+import { formatFileSize } from '@/src/utils/format';
 import type { Theme, ThemeMode, RecordingFps } from '@/src/context';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
@@ -46,6 +48,7 @@ export default function SettingsScreen() {
     setSwingDetectionSensitivity,
     setDebugOverlayEnabled,
     setSwingClassifierEnabled,
+    setCloudBackupEnabled,
   } = useSettings();
   const styles = useThemedStyles(createStyles);
   const haptics = useHaptics();
@@ -54,6 +57,7 @@ export default function SettingsScreen() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const { isPro, isLoading: subscriptionLoading, restorePurchases } = useSubscription();
+  const { isSyncing, pendingCount } = useCloudSync();
 
   const handleHapticsToggle = (value: boolean) => {
     // Trigger haptic before potentially disabling
@@ -182,6 +186,11 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleCloudBackupToggle = (value: boolean) => {
+    haptics.selection();
+    setCloudBackupEnabled(value);
+  };
+
   const handleManageSubscription = () => {
     haptics.light();
     const url = Platform.OS === 'ios'
@@ -296,6 +305,47 @@ export default function SettingsScreen() {
               <Text style={styles.actionArrow}>&rarr;</Text>
             </Pressable>
           </>
+        )}
+      </View>
+
+      {/* Cloud Backup Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>cloud backup</Text>
+
+        {isPro ? (
+          <>
+            <View style={styles.settingRow}>
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>AUTO-SYNC</Text>
+                <Text style={styles.settingDescription}>
+                  {isSyncing
+                    ? `uploading${pendingCount > 0 ? ` (${pendingCount} remaining)` : ''}`
+                    : 'back up clips to the cloud'}
+                </Text>
+              </View>
+              <Switch
+                value={settings.cloudBackupEnabled}
+                onValueChange={handleCloudBackupToggle}
+                trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
+                thumbColor={theme.palette.white}
+                accessibilityLabel="Toggle cloud backup"
+                accessibilityHint={settings.cloudBackupEnabled ? 'Disable cloud backup' : 'Enable cloud backup'}
+              />
+            </View>
+          </>
+        ) : (
+          <Pressable
+            style={styles.actionRow}
+            onPress={() => router.push('/paywall')}
+            accessibilityRole="button"
+            accessibilityLabel="Upgrade to Pro for cloud backup"
+          >
+            <View style={styles.settingText}>
+              <Text style={styles.settingLabel}>AUTO-SYNC</Text>
+              <Text style={styles.settingDescription}>upgrade to pro for cloud backup</Text>
+            </View>
+            <Text style={styles.actionArrow}>&rarr;</Text>
+          </Pressable>
         )}
       </View>
 

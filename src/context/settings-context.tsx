@@ -14,6 +14,7 @@ import {
   ReactNode,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { CameraAngle } from '@/src/types/recording';
 
 // ============================================
 // TYPES
@@ -44,6 +45,10 @@ export type Settings = {
   debugOverlayEnabled: boolean;
   /** Whether to use the trained swing classifier instead of motion detection. Defaults to false. */
   swingClassifierEnabled: boolean;
+  /** Camera angle preference for recording. Defaults to 'dtl'. */
+  cameraAngle: CameraAngle;
+  /** Whether cloud backup is enabled for Pro users. Defaults to true. */
+  cloudBackupEnabled: boolean;
 };
 
 type SettingsContextValue = {
@@ -58,6 +63,8 @@ type SettingsContextValue = {
   setSwingDetectionSensitivity: (sensitivity: number) => void;
   setDebugOverlayEnabled: (enabled: boolean) => void;
   setSwingClassifierEnabled: (enabled: boolean) => void;
+  setCameraAngle: (angle: CameraAngle) => void;
+  setCloudBackupEnabled: (enabled: boolean) => void;
 };
 
 // ============================================
@@ -76,6 +83,8 @@ const DEFAULT_SETTINGS: Settings = {
   swingDetectionSensitivity: 0.5,
   debugOverlayEnabled: false,
   swingClassifierEnabled: false,
+  cameraAngle: 'dtl',
+  cloudBackupEnabled: true,
 };
 
 // ============================================
@@ -223,6 +232,28 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     [persistSettings]
   );
 
+  const setCameraAngle = useCallback(
+    (angle: CameraAngle) => {
+      setSettings((prev) => {
+        const updated = { ...prev, cameraAngle: angle };
+        persistSettings(updated);
+        return updated;
+      });
+    },
+    [persistSettings]
+  );
+
+  const setCloudBackupEnabled = useCallback(
+    (enabled: boolean) => {
+      setSettings((prev) => {
+        const updated = { ...prev, cloudBackupEnabled: enabled };
+        persistSettings(updated);
+        return updated;
+      });
+    },
+    [persistSettings]
+  );
+
   const value = useMemo<SettingsContextValue>(
     () => ({
       settings,
@@ -236,8 +267,10 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
       setSwingDetectionSensitivity,
       setDebugOverlayEnabled,
       setSwingClassifierEnabled,
+      setCameraAngle,
+      setCloudBackupEnabled,
     }),
-    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps, setPoseOverlayEnabled, setSwingAutoDetectionEnabled, setSwingDetectionSensitivity, setDebugOverlayEnabled, setSwingClassifierEnabled]
+    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps, setPoseOverlayEnabled, setSwingAutoDetectionEnabled, setSwingDetectionSensitivity, setDebugOverlayEnabled, setSwingClassifierEnabled, setCameraAngle, setCloudBackupEnabled]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

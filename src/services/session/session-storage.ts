@@ -140,6 +140,22 @@ export const updateSessionNotes = async (sessionId: string, notes: string): Prom
 };
 
 /**
+ * Updates arbitrary fields on a session.
+ */
+export const updateSession = async (
+  sessionId: string,
+  fields: Partial<Pick<Session, 'notes' | 'cloudSessionId'>>,
+): Promise<Session | null> => {
+  const metadata = await loadMetadata();
+  const session = metadata.sessions.find((s) => s.id === sessionId);
+  if (!session) return null;
+
+  Object.assign(session, fields);
+  await saveMetadata(metadata);
+  return session;
+};
+
+/**
  * Deletes a session. Does NOT delete associated clips — they become unsorted.
  */
 export const deleteSession = async (sessionId: string): Promise<boolean> => {

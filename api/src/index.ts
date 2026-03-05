@@ -14,6 +14,7 @@ import { sessions } from './routes/sessions';
 import { clipsRouter } from './routes/clips';
 import { settings } from './routes/settings';
 import { createPresignedUrlsRouter } from './routes/presigned-urls';
+import { storage } from './routes/storage';
 import { createR2ServiceFromEnv } from './services/r2';
 import { db } from './db';
 
@@ -41,6 +42,7 @@ app.route('/', health);
 app.route('/', sessions);
 app.route('/', clipsRouter);
 app.route('/', settings);
+app.route('/', storage);
 const r2 = createR2ServiceFromEnv();
 if (!r2) {
   console.warn('R2 not configured — presigned URL endpoints will return 503');

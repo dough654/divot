@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Platform } from 'react-native';
+import { View, Text, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
 
@@ -57,6 +57,12 @@ export const ClipItem = ({ clip, index, onPress, onMenuPress }: ClipItemProps) =
           {formatDuration(clip.duration)} · {formatFileSize(clip.fileSize)} · {clip.fps}fps{clip.cameraAngle ? ` · ${clip.cameraAngle === 'dtl' ? 'DTL' : 'FO'}` : ''}{hasTempo && <Text style={{ color: tempoColor }}> · {clip.tempoRatio!.toFixed(1)}:1</Text>}
         </Text>
       </View>
+      {clip.syncStatus === 'synced' && (
+        <Ionicons name="cloud-done-outline" size={16} color={theme.colors.success} />
+      )}
+      {clip.syncStatus === 'uploading' && (
+        <ActivityIndicator size="small" color={theme.colors.textTertiary} />
+      )}
       <Pressable
         style={styles.menuButton}
         onPress={onMenuPress}

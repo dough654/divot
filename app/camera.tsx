@@ -51,6 +51,7 @@ import { useSwingRecorder } from '@/src/hooks/use-swing-recorder';
 import { TransferProgressModal } from '@/src/components/clip-sync';
 import { formatRoomCode, resolveNetworkTransport } from '@/src/utils';
 import { enqueueAnalysis } from '@/src/services/analysis/analysis-queue';
+import { enqueueUpload } from '@/src/services/cloud/upload-queue';
 import type { ConnectionStep, ConnectionRequest } from '@/src/types';
 import type { Clip } from '@/src/types/recording';
 
@@ -289,6 +290,8 @@ export default function CameraScreen() {
     }
     // Enqueue background pose analysis for tempo calculation
     enqueueAnalysis(clip.id, clip.path);
+    // Enqueue cloud backup (no-op if not Pro)
+    enqueueUpload(clip.id, clip.path);
     // Stay in previewing — rolling recorder re-arms automatically
     showToast(`Swing captured (${clip.duration}s)`, { variant: 'success' });
   }, [tagClip, showToast]);
@@ -313,6 +316,8 @@ export default function CameraScreen() {
     }
     // Enqueue background pose analysis for tempo calculation
     enqueueAnalysis(clip.id, clip.path);
+    // Enqueue cloud backup (no-op if not Pro)
+    enqueueUpload(clip.id, clip.path);
     showToast(`Swing captured (${clip.duration}s)`, { variant: 'success' });
   }, [tagClip, showToast]);
   const handleSwingError = useCallback((error: string) => {
