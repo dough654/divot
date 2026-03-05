@@ -12,9 +12,12 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
+    "db:push:prod": "ENV_FILE=.env.prod drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "fly:deploy": "fly deploy",
-    "fly:logs": "fly logs"
+    "fly:deploy": "fly deploy -a divot-api",
+    "fly:deploy:dev": "fly deploy -a divot-api-dev",
+    "fly:logs": "fly logs -a divot-api",
+    "fly:logs:dev": "fly logs -a divot-api-dev"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1000.0",
