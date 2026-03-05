@@ -21,7 +21,7 @@ export type SwingRecorderState =
   | 'cancelling';
 
 /** Default post-roll duration after swing ends (ms). */
-const DEFAULT_POST_ROLL_MS = 3000;
+const DEFAULT_POST_ROLL_MS = 1500;
 
 /** Default max recording duration before safety-valve cancel (ms). */
 const DEFAULT_MAX_RECORDING_MS = 20000;

@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import type { RefObject } from 'react';
 import type { VideoFile } from 'react-native-vision-camera';
 import type { VisionCameraRecorderRef } from '@/src/components/recording/vision-camera-recorder';
-import type { Clip } from '@/src/types/recording';
+import type { Clip, CameraAngle } from '@/src/types/recording';
 import { saveClip } from '@/src/services/recording/clip-storage';
 
 /**
@@ -19,7 +19,7 @@ export type RollingRecorderState =
   | 'post-rolling';
 
 /** Default post-roll duration after swing detection (ms). */
-const DEFAULT_POST_ROLL_MS = 1500;
+const DEFAULT_POST_ROLL_MS = 1000;
 
 /** Default max duration of each buffer segment before cycling (ms). */
 const DEFAULT_MAX_SEGMENT_MS = 4000;
@@ -40,6 +40,8 @@ export type UseRollingRecorderOptions = {
   recordingFps?: number;
   /** Session ID for saved clips. */
   sessionId?: string | null;
+  /** Camera angle used when recording. */
+  cameraAngle?: CameraAngle;
   /** Called when a clip is saved after post-roll completes. */
   onClipSaved: (clip: Clip) => void;
   /** Called on recording errors (non-cancel). */
@@ -79,6 +81,7 @@ export const useRollingRecorder = ({
   maxSegmentDurationMs = DEFAULT_MAX_SEGMENT_MS,
   recordingFps = 30,
   sessionId = null,
+  cameraAngle,
   onClipSaved,
   onError,
 }: UseRollingRecorderOptions): UseRollingRecorderReturn => {
@@ -99,6 +102,8 @@ export const useRollingRecorder = ({
   recordingFpsRef.current = recordingFps;
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
+  const cameraAngleRef = useRef(cameraAngle);
+  cameraAngleRef.current = cameraAngle;
   const postRollMsRef = useRef(postRollDurationMs);
   postRollMsRef.current = postRollDurationMs;
 
@@ -160,6 +165,7 @@ export const useRollingRecorder = ({
               duration,
               fps: recordingFpsRef.current,
               sessionId: sessionIdRef.current ?? undefined,
+              cameraAngle: cameraAngleRef.current,
             });
             stateRef.current = 'idle';
             if (__DEV__) console.log(`[RollingRecorder] clip saved id=${clip.id}`);
