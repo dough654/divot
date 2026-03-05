@@ -12,7 +12,7 @@ import {
 } from '@expo-google-fonts/manrope';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, ReactNode } from 'react';
+import { useEffect, useRef, ReactNode } from 'react';
 import 'react-native-reanimated';
 import { Pressable } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -83,9 +83,14 @@ const CloudSyncBridge = ({ children }: { children: ReactNode }) => {
   const { isPro } = useSubscription();
   const { settings } = useSettings();
 
+  // Store getToken in a ref so the queue always calls the latest version,
+  // even if Clerk internally invalidates earlier function references.
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   useEffect(() => {
-    setTokenGetter(getToken);
-  }, [getToken]);
+    setTokenGetter(() => getTokenRef.current());
+  }, []);
 
   useEffect(() => {
     setProChecker(() => isPro);
