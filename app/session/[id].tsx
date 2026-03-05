@@ -9,9 +9,10 @@ import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { ClipItem } from '@/src/components/clips';
 import type { Theme } from '@/src/context';
 import type { Session } from '@/src/types/session';
-import type { Clip } from '@/src/types/recording';
+import type { Clip, CameraAngle } from '@/src/types/recording';
 import { getSession, updateSessionNotes } from '@/src/services/session/session-storage';
 import { listClipsBySession } from '@/src/services/recording/clip-storage';
+import { enqueueUpload } from '@/src/services/cloud/upload-queue';
 import { buildSessionSummaryText } from '@/src/utils/session-export';
 import { formatRelativeDate, formatSessionDuration } from '@/src/utils/format';
 
@@ -27,6 +28,7 @@ export default function SessionDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [notesText, setNotesText] = useState('');
+  const [angleFilter, setAngleFilter] = useState<CameraAngle | 'all'>('all');
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -53,20 +55,23 @@ export default function SessionDetailScreen() {
   }, [router]);
 
   const handleClipMenu = useCallback((clip: Clip) => {
-    Alert.alert(
-      clip.name || 'Swing Recording',
-      'What would you like to do?',
-      [
-        {
-          text: 'Play',
-          onPress: () => router.push(`/playback/${clip.id}`),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ],
-    );
+    const options: { text: string; onPress?: () => void; style?: 'destructive' | 'cancel' }[] = [
+      {
+        text: 'Play',
+        onPress: () => router.push(`/playback/${clip.id}`),
+      },
+    ];
+
+    if (clip.syncStatus !== 'synced' && clip.syncStatus !== 'uploading') {
+      options.push({
+        text: 'Back Up',
+        onPress: () => enqueueUpload(clip.id, clip.path),
+      });
+    }
+
+    options.push({ text: 'Cancel', style: 'cancel' });
+
+    Alert.alert(clip.name || 'Swing Recording', 'What would you like to do?', options);
   }, [router]);
 
   const handleEditNotes = useCallback(() => {
@@ -112,13 +117,21 @@ export default function SessionDetailScreen() {
     );
   }
 
-  const clipCount = clips.length;
-  const totalDuration = clips.reduce((sum, c) => sum + c.duration, 0);
+  // Determine if clips have mixed angles (show filter only if so)
+  const angleSet = new Set(clips.map((c) => c.cameraAngle).filter(Boolean));
+  const hasMixedAngles = angleSet.size > 1;
+
+  const filteredClips = angleFilter === 'all'
+    ? clips
+    : clips.filter((c) => c.cameraAngle === angleFilter);
+
+  const clipCount = filteredClips.length;
+  const totalDuration = filteredClips.reduce((sum, c) => sum + c.duration, 0);
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={clips}
+        data={filteredClips}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <ClipItem
@@ -158,6 +171,34 @@ export default function SessionDetailScreen() {
                 </View>
               )}
             </View>
+
+            {/* Angle filter chips — only when session has mixed angles */}
+            {hasMixedAngles && (
+              <View style={styles.filterRow}>
+                {(['all', 'dtl', 'face-on'] as const).map((value) => (
+                  <Pressable
+                    key={value}
+                    style={[
+                      styles.filterChip,
+                      angleFilter === value && styles.filterChipActive,
+                    ]}
+                    onPress={() => setAngleFilter(value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Filter by ${value === 'all' ? 'all angles' : value === 'dtl' ? 'down the line' : 'face on'}`}
+                    accessibilityState={{ selected: angleFilter === value }}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        angleFilter === value && styles.filterChipTextActive,
+                      ]}
+                    >
+                      {value === 'all' ? 'All' : value === 'dtl' ? 'DTL' : 'Face-On'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
 
             {/* Notes */}
             <Pressable style={styles.notesSection} onPress={handleEditNotes}>
@@ -342,6 +383,30 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     fontFamily: theme.fontFamily.body,
     fontSize: theme.fontSize.sm,
     color: theme.colors.accent,
+  },
+  filterRow: {
+    flexDirection: 'row' as const,
+    gap: 8,
+    marginTop: theme.spacing.md,
+  },
+  filterChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+  filterChipText: {
+    fontFamily: theme.fontFamily.body,
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textTertiary,
+  },
+  filterChipTextActive: {
+    color: theme.isDark ? theme.palette.black : theme.palette.white,
   },
   clipsHeader: {
     fontFamily: theme.fontFamily.body,

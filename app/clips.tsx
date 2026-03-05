@@ -11,6 +11,7 @@ import { EmptyState, SkeletonClipItem } from '@/src/components/ui';
 import { ClipItem } from '@/src/components/clips';
 import type { Theme } from '@/src/context';
 import { listClips, deleteClip, renameClip } from '@/src/services/recording/clip-storage';
+import { enqueueUpload } from '@/src/services/cloud/upload-queue';
 import type { Clip } from '@/src/types/recording';
 
 export default function ClipsScreen() {
@@ -52,29 +53,30 @@ export default function ClipsScreen() {
   }, [router]);
 
   const handleClipLongPress = useCallback((clip: Clip) => {
-    Alert.alert(
-      clip.name || 'Swing Recording',
-      'What would you like to do?',
-      [
-        {
-          text: 'Rename',
-          onPress: () => {
-            setClipToRename(clip);
-            setRenameText(clip.name || '');
-            setRenameModalVisible(true);
-          },
+    const options: { text: string; onPress?: () => void; style?: 'destructive' | 'cancel' }[] = [
+      {
+        text: 'Rename',
+        onPress: () => {
+          setClipToRename(clip);
+          setRenameText(clip.name || '');
+          setRenameModalVisible(true);
         },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => handleDeleteClip(clip),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
+      },
+    ];
+
+    if (clip.syncStatus !== 'synced' && clip.syncStatus !== 'uploading') {
+      options.push({
+        text: 'Back Up',
+        onPress: () => enqueueUpload(clip.id, clip.path),
+      });
+    }
+
+    options.push(
+      { text: 'Delete', style: 'destructive', onPress: () => handleDeleteClip(clip) },
+      { text: 'Cancel', style: 'cancel' },
     );
+
+    Alert.alert(clip.name || 'Swing Recording', 'What would you like to do?', options);
   }, []);
 
   const handleDeleteClip = useCallback((clip: Clip) => {
