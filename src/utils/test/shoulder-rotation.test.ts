@@ -669,6 +669,51 @@ describe('updateRotationTracking', () => {
       expect(r5.state.impactTimestamp).toBe(impactTime);
     });
 
+    it('extends peakTimestamp through settling plateau at top of backswing', () => {
+      let state = startRotationTracking(baseline);
+      let t = t0;
+
+      // Backswing detected
+      t += 100;
+      const r1 = updateRotationTracking(state, validSample(baseline + 0.10), t);
+      state = r1.state;
+
+      // Peak = 0.18
+      t += 300;
+      const r2 = updateRotationTracking(state, validSample(baseline + 0.18), t);
+      expect(r2.state.peakAbsDelta).toBeCloseTo(0.18);
+      state = r2.state;
+
+      // Settling at top: 0.175 is > 0.18 * 0.95 = 0.171 — still on plateau
+      t += 50;
+      const r3 = updateRotationTracking(state, validSample(baseline + 0.175), t);
+      expect(r3.state.peakTimestamp).toBe(t); // Timestamp extended
+      expect(r3.state.peakAbsDelta).toBeCloseTo(0.18); // Peak value unchanged
+      state = r3.state;
+
+      // Still on plateau: 0.172 >= 0.171
+      t += 50;
+      const r4 = updateRotationTracking(state, validSample(baseline + 0.172), t);
+      expect(r4.state.peakTimestamp).toBe(t); // Timestamp extended again
+      const plateauEndTime = t;
+      state = r4.state;
+
+      // Off plateau: 0.15 < 0.171 — timestamp freezes
+      t += 50;
+      const r5 = updateRotationTracking(state, validSample(baseline + 0.15), t);
+      expect(r5.state.peakTimestamp).toBe(plateauEndTime); // Not updated
+      state = r5.state;
+
+      // Impact and follow-through — peak timestamp should still be plateau end
+      t += 100;
+      const r6 = updateRotationTracking(state, validSample(baseline + 0.02), t);
+      state = r6.state;
+      t += 50;
+      const r7 = updateRotationTracking(state, validSample(baseline - 0.10), t);
+      expect(r7.swingConfirmed).toBe(true);
+      expect(r7.state.peakTimestamp).toBe(plateauEndTime);
+    });
+
     it('freezes peak at backswing maximum on follow-through confirmation', () => {
       // Fast swing: backswing detection frame is also peak frame,
       // follow-through has larger absDelta

@@ -37,6 +37,15 @@ export const TAKEAWAY_ROTATION_THRESHOLD = 0.015;
  */
 export const IMPACT_PEAK_FRACTION = 0.15;
 
+/**
+ * Fraction of peak rotation that counts as the backswing plateau.
+ * At the top of the backswing, there's a brief settling/pause where the
+ * weight shifts before the downswing starts. The peak timestamp is extended
+ * to the last frame where |delta| >= this fraction of the true maximum,
+ * so the plateau is counted as backswing rather than downswing.
+ */
+export const PEAK_PLATEAU_FRACTION = 0.95;
+
 // ============================================
 // JOINT LAYOUT
 // ============================================
@@ -191,11 +200,16 @@ export const updateRotationTracking = (
   // Track running peak |delta| and its timestamp for tempo calculation.
   // Only update during backswing phase — once we're in follow-through direction,
   // the opposite-sign absDelta could exceed backswing peak and overwrite it.
+  // The peak timestamp extends through the "plateau" at the top of the backswing
+  // (any frame still within PEAK_PLATEAU_FRACTION of the max) so the settling
+  // pause before the downswing is counted as backswing, not downswing.
   const inBackswingPhase = state.backswingDetected &&
     (state.backswingSign > 0 ? delta >= 0 : delta <= 0);
   const peakUpdated = inBackswingPhase && absDelta > state.peakAbsDelta;
+  const onPlateau = inBackswingPhase && !peakUpdated &&
+    state.peakAbsDelta > 0 && absDelta >= state.peakAbsDelta * PEAK_PLATEAU_FRACTION;
   const peakAbsDelta = peakUpdated ? absDelta : state.peakAbsDelta;
-  const peakTimestamp = peakUpdated ? timestamp : state.peakTimestamp;
+  const peakTimestamp = (peakUpdated || onPlateau) ? timestamp : state.peakTimestamp;
 
   // Tempo: detect takeaway (first time delta exceeds low threshold).
   // Reset if rotation returns below threshold before backswing is confirmed —
