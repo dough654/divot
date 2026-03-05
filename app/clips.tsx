@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { Ionicons } from '@expo/vector-icons';
 
-import { useTheme } from '@/src/context';
+import { useTheme, useToast } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { EmptyState, SkeletonClipItem } from '@/src/components/ui';
@@ -12,6 +12,7 @@ import { ClipItem } from '@/src/components/clips';
 import type { Theme } from '@/src/context';
 import { listClips, deleteClip, renameClip } from '@/src/services/recording/clip-storage';
 import { enqueueUpload } from '@/src/services/cloud/upload-queue';
+import { onUploadEvent } from '@/src/services/cloud/upload-events';
 import type { Clip } from '@/src/types/recording';
 
 export default function ClipsScreen() {
@@ -20,6 +21,7 @@ export default function ClipsScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
 
+  const { show: showToast } = useToast();
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -41,6 +43,14 @@ export default function ClipsScreen() {
 
   useEffect(() => {
     loadClips();
+  }, [loadClips]);
+
+  // Reload clip list when upload status changes
+  useEffect(() => {
+    const unsubStarted = onUploadEvent('started', () => loadClips());
+    const unsubCompleted = onUploadEvent('completed', () => loadClips());
+    const unsubFailed = onUploadEvent('failed', () => loadClips());
+    return () => { unsubStarted(); unsubCompleted(); unsubFailed(); };
   }, [loadClips]);
 
   const handleRefresh = useCallback(() => {
@@ -67,7 +77,10 @@ export default function ClipsScreen() {
     if (clip.syncStatus !== 'synced' && clip.syncStatus !== 'uploading') {
       options.push({
         text: 'Back Up',
-        onPress: () => enqueueUpload(clip.id, clip.path),
+        onPress: () => {
+          enqueueUpload(clip.id, clip.path);
+          showToast('Backing up to cloud...', { variant: 'info' });
+        },
       });
     }
 

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useTheme } from '@/src/context';
+import { useTheme, useToast } from '@/src/context';
 import { useThemedStyles, makeThemedStyles } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { ClipItem } from '@/src/components/clips';
@@ -13,6 +13,7 @@ import type { Clip, CameraAngle } from '@/src/types/recording';
 import { getSession, updateSessionNotes } from '@/src/services/session/session-storage';
 import { listClipsBySession } from '@/src/services/recording/clip-storage';
 import { enqueueUpload } from '@/src/services/cloud/upload-queue';
+import { onUploadEvent } from '@/src/services/cloud/upload-events';
 import { buildSessionSummaryText } from '@/src/utils/session-export';
 import { formatRelativeDate, formatSessionDuration } from '@/src/utils/format';
 
@@ -23,6 +24,7 @@ export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const styles = useThemedStyles(createStyles);
 
+  const { show: showToast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +52,14 @@ export default function SessionDetailScreen() {
     loadData();
   }, [loadData]);
 
+  // Reload clips when upload status changes
+  useEffect(() => {
+    const unsubStarted = onUploadEvent('started', () => loadData());
+    const unsubCompleted = onUploadEvent('completed', () => loadData());
+    const unsubFailed = onUploadEvent('failed', () => loadData());
+    return () => { unsubStarted(); unsubCompleted(); unsubFailed(); };
+  }, [loadData]);
+
   const handleClipPress = useCallback((clip: Clip) => {
     router.push(`/playback/${clip.id}`);
   }, [router]);
@@ -65,7 +75,10 @@ export default function SessionDetailScreen() {
     if (clip.syncStatus !== 'synced' && clip.syncStatus !== 'uploading') {
       options.push({
         text: 'Back Up',
-        onPress: () => enqueueUpload(clip.id, clip.path),
+        onPress: () => {
+          enqueueUpload(clip.id, clip.path);
+          showToast('Backing up to cloud...', { variant: 'info' });
+        },
       });
     }
 
