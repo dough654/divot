@@ -9,10 +9,13 @@ import { DrawingOverlay } from '@/src/components/annotation/drawing-overlay';
 import { StaticAnnotationOverlay } from '@/src/components/annotation/static-annotation-overlay';
 import { DrawingToolbar } from '@/src/components/annotation/drawing-toolbar';
 import { ShaftOverlay } from '@/src/components/playback/shaft-overlay';
+import { PlaybackPoseOverlay } from '@/src/components/playback/playback-pose-overlay';
 import { FrameScrubber } from '@/src/components/playback/frame-scrubber';
 import { useDrawing } from '@/src/hooks/use-drawing';
 import { useSwingAnalysis } from '@/src/hooks/use-swing-analysis';
 import { findNearestShaftFrame } from '@/src/utils/shaft-frame-lookup';
+import { findNearestPoseFrame } from '@/src/utils/pose-frame-lookup';
+import type { PoseFrame } from '../../../modules/video-pose-analysis/src/types';
 import {
   captureAnnotatedFrame,
   captureFrameToTempFile,
@@ -58,6 +61,12 @@ export type VideoPlayerProps = {
   tempoData?: TempoData;
   /** Whether background pose analysis is in progress. */
   isAnalyzing?: boolean;
+  /** Per-frame pose landmarks from background analysis. */
+  poseFrames?: PoseFrame[] | null;
+  /** Resolution the pose analysis was performed at. */
+  poseVideoResolution?: { width: number; height: number } | null;
+  /** Called when a free user taps a Pro-gated feature. */
+  onUpgrade?: () => void;
 };
 
 const CONTROLS_AUTO_HIDE_MS = 3000;
@@ -83,6 +92,9 @@ export const VideoPlayer = ({
   headerBackTitle,
   tempoData,
   isAnalyzing = false,
+  poseFrames,
+  poseVideoResolution,
+  onUpgrade,
 }: VideoPlayerProps) => {
   const videoRef = useRef<Video>(null);
   const videoContainerRef = useRef<View>(null);
@@ -155,6 +167,15 @@ export const VideoPlayer = ({
     videoWidth: videoNaturalWidth || undefined,
     videoHeight: videoNaturalHeight || undefined,
   });
+
+  // Pose overlay
+  const [showPoseOverlay, setShowPoseOverlay] = useState(false);
+
+  // Look up the current pose frame based on playback position
+  const currentPoseFrame = useMemo(() => {
+    if (!showPoseOverlay || !poseFrames) return null;
+    return findNearestPoseFrame(poseFrames, position);
+  }, [showPoseOverlay, poseFrames, position]);
 
   // Look up the current shaft frame based on playback position
   const currentShaft = useMemo(() => {
@@ -641,6 +662,35 @@ export const VideoPlayer = ({
       >
         <Ionicons name="share-outline" size={22} color="#fff" />
       </Pressable>
+      {poseFrames && poseFrames.length > 0 && (
+        <Pressable
+          style={[
+            themedStyles.overlayButton,
+            isPro && showPoseOverlay && themedStyles.overlayButtonActive,
+            !isPro && themedStyles.overlayButtonLocked,
+          ]}
+          onPress={() => {
+            if (isPro) {
+              setShowPoseOverlay((prev) => !prev);
+            } else {
+              onUpgrade?.();
+            }
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={isPro ? (showPoseOverlay ? 'Hide skeleton overlay' : 'Show skeleton overlay') : 'Upgrade to Pro for skeleton overlay'}
+        >
+          <Ionicons
+            name="body-outline"
+            size={22}
+            color={isPro && showPoseOverlay ? theme.colors.text : '#fff'}
+          />
+          {!isPro && (
+            <View style={themedStyles.lockBadge}>
+              <Ionicons name="lock-closed" size={9} color="#fff" />
+            </View>
+          )}
+        </Pressable>
+      )}
     </>
   );
 
@@ -662,6 +712,7 @@ export const VideoPlayer = ({
           style={themedStyles.video}
           resizeMode={ResizeMode.CONTAIN}
           isLooping={loop}
+          progressUpdateIntervalMillis={200}
           onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
           onReadyForDisplay={handleReadyForDisplay}
           shouldPlay={false}
@@ -759,6 +810,17 @@ export const VideoPlayer = ({
             containerHeight={containerHeight}
             videoWidth={analysis.result.analysisResolution.width}
             videoHeight={analysis.result.analysisResolution.height}
+          />
+        )}
+
+        {/* Pose skeleton overlay */}
+        {showPoseOverlay && isPro && !isSaving && containerWidth > 0 && poseVideoResolution && (
+          <PlaybackPoseOverlay
+            landmarks={currentPoseFrame?.landmarks ?? null}
+            containerWidth={containerWidth}
+            containerHeight={containerHeight}
+            videoWidth={poseVideoResolution.width}
+            videoHeight={poseVideoResolution.height}
           />
         )}
 
@@ -1134,6 +1196,20 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
     paddingHorizontal: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: theme.borderRadius.sm,
+  },
+  overlayButtonLocked: {
+    opacity: 0.5,
+  },
+  lockBadge: {
+    position: 'absolute' as const,
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
   analysisCancelText: {
     fontFamily: theme.fontFamily.bodySemiBold,

@@ -39,8 +39,8 @@ export default function PlaybackScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Reactive tempo from background analysis
-  const { tempo: analysisTempo, status: analysisStatus } = useClipAnalysis(id ?? null);
+  // Reactive tempo + pose from background analysis
+  const { tempo: analysisTempo, status: analysisStatus, poseFrames, poseResolution } = useClipAnalysis(id ?? null);
 
   useEffect(() => {
     const loadClip = async () => {
@@ -127,6 +127,9 @@ export default function PlaybackScreen() {
             ? { tempoRatio: clip.tempoRatio, backswingDurationMs: clip.backswingDurationMs, downswingDurationMs: clip.downswingDurationMs, takeawayTimestampMs: clip.takeawayTimestampMs, peakTimestampMs: clip.peakTimestampMs, impactTimestampMs: clip.impactTimestampMs }
             : undefined)}
           isAnalyzing={analysisStatus === 'analyzing' || analysisStatus === 'loading'}
+          poseFrames={poseFrames}
+          poseVideoResolution={poseResolution}
+          onUpgrade={() => router.push('/paywall')}
         />
       </View>
     </>

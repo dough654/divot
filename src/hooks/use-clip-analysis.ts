@@ -14,6 +14,7 @@ import { isClipQueued } from '@/src/services/analysis/analysis-queue';
 import { onAnalysisEvent } from '@/src/services/analysis/analysis-events';
 import { getClip } from '@/src/services/recording/clip-storage';
 import type { SwingTempo } from '@/src/utils/swing-tempo';
+import type { PoseFrame } from '../../modules/video-pose-analysis/src/types';
 
 type ClipAnalysisStatus = 'loading' | 'pending' | 'analyzing' | 'complete' | 'none';
 
@@ -22,6 +23,10 @@ type ClipAnalysisResult = {
   status: ClipAnalysisStatus;
   /** Tempo data from background analysis, if available. */
   tempo: SwingTempo | null;
+  /** Per-frame pose landmarks from background analysis. */
+  poseFrames: PoseFrame[] | null;
+  /** Resolution the pose analysis was performed at. */
+  poseResolution: { width: number; height: number } | null;
   /** Refresh analysis data (e.g. after navigating back). */
   refresh: () => void;
 };
@@ -35,12 +40,16 @@ type ClipAnalysisResult = {
 export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
   const [status, setStatus] = useState<ClipAnalysisStatus>('loading');
   const [tempo, setTempo] = useState<SwingTempo | null>(null);
+  const [poseFrames, setPoseFrames] = useState<PoseFrame[] | null>(null);
+  const [poseResolution, setPoseResolution] = useState<{ width: number; height: number } | null>(null);
   const mountedRef = useRef(true);
 
   const loadData = useCallback(async () => {
     if (!clipId) {
       setStatus('none');
       setTempo(null);
+      setPoseFrames(null);
+      setPoseResolution(null);
       return;
     }
 
@@ -57,6 +66,15 @@ export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
         peakTimestampMs: clip.peakTimestampMs,
         impactTimestampMs: clip.impactTimestampMs,
       });
+
+      // Also load pose frames even when tempo came from clip metadata
+      const poseAnalysis = await loadPoseAnalysis(clipId);
+      if (!mountedRef.current) return;
+      if (poseAnalysis) {
+        setPoseFrames(poseAnalysis.result.frames);
+        setPoseResolution(poseAnalysis.result.resolution);
+      }
+
       setStatus('complete');
       return;
     }
@@ -66,6 +84,8 @@ export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
     if (!mountedRef.current) return;
 
     if (poseAnalysis) {
+      setPoseFrames(poseAnalysis.result.frames);
+      setPoseResolution(poseAnalysis.result.resolution);
       setStatus('complete');
       return;
     }
@@ -88,6 +108,8 @@ export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
     if (!clipId) {
       setStatus('none');
       setTempo(null);
+      setPoseFrames(null);
+      setPoseResolution(null);
       return;
     }
 
@@ -124,6 +146,8 @@ export const useClipAnalysis = (clipId: string | null): ClipAnalysisResult => {
   return {
     status,
     tempo,
+    poseFrames,
+    poseResolution,
     refresh: loadData,
   };
 };
