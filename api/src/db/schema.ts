@@ -61,6 +61,7 @@ export const clips = sqliteTable(
     fps: integer('fps'),
     clipOrder: integer('clip_order'),
     name: text('name'),
+    cameraAngle: text('camera_angle'),
     ...timestamps,
   },
   (table) => [index('clips_session_id_idx').on(table.sessionId)],

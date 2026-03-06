@@ -1,0 +1,1 @@
+ALTER TABLE `clips` ADD `camera_angle` text;
