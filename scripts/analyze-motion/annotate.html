@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Swing Annotation Tool</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 16px; }
+  h1 { font-size: 18px; margin-bottom: 12px; color: #8be9fd; }
+
+  .layout { display: flex; gap: 16px; }
+  .main { flex: 1; min-width: 0; }
+  .sidebar { width: 320px; flex-shrink: 0; }
+
+  .load-section { margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .load-section label { font-size: 13px; color: #aaa; }
+  .load-section input[type="file"] { font-size: 13px; }
+  .load-section button { background: #44475a; color: #f8f8f2; border: 1px solid #6272a4; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  .load-section button:hover { background: #6272a4; }
+
+  video { width: 100%; background: #000; border-radius: 4px; max-height: 50vh; }
+
+  .graph-container { position: relative; margin-top: 8px; background: #0d1117; border-radius: 4px; border: 1px solid #333; overflow: hidden; }
+  canvas { display: block; width: 100%; cursor: crosshair; }
+
+  .controls { display: flex; gap: 8px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+  .controls button { background: #44475a; color: #f8f8f2; border: 1px solid #6272a4; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  .controls button:hover { background: #6272a4; }
+  .controls button.active { background: #ff5555; border-color: #ff5555; }
+  .controls button.start-btn.active { background: #50fa7b; border-color: #50fa7b; color: #1a1a2e; }
+  .controls .status { font-size: 13px; color: #aaa; margin-left: 8px; }
+  .controls .time-display { font-size: 14px; color: #f1fa8c; font-family: monospace; margin-left: auto; }
+
+  .shortcuts { font-size: 12px; color: #666; margin-top: 8px; line-height: 1.8; }
+  .shortcuts kbd { background: #333; padding: 2px 6px; border-radius: 3px; border: 1px solid #555; font-family: monospace; color: #ccc; }
+
+  .sidebar h2 { font-size: 15px; color: #bd93f9; margin-bottom: 8px; }
+  .swing-list { list-style: none; max-height: 60vh; overflow-y: auto; }
+  .swing-list li { background: #282a36; padding: 8px 10px; margin-bottom: 4px; border-radius: 4px; font-size: 13px; font-family: monospace; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #50fa7b; cursor: pointer; }
+  .swing-list li .delete-btn { background: none; border: none; color: #ff5555; cursor: pointer; font-size: 16px; padding: 0 4px; }
+  .swing-list li .delete-btn:hover { color: #ff7979; }
+
+  .export-section { margin-top: 12px; }
+  .export-section button { width: 100%; background: #bd93f9; color: #1a1a2e; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600; }
+  .export-section button:hover { background: #caa8ff; }
+  .export-section button:disabled { background: #555; color: #888; cursor: not-allowed; }
+
+  .stats { margin-top: 12px; font-size: 12px; color: #888; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<h1>Swing Annotation Tool</h1>
+
+<div class="load-section">
+  <div>
+    <label>Video:</label>
+    <input type="file" id="videoInput" accept="video/*">
+  </div>
+  <div>
+    <label>Motion CSV:</label>
+    <input type="file" id="csvInput" accept=".csv">
+  </div>
+  <div>
+    <label>Load annotations:</label>
+    <input type="file" id="annotationInput" accept=".json">
+  </div>
+</div>
+
+<div class="layout">
+  <div class="main">
+    <video id="video" controls></video>
+
+    <div class="graph-container">
+      <canvas id="graph" height="180"></canvas>
+    </div>
+
+    <div class="controls">
+      <button id="markStartBtn" title="Mark swing start (S)">Mark Start (S)</button>
+      <button id="markEndBtn" title="Mark swing end (E)" disabled>Mark End (E)</button>
+      <button id="playPauseBtn" title="Play/Pause (Space)">Play/Pause</button>
+      <button id="backBtn" title="Back 2s (←)">&#8592; 2s</button>
+      <button id="fwdBtn" title="Forward 2s (→)">2s &#8594;</button>
+      <span class="status" id="status">Load a video and CSV to begin</span>
+      <span class="time-display" id="timeDisplay">0:00.000</span>
+    </div>
+
+    <div class="shortcuts">
+      <kbd>S</kbd> mark start &nbsp;
+      <kbd>E</kbd> mark end &nbsp;
+      <kbd>Space</kbd> play/pause &nbsp;
+      <kbd>&#8592;</kbd><kbd>&#8594;</kbd> seek &#177;2s &nbsp;
+      <kbd>,</kbd><kbd>.</kbd> frame step &nbsp;
+      <kbd>D</kbd> delete last &nbsp;
+      <kbd>1</kbd>-<kbd>4</kbd> playback speed
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h2>Annotations (<span id="swingCount">0</span>)</h2>
+    <ul class="swing-list" id="swingList"></ul>
+
+    <div class="export-section">
+      <button id="exportBtn" disabled>Export Annotations (JSON)</button>
+    </div>
+
+    <div class="stats" id="statsPanel"></div>
+  </div>
+</div>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('graph');
+const ctx = canvas.getContext('2d');
+const swingListEl = document.getElementById('swingList');
+const swingCountEl = document.getElementById('swingCount');
+const statusEl = document.getElementById('status');
+const timeDisplayEl = document.getElementById('timeDisplay');
+const markStartBtn = document.getElementById('markStartBtn');
+const markEndBtn = document.getElementById('markEndBtn');
+const exportBtn = document.getElementById('exportBtn');
+const statsPanel = document.getElementById('statsPanel');
+
+let motionData = [];
+let annotations = [];
+let pendingStart = null;
+let videoFileName = '';
+
+// Load video
+document.getElementById('videoInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  videoFileName = file.name.replace(/\.[^.]+$/, '');
+  video.src = URL.createObjectURL(file);
+  statusEl.textContent = 'Video loaded. Load matching CSV.';
+});
+
+// Load CSV
+document.getElementById('csvInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const lines = ev.target.result.trim().split('\n');
+    motionData = lines.slice(1).map(function(line) {
+      const parts = line.split(',');
+      return { frame: +parts[0], timestamp: +parts[1], motion: +parts[2] };
+    });
+    statusEl.textContent = 'Loaded ' + motionData.length + ' samples. Ready to annotate.';
+    drawGraph();
+  };
+  reader.readAsText(file);
+});
+
+// Load existing annotations
+document.getElementById('annotationInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      annotations = data.swings || [];
+      pendingStart = null;
+      markStartBtn.classList.remove('active');
+      markEndBtn.disabled = true;
+      renderAnnotations();
+      drawGraph();
+      statusEl.textContent = 'Loaded ' + annotations.length + ' annotations.';
+    } catch (err) {
+      statusEl.textContent = 'Error loading annotations: ' + err.message;
+    }
+  };
+  reader.readAsText(file);
+});
+
+// Graph drawing
+function drawGraph() {
+  if (!motionData.length) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 180 * dpr;
+  canvas.style.height = '180px';
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = 180;
+  const maxTime = motionData[motionData.length - 1].timestamp;
+  const motionValues = motionData.map(function(d) { return d.motion; });
+  const maxMotion = Math.min(0.1, Math.max.apply(null, motionValues) * 1.2);
+
+  // Background
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, w, h);
+
+  // Annotation regions
+  for (var ai = 0; ai < annotations.length; ai++) {
+    var ann = annotations[ai];
+    var x1 = (ann.start / maxTime) * w;
+    var x2 = (ann.end / maxTime) * w;
+    ctx.fillStyle = 'rgba(80, 250, 123, 0.15)';
+    ctx.fillRect(x1, 0, x2 - x1, h);
+    ctx.strokeStyle = 'rgba(80, 250, 123, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x1, 0); ctx.lineTo(x1, h);
+    ctx.moveTo(x2, 0); ctx.lineTo(x2, h);
+    ctx.stroke();
+  }
+
+  // Pending start marker
+  if (pendingStart !== null) {
+    var px = (pendingStart / maxTime) * w;
+    ctx.strokeStyle = '#50fa7b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, 0); ctx.lineTo(px, h);
+    ctx.stroke();
+  }
+
+  // Threshold lines
+  var thresholds = [
+    { val: 0.004, color: '#50fa7b', label: 'still (0.004)' },
+    { val: 0.012, color: '#ffb86c', label: 'swing (0.012)' },
+    { val: 0.018, color: '#ff5555', label: 'trigger (0.018)' },
+  ];
+  ctx.font = '10px monospace';
+  for (var ti = 0; ti < thresholds.length; ti++) {
+    var t = thresholds[ti];
+    var ty = h - (t.val / maxMotion) * h;
+    if (ty < 0 || ty > h) continue;
+    ctx.strokeStyle = t.color;
+    ctx.globalAlpha = 0.5;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(0, ty); ctx.lineTo(w, ty);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = t.color;
+    ctx.fillText(t.label, 4, ty - 3);
+  }
+
+  // Motion line
+  ctx.strokeStyle = '#8be9fd';
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.8;
+  ctx.beginPath();
+  for (var i = 0; i < motionData.length; i++) {
+    var mx = (motionData[i].timestamp / maxTime) * w;
+    var my = h - (motionData[i].motion / maxMotion) * h;
+    if (i === 0) ctx.moveTo(mx, my);
+    else ctx.lineTo(mx, my);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Playback position
+  if (video.duration) {
+    var ppx = (video.currentTime / maxTime) * w;
+    ctx.strokeStyle = '#f1fa8c';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ppx, 0); ctx.lineTo(ppx, h);
+    ctx.stroke();
+  }
+}
+
+// Click on graph to seek
+canvas.addEventListener('click', function(e) {
+  if (!motionData.length || !video.duration) return;
+  var rect = canvas.getBoundingClientRect();
+  var x = e.clientX - rect.left;
+  var maxTime = motionData[motionData.length - 1].timestamp;
+  video.currentTime = (x / rect.width) * maxTime;
+});
+
+// Update graph on video time change
+video.addEventListener('timeupdate', function() {
+  drawGraph();
+  updateTimeDisplay();
+});
+
+function updateTimeDisplay() {
+  var t = video.currentTime || 0;
+  var mins = Math.floor(t / 60);
+  var secs = (t % 60).toFixed(3);
+  timeDisplayEl.textContent = mins + ':' + secs.padStart(6, '0');
+}
+
+// Annotation actions
+function markStart() {
+  if (!video.duration) return;
+  pendingStart = video.currentTime;
+  markStartBtn.classList.add('active');
+  markEndBtn.disabled = false;
+  statusEl.textContent = 'Start marked at ' + pendingStart.toFixed(2) + 's. Now mark the end.';
+  drawGraph();
+}
+
+function markEnd() {
+  if (pendingStart === null || !video.duration) return;
+  var end = video.currentTime;
+  if (end <= pendingStart) {
+    statusEl.textContent = 'End must be after start. Try again.';
+    return;
+  }
+  annotations.push({ start: +pendingStart.toFixed(3), end: +end.toFixed(3) });
+  annotations.sort(function(a, b) { return a.start - b.start; });
+  pendingStart = null;
+  markStartBtn.classList.remove('active');
+  markEndBtn.disabled = true;
+  renderAnnotations();
+  drawGraph();
+  statusEl.textContent = 'Swing #' + annotations.length + ' saved (' + (end - annotations[annotations.length - 1].start).toFixed(2) + 's). Total: ' + annotations.length;
+}
+
+function deleteAnnotation(idx) {
+  annotations.splice(idx, 1);
+  renderAnnotations();
+  drawGraph();
+}
+
+function deleteLast() {
+  if (pendingStart !== null) {
+    pendingStart = null;
+    markStartBtn.classList.remove('active');
+    markEndBtn.disabled = true;
+    statusEl.textContent = 'Pending start cleared.';
+    drawGraph();
+    return;
+  }
+  if (annotations.length > 0) {
+    annotations.pop();
+    renderAnnotations();
+    drawGraph();
+    statusEl.textContent = 'Deleted. ' + annotations.length + ' annotations remaining.';
+  }
+}
+
+function renderAnnotations() {
+  swingCountEl.textContent = annotations.length;
+  exportBtn.disabled = annotations.length === 0;
+
+  // Clear list
+  while (swingListEl.firstChild) {
+    swingListEl.removeChild(swingListEl.firstChild);
+  }
+
+  for (var i = 0; i < annotations.length; i++) {
+    (function(idx) {
+      var a = annotations[idx];
+      var dur = (a.end - a.start).toFixed(2);
+
+      var li = document.createElement('li');
+
+      var span = document.createElement('span');
+      span.textContent = '#' + (idx + 1) + ': ' + a.start.toFixed(2) + 's \u2192 ' + a.end.toFixed(2) + 's (' + dur + 's)';
+      li.appendChild(span);
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'delete-btn';
+      delBtn.title = 'Delete';
+      delBtn.textContent = '\u00d7';
+      delBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        deleteAnnotation(idx);
+      });
+      li.appendChild(delBtn);
+
+      li.addEventListener('click', function() {
+        video.currentTime = a.start;
+      });
+
+      swingListEl.appendChild(li);
+    })(i);
+  }
+
+  updateStats();
+}
+
+function updateStats() {
+  if (!annotations.length || !motionData.length) {
+    statsPanel.textContent = '';
+    return;
+  }
+
+  var swingMotions = [];
+  var stillMotions = [];
+  for (var i = 0; i < motionData.length; i++) {
+    var d = motionData[i];
+    var inSwing = false;
+    for (var j = 0; j < annotations.length; j++) {
+      if (d.timestamp >= annotations[j].start && d.timestamp <= annotations[j].end) {
+        inSwing = true;
+        break;
+      }
+    }
+    if (inSwing) swingMotions.push(d.motion);
+    else stillMotions.push(d.motion);
+  }
+
+  function avg(arr) { return arr.length ? arr.reduce(function(a, b) { return a + b; }, 0) / arr.length : 0; }
+  function max(arr) { return arr.length ? Math.max.apply(null, arr) : 0; }
+  function percentile(arr, pct) {
+    if (!arr.length) return 0;
+    var sorted = arr.slice().sort(function(a, b) { return a - b; });
+    return sorted[Math.floor(pct / 100 * (sorted.length - 1))];
+  }
+
+  var swingMean = avg(swingMotions);
+  var stillMean = avg(stillMotions);
+  var separation = stillMean > 0 ? (swingMean / stillMean).toFixed(1) : 'N/A';
+
+  // Build stats using DOM methods
+  while (statsPanel.firstChild) {
+    statsPanel.removeChild(statsPanel.firstChild);
+  }
+
+  var line1 = document.createElement('div');
+  var b1 = document.createElement('strong');
+  b1.textContent = 'Swing frames: ';
+  line1.appendChild(b1);
+  line1.appendChild(document.createTextNode(
+    swingMotions.length + ' | mean: ' + swingMean.toFixed(4) +
+    ' | max: ' + max(swingMotions).toFixed(4) +
+    ' | P75: ' + percentile(swingMotions, 75).toFixed(4)
+  ));
+  statsPanel.appendChild(line1);
+
+  var line2 = document.createElement('div');
+  var b2 = document.createElement('strong');
+  b2.textContent = 'Non-swing frames: ';
+  line2.appendChild(b2);
+  line2.appendChild(document.createTextNode(
+    stillMotions.length + ' | mean: ' + stillMean.toFixed(4) +
+    ' | max: ' + max(stillMotions).toFixed(4) +
+    ' | P95: ' + percentile(stillMotions, 95).toFixed(4)
+  ));
+  statsPanel.appendChild(line2);
+
+  var line3 = document.createElement('div');
+  var b3 = document.createElement('strong');
+  b3.textContent = 'Separation: ';
+  line3.appendChild(b3);
+  line3.appendChild(document.createTextNode('swing mean / still mean = ' + separation + 'x'));
+  statsPanel.appendChild(line3);
+}
+
+// Export
+exportBtn.addEventListener('click', function() {
+  var data = {
+    video: videoFileName,
+    sampleCount: motionData.length,
+    duration: motionData.length ? motionData[motionData.length - 1].timestamp : 0,
+    swings: annotations,
+    exportedAt: new Date().toISOString(),
+  };
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (videoFileName || 'annotations') + '_swings.json';
+  a.click();
+});
+
+// Button handlers
+markStartBtn.addEventListener('click', markStart);
+markEndBtn.addEventListener('click', markEnd);
+document.getElementById('playPauseBtn').addEventListener('click', function() {
+  video.paused ? video.play() : video.pause();
+});
+document.getElementById('backBtn').addEventListener('click', function() {
+  video.currentTime = Math.max(0, video.currentTime - 2);
+});
+document.getElementById('fwdBtn').addEventListener('click', function() {
+  video.currentTime = Math.min(video.duration, video.currentTime + 2);
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT') return;
+
+  switch (e.key.toLowerCase()) {
+    case 's': markStart(); break;
+    case 'e': markEnd(); break;
+    case ' ':
+      e.preventDefault();
+      video.paused ? video.play() : video.pause();
+      break;
+    case 'arrowleft':
+      e.preventDefault();
+      video.currentTime = Math.max(0, video.currentTime - 2);
+      break;
+    case 'arrowright':
+      e.preventDefault();
+      video.currentTime = Math.min(video.duration || 0, video.currentTime + 2);
+      break;
+    case ',':
+      e.preventDefault();
+      video.currentTime = Math.max(0, video.currentTime - 1/30);
+      break;
+    case '.':
+      e.preventDefault();
+      video.currentTime = Math.min(video.duration || 0, video.currentTime + 1/30);
+      break;
+    case 'd': deleteLast(); break;
+    case '1': video.playbackRate = 0.25; statusEl.textContent = 'Speed: 0.25x'; break;
+    case '2': video.playbackRate = 0.5; statusEl.textContent = 'Speed: 0.5x'; break;
+    case '3': video.playbackRate = 1; statusEl.textContent = 'Speed: 1x'; break;
+    case '4': video.playbackRate = 2; statusEl.textContent = 'Speed: 2x'; break;
+  }
+});
+
+// Redraw on resize
+window.addEventListener('resize', drawGraph);
+
+// Periodic redraw for smooth playhead
+setInterval(function() {
+  if (!video.paused) drawGraph();
+}, 100);
+</script>
+</body>
+</html>

@@ -9,7 +9,7 @@ import { useScreenOrientation } from "@/src/hooks/use-screen-orientation";
 import type { Theme } from "@/src/context";
 
 export default function HomeScreen() {
-  useScreenOrientation({ lock: 'portrait' });
+  useScreenOrientation({ lock: "portrait" });
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
@@ -64,7 +64,7 @@ export default function HomeScreen() {
         <Text style={styles.brandMark}>
           div<Text style={styles.brandAccent}>ot</Text>
         </Text>
-        <Text style={styles.versionText}>v1.0</Text>
+        <Text style={styles.versionText}>v1.1</Text>
       </View>
 
       <View style={styles.topSpacer} />

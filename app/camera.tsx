@@ -105,7 +105,7 @@ export default function CameraScreen() {
     hasCameraPermission,
     error: visionCameraError,
     toggleCamera,
-  } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps });
+  } = useVisionCamera({ autoRequestPermissions: true, targetFps: settings.recordingFps, targetResolution: settings.recordingResolution });
 
   // Pose detection — gated by feature flag + user setting
   // Also required when swing classifier is enabled (needs joint data)

@@ -59,3 +59,9 @@ yolov8n-pose.pt
 
 
 tmp
+
+golfdb-repo
+__pycache__/
+
+# Large video files
+scripts/analyze-motion/videos/*.mp4

@@ -13,7 +13,7 @@ import { computeTorsoAnchor } from './swing-detection';
 export const DEFAULT_ADDRESS_CONFIG: AddressDetectionConfig = {
   wristProximityThreshold: 0.15,
   stillnessThreshold: 0.04,
-  confirmationPolls: 6,
+  confirmationPolls: 4,
   exitPolls: 12,
   wristHipVerticalThreshold: 0.25,
   minBendRatio: 0.15,

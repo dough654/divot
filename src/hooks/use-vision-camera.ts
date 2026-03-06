@@ -7,8 +7,8 @@ import {
   CameraDeviceFormat,
   CameraPosition,
 } from 'react-native-vision-camera';
-import { useSettings, RECORDING_FPS_VALUES } from '@/src/context';
-import type { RecordingFps } from '@/src/context';
+import { useSettings, RECORDING_FPS_VALUES, RECORDING_RESOLUTION_VALUES, RESOLUTION_DIMENSIONS } from '@/src/context';
+import type { RecordingFps, RecordingResolution } from '@/src/context';
 
 export type UseVisionCameraOptions = {
   /** Initial camera position. Defaults to 'back'. */
@@ -17,6 +17,8 @@ export type UseVisionCameraOptions = {
   autoRequestPermissions?: boolean;
   /** Target recording fps. When provided, selects the best matching camera format. */
   targetFps?: number;
+  /** Target recording resolution. When provided, selects the best matching camera format. */
+  targetResolution?: RecordingResolution;
 };
 
 export type UseVisionCameraResult = {
@@ -51,34 +53,64 @@ export type UseVisionCameraResult = {
 export const useVisionCamera = (
   options: UseVisionCameraOptions = {}
 ): UseVisionCameraResult => {
-  const { initialPosition = 'back', autoRequestPermissions = true, targetFps } = options;
+  const { initialPosition = 'back', autoRequestPermissions = true, targetFps, targetResolution } = options;
 
   const [position, setPosition] = useState<CameraPosition>(initialPosition);
   const [isRequestingPermissions, setIsRequestingPermissions] = useState(false);
   const [hasRequestedPermissions, setHasRequestedPermissions] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { setSupportedRecordingFps } = useSettings();
+  const { setSupportedRecordingFps, setSupportedRecordingResolutions } = useSettings();
+
+  const resolutionDimensions = targetResolution
+    ? RESOLUTION_DIMENSIONS[targetResolution]
+    : RESOLUTION_DIMENSIONS['1080p'];
 
   const device = useCameraDevice(position);
 
-  // Select best format: prefer highest resolution, then closest fps match.
-  // Without a resolution preference VisionCamera can pick a tiny low-res format
-  // (especially on front cameras where fewer high-fps formats exist).
+  // Select best format: prefer target resolution, then closest fps match.
   const format = useCameraFormat(device, targetFps
-    ? [{ videoResolution: { width: 1920, height: 1080 } }, { fps: targetFps }]
-    : [{ videoResolution: { width: 1920, height: 1080 } }],
+    ? [{ videoResolution: resolutionDimensions }, { fps: targetFps }]
+    : [{ videoResolution: resolutionDimensions }],
   );
   const actualFps = format && targetFps ? Math.min(targetFps, format.maxFps) : 30;
 
   // Detect which fps values this device supports and push to settings context
   useEffect(() => {
     if (!device) return;
+
+    // DEBUG: dump format details to diagnose FPS detection
+    console.log(`[VisionCamera] Device "${device.name}" (${device.position}) — ${device.formats.length} formats`);
+    const uniqueFps = new Set<string>();
+    for (const f of device.formats) {
+      const key = `${f.videoWidth}x${f.videoHeight} minFps=${f.minFps} maxFps=${f.maxFps}`;
+      uniqueFps.add(key);
+    }
+    // Log unique combos (deduplicated)
+    const sorted = [...uniqueFps].sort();
+    console.log(`[VisionCamera] Unique format combos (${sorted.length}):`);
+    for (const entry of sorted) {
+      console.log(`  ${entry}`);
+    }
+    // Also dump the raw first 5 formats to see all available fields
+    for (let i = 0; i < Math.min(5, device.formats.length); i++) {
+      console.log(`[VisionCamera] Raw format[${i}]: ${JSON.stringify(device.formats[i])}`);
+    }
+
     const supported = RECORDING_FPS_VALUES.filter((fps) =>
       device.formats.some((f) => f.maxFps >= fps)
     ) as RecordingFps[];
+    console.log(`[VisionCamera] Supported recording FPS: ${(supported.length > 0 ? supported : [30]).join(', ')}`);
     setSupportedRecordingFps(supported.length > 0 ? supported : [30]);
-  }, [device, setSupportedRecordingFps]);
+
+    // Detect which resolution values this device supports
+    const supportedResolutions = RECORDING_RESOLUTION_VALUES.filter((res) => {
+      const dims = RESOLUTION_DIMENSIONS[res];
+      return device.formats.some((f) => f.videoWidth >= dims.width && f.videoHeight >= dims.height);
+    });
+    console.log(`[VisionCamera] Supported recording resolutions: ${(supportedResolutions.length > 0 ? supportedResolutions : ['1080p']).join(', ')}`);
+    setSupportedRecordingResolutions(supportedResolutions.length > 0 ? supportedResolutions : ['1080p']);
+  }, [device, setSupportedRecordingFps, setSupportedRecordingResolutions]);
   const { hasPermission: hasCameraPermission, requestPermission: requestCameraPermission } =
     useCameraPermission();
 

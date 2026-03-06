@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for divot-signaling on 2026-02-02T13:39:51-05:00
+# fly.toml app configuration file generated for divot-signaling on 2026-02-18T09:33:08-05:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -17,11 +17,11 @@ primary_region = 'ord'
   min_machines_running = 1
   processes = ['app']
 
-[[http_service.checks]]
-  interval = "30s"
-  timeout = "5s"
-  grace_period = "10s"
-  path = "/health"
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    path = '/health'
 
 [[vm]]
   memory = '256mb'

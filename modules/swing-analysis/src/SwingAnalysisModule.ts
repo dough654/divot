@@ -1,4 +1,4 @@
-import { requireNativeModule } from 'expo-modules-core';
+import { Platform } from 'react-native';
 import type { SwingAnalysisResult } from './types';
 
 type NativeModule = {
@@ -6,5 +6,13 @@ type NativeModule = {
   cancelAnalysis: () => void;
 };
 
-export const SwingAnalysisModule =
-  requireNativeModule<NativeModule>('SwingAnalysis');
+/** SwingAnalysis is iOS-only. Returns null on other platforms. */
+function loadModule(): NativeModule | null {
+  if (Platform.OS !== 'ios') return null;
+  // Dynamic require so Android never evaluates requireNativeModule
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const expoModules = require('expo-modules-core') as typeof import('expo-modules-core');
+  return expoModules.requireNativeModule<NativeModule>('SwingAnalysis');
+}
+
+export const SwingAnalysisModule = loadModule();

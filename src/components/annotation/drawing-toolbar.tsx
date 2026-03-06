@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { DrawingTool } from '@/src/types/annotation';
@@ -36,6 +37,8 @@ type DrawingToolbarProps = {
   activeTool: DrawingTool;
   /** Current angle drawing phase. */
   anglePhase: AnglePhase;
+  /** Layout variant. Vertical = tall sidebar, grid = compact square. */
+  layout?: 'vertical' | 'grid';
   /** Called when a color swatch is tapped. */
   onColorSelect: (color: string) => void;
   /** Called when undo is tapped. */
@@ -49,9 +52,11 @@ type DrawingToolbarProps = {
 };
 
 /**
- * Vertical sidebar toolbar for annotation drawing controls.
- * Stacks tool selection, color swatches, and undo/redo/clear
- * in a translucent pill on the right edge of the video.
+ * Toolbar for annotation drawing controls.
+ * Vertical layout: tall sidebar pill (portrait).
+ * Grid layout: 2-column × 4-row — tools left, color + actions right
+ * (landscape).
+ * Tapping the color button opens a floating popover with preset colors.
  * Shows a floating hint during angle measurement phases.
  */
 export const DrawingToolbar = ({
@@ -61,6 +66,7 @@ export const DrawingToolbar = ({
   canRedo,
   activeTool,
   anglePhase,
+  layout = 'vertical',
   onColorSelect,
   onUndo,
   onRedo,
@@ -68,96 +74,216 @@ export const DrawingToolbar = ({
   onToolSelect,
 }: DrawingToolbarProps) => {
   const phaseHint = ANGLE_PHASE_HINTS[anglePhase];
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const isGrid = layout === 'grid';
+
+  const handleColorSelect = useCallback((color: string) => {
+    onColorSelect(color);
+    setColorPickerOpen(false);
+  }, [onColorSelect]);
+
+  const handleToolSelect = useCallback((tool: DrawingTool) => {
+    setColorPickerOpen(false);
+    onToolSelect(tool);
+  }, [onToolSelect]);
+
+  const handleUndo = useCallback(() => {
+    setColorPickerOpen(false);
+    onUndo();
+  }, [onUndo]);
+
+  const handleRedo = useCallback(() => {
+    setColorPickerOpen(false);
+    onRedo();
+  }, [onRedo]);
+
+  const handleClear = useCallback(() => {
+    setColorPickerOpen(false);
+    onClear();
+  }, [onClear]);
 
   return (
     <View style={styles.wrapper}>
-      {/* Angle phase hint — floats to the left of the sidebar */}
+      {/* Angle phase hint — floats to the left of the toolbar */}
       {phaseHint && (
         <View style={styles.hintPill}>
           <Text style={styles.hintText}>{phaseHint}</Text>
         </View>
       )}
 
-      <View style={styles.container}>
-        {/* Tool selection */}
-        <View style={styles.section} accessibilityRole="toolbar">
-          {TOOL_OPTIONS.map(({ tool, icon, label }) => (
+      {/* Color picker popover — floats to the left of the toolbar */}
+      {colorPickerOpen && (
+        <View style={styles.colorPopover}>
+          <View style={styles.colorGrid}>
+            {presetColors.map((color) => (
+              <Pressable
+                key={color}
+                onPress={() => handleColorSelect(color)}
+                style={[
+                  styles.popoverSwatch,
+                  { backgroundColor: color },
+                  activeColor === color && styles.popoverSwatchActive,
+                ]}
+                accessibilityRole="radio"
+                accessibilityLabel={`${color} color`}
+                accessibilityState={{ checked: activeColor === color }}
+              />
+            ))}
+          </View>
+        </View>
+      )}
+
+      {isGrid ? (
+        /* Grid: two columns side by side — tools left, color+actions right */
+        <View style={styles.containerGrid}>
+          <View style={styles.gridColumn} accessibilityRole="toolbar">
+            {TOOL_OPTIONS.map(({ tool, icon, label }) => (
+              <Pressable
+                key={tool}
+                onPress={() => handleToolSelect(tool)}
+                style={[
+                  styles.toolButton,
+                  activeTool === tool && styles.toolButtonActive,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: activeTool === tool }}
+              >
+                <Ionicons
+                  name={icon}
+                  size={24}
+                  color={activeTool === tool ? '#fff' : '#aaa'}
+                />
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.gridColumn}>
             <Pressable
-              key={tool}
-              onPress={() => onToolSelect(tool)}
+              onPress={() => setColorPickerOpen(!colorPickerOpen)}
               style={[
-                styles.toolButton,
-                activeTool === tool && styles.toolButtonActive,
+                styles.colorButton,
+                { backgroundColor: activeColor },
+                colorPickerOpen && styles.colorButtonOpen,
               ]}
               accessibilityRole="button"
-              accessibilityLabel={label}
-              accessibilityState={{ selected: activeTool === tool }}
+              accessibilityLabel="Choose drawing color"
             >
               <Ionicons
-                name={icon}
-                size={24}
-                color={activeTool === tool ? '#fff' : '#aaa'}
+                name="color-palette"
+                size={18}
+                color={activeColor === '#ffffff' ? '#333' : '#fff'}
               />
             </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Color swatches */}
-        <View style={styles.section} accessibilityRole="radiogroup" accessibilityLabel="Drawing colors">
-          {presetColors.map((color) => (
             <Pressable
-              key={color}
-              onPress={() => onColorSelect(color)}
-              style={[
-                styles.colorSwatch,
-                { backgroundColor: color },
-                activeColor === color && styles.colorSwatchActive,
-              ]}
-              accessibilityRole="radio"
-              accessibilityLabel={`${color} color`}
-              accessibilityState={{ checked: activeColor === color }}
+              style={[styles.actionButton, !canUndo && styles.actionButtonDisabled]}
+              onPress={handleUndo}
+              disabled={!canUndo}
+              accessibilityRole="button"
+              accessibilityLabel="Undo"
+              accessibilityState={{ disabled: !canUndo }}
+            >
+              <Ionicons name="arrow-undo" size={22} color={canUndo ? '#fff' : '#666'} />
+            </Pressable>
+            <Pressable
+              style={[styles.actionButton, !canRedo && styles.actionButtonDisabled]}
+              onPress={handleRedo}
+              disabled={!canRedo}
+              accessibilityRole="button"
+              accessibilityLabel="Redo"
+              accessibilityState={{ disabled: !canRedo }}
+            >
+              <Ionicons name="arrow-redo" size={22} color={canRedo ? '#fff' : '#666'} />
+            </Pressable>
+            <Pressable
+              style={styles.actionButton}
+              onPress={handleClear}
+              accessibilityRole="button"
+              accessibilityLabel="Clear all"
+            >
+              <Ionicons name="trash-outline" size={22} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        /* Vertical: single column with dividers */
+        <View style={styles.container}>
+          <View style={styles.section} accessibilityRole="toolbar">
+            {TOOL_OPTIONS.map(({ tool, icon, label }) => (
+              <Pressable
+                key={tool}
+                onPress={() => handleToolSelect(tool)}
+                style={[
+                  styles.toolButton,
+                  activeTool === tool && styles.toolButtonActive,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: activeTool === tool }}
+              >
+                <Ionicons
+                  name={icon}
+                  size={24}
+                  color={activeTool === tool ? '#fff' : '#aaa'}
+                />
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.divider} />
+
+          <Pressable
+            onPress={() => setColorPickerOpen(!colorPickerOpen)}
+            style={[
+              styles.colorButton,
+              { backgroundColor: activeColor },
+              colorPickerOpen && styles.colorButtonOpen,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Choose drawing color"
+          >
+            <Ionicons
+              name="color-palette"
+              size={18}
+              color={activeColor === '#ffffff' ? '#333' : '#fff'}
             />
-          ))}
+          </Pressable>
+
+          <View style={styles.divider} />
+
+          <View style={styles.section}>
+            <Pressable
+              style={[styles.actionButton, !canUndo && styles.actionButtonDisabled]}
+              onPress={handleUndo}
+              disabled={!canUndo}
+              accessibilityRole="button"
+              accessibilityLabel="Undo"
+              accessibilityState={{ disabled: !canUndo }}
+            >
+              <Ionicons name="arrow-undo" size={22} color={canUndo ? '#fff' : '#666'} />
+            </Pressable>
+
+            <Pressable
+              style={[styles.actionButton, !canRedo && styles.actionButtonDisabled]}
+              onPress={handleRedo}
+              disabled={!canRedo}
+              accessibilityRole="button"
+              accessibilityLabel="Redo"
+              accessibilityState={{ disabled: !canRedo }}
+            >
+              <Ionicons name="arrow-redo" size={22} color={canRedo ? '#fff' : '#666'} />
+            </Pressable>
+
+            <Pressable
+              style={styles.actionButton}
+              onPress={handleClear}
+              accessibilityRole="button"
+              accessibilityLabel="Clear all"
+            >
+              <Ionicons name="trash-outline" size={22} color="#fff" />
+            </Pressable>
+          </View>
         </View>
-
-        <View style={styles.divider} />
-
-        {/* Actions */}
-        <View style={styles.section}>
-          <Pressable
-            style={[styles.actionButton, !canUndo && styles.actionButtonDisabled]}
-            onPress={onUndo}
-            disabled={!canUndo}
-            accessibilityRole="button"
-            accessibilityLabel="Undo"
-            accessibilityState={{ disabled: !canUndo }}
-          >
-            <Ionicons name="arrow-undo" size={22} color={canUndo ? '#fff' : '#666'} />
-          </Pressable>
-
-          <Pressable
-            style={[styles.actionButton, !canRedo && styles.actionButtonDisabled]}
-            onPress={onRedo}
-            disabled={!canRedo}
-            accessibilityRole="button"
-            accessibilityLabel="Redo"
-            accessibilityState={{ disabled: !canRedo }}
-          >
-            <Ionicons name="arrow-redo" size={22} color={canRedo ? '#fff' : '#666'} />
-          </Pressable>
-
-          <Pressable
-            style={styles.actionButton}
-            onPress={onClear}
-            accessibilityRole="button"
-            accessibilityLabel="Clear all"
-          >
-            <Ionicons name="trash-outline" size={22} color="#fff" />
-          </Pressable>
-        </View>
-      </View>
+      )}
     </View>
   );
 };
@@ -167,18 +293,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  // Vertical container — tall column pill (portrait)
   container: {
-    backgroundColor: 'rgba(18, 18, 31, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 26,
     paddingVertical: 12,
     paddingHorizontal: 8,
     gap: 4,
     alignItems: 'center',
   },
+  // Grid container — two columns side by side (landscape)
+  containerGrid: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  // Single column within the grid
+  gridColumn: {
+    gap: 10,
+    alignItems: 'center',
+  },
+  // Vertical section — stacked column
   section: {
     gap: 10,
     alignItems: 'center',
   },
+  // Vertical divider — horizontal line
   divider: {
     width: 28,
     height: 1,
@@ -199,21 +342,47 @@ const styles = StyleSheet.create({
     borderColor: '#E5A020',
     backgroundColor: 'rgba(229, 160, 32, 0.2)',
   },
-  colorSwatch: {
-    width: 32,
-    height: 32,
+  colorButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  colorButtonOpen: {
+    borderColor: '#E5A020',
+    borderWidth: 3,
+  },
+  colorPopover: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 16,
+    padding: 10,
+    marginRight: 8,
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: 84,
+    gap: 8,
+    justifyContent: 'center',
+  },
+  popoverSwatch: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  colorSwatchActive: {
+  popoverSwatchActive: {
     borderColor: '#E5A020',
     borderWidth: 3,
   },
   actionButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -222,7 +391,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   hintPill: {
-    backgroundColor: 'rgba(18, 18, 31, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 6,

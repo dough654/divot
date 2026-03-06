@@ -20,11 +20,11 @@ type FeatureItem = {
 
 const PRO_FEATURES: FeatureItem[] = [
   { icon: 'cloud-upload-outline', name: 'Cloud Backup', description: 'Back up clips to the cloud' },
-  { icon: 'git-compare-outline', name: 'Side-by-Side', description: 'Compare two swings together' },
   { icon: 'speedometer-outline', name: 'Swing Tempo', description: 'Measure backswing/downswing ratio' },
   { icon: 'body-outline', name: 'Pose Overlay', description: 'Skeleton overlay on playback' },
+  { icon: 'git-compare-outline', name: 'Side-by-Side', description: 'Compare two swings together' },
   { icon: 'people-outline', name: 'Ghost Overlay', description: 'Overlay a reference swing' },
-  { icon: 'share-outline', name: 'Video Export', description: 'Export annotated clips' },
+  { icon: 'videocam-off-outline', name: 'Watermark-Free Export', description: 'Export clips without watermark' },
 ];
 
 const FREE_FEATURES: FeatureItem[] = [
@@ -33,6 +33,7 @@ const FREE_FEATURES: FeatureItem[] = [
   { icon: 'play-outline', name: 'Playback', description: 'Slow-motion review with scrubbing' },
   { icon: 'pencil-outline', name: 'Annotations', description: 'Draw lines and angles on video' },
   { icon: 'calendar-outline', name: 'Sessions', description: 'Organize clips by practice session' },
+  { icon: 'download-outline', name: 'Video Export', description: 'Export clips with divot watermark' },
 ];
 
 export default function PaywallScreen() {

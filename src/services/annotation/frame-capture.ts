@@ -3,6 +3,7 @@ import { type View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { File } from 'expo-file-system/next';
 
 type CaptureOptions = {
@@ -85,6 +86,70 @@ export const captureAnnotatedFrame = async (
     return asset.uri;
   } finally {
     const tempFile = new File(tempUri);
+    if (tempFile.exists) {
+      tempFile.delete();
+    }
+  }
+};
+
+/**
+ * Captures the annotated video frame as a PNG and returns the temp file path.
+ * Caller is responsible for cleanup.
+ *
+ * @param viewRef - Ref to the View compositing the frame image and drawing overlay.
+ * @param options - Optional width/height to resize the output image.
+ * @returns The temp file path of the captured PNG.
+ */
+export const captureFrameToTempFile = async (
+  viewRef: RefObject<View | null>,
+  options?: CaptureOptions,
+): Promise<string> => {
+  return captureRef(viewRef, {
+    format: 'png',
+    quality: 1,
+    result: 'tmpfile',
+    ...(options?.width && { width: options.width }),
+    ...(options?.height && { height: options.height }),
+  });
+};
+
+/**
+ * Writes a base64 PNG to a temp file, opens the native share sheet, then cleans up.
+ *
+ * @param base64Data - Raw base64-encoded PNG data (no data URI prefix).
+ */
+export const shareBase64Image = async (base64Data: string): Promise<void> => {
+  const tempPath = `${FileSystem.cacheDirectory}share-frame-${Date.now()}.png`;
+  await FileSystem.writeAsStringAsync(tempPath, base64Data, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  try {
+    await Sharing.shareAsync(tempPath, {
+      mimeType: 'image/png',
+      UTI: 'public.png',
+    });
+  } finally {
+    const tempFile = new File(tempPath);
+    if (tempFile.exists) {
+      tempFile.delete();
+    }
+  }
+};
+
+/**
+ * Opens the native share sheet for a temp file, then cleans up.
+ *
+ * @param tempPath - Path to a temp PNG file.
+ */
+export const shareTempFile = async (tempPath: string): Promise<void> => {
+  try {
+    await Sharing.shareAsync(tempPath, {
+      mimeType: 'image/png',
+      UTI: 'public.png',
+    });
+  } finally {
+    const tempFile = new File(tempPath);
     if (tempFile.exists) {
       tempFile.delete();
     }

@@ -1,28 +1,65 @@
-diff --git a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CodeScannerPipeline.kt b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CodeScannerPipeline.kt
-index 23d78d1..0b132d1 100644
---- a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CodeScannerPipeline.kt
-+++ b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CodeScannerPipeline.kt
-@@ -27,14 +27,22 @@ class CodeScannerPipeline(val configuration: CameraConfiguration.CodeScanner, va
-     scanner = BarcodeScanning.getClient(barcodeScannerOptions)
-   }
+diff --git a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CameraDeviceDetails.kt b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CameraDeviceDetails.kt
+index 76b6ab0..a1b3d83 100644
+--- a/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CameraDeviceDetails.kt
++++ b/node_modules/react-native-vision-camera/android/src/main/java/com/mrousavy/camera/core/CameraDeviceDetails.kt
+@@ -30,7 +30,9 @@ import com.mrousavy.camera.core.types.Position
+ import com.mrousavy.camera.core.types.VideoStabilizationMode
+ import com.mrousavy.camera.core.utils.CamcorderProfileUtils
+ import com.mrousavy.camera.react.extensions.toJSValue
++import android.hardware.camera2.params.StreamConfigurationMap
+ import kotlin.math.atan2
++import kotlin.math.max
+ import kotlin.math.min
+ import kotlin.math.sqrt
  
-+  private var analyzeCount = 0L
+@@ -125,14 +127,45 @@ class CameraDeviceDetails(private val cameraInfo: CameraInfo, extensionsManager:
+           cameraInfoInternal.getSupportedHighResolutions(ImageFormat.JPEG) union
+             cameraInfoInternal.getSupportedResolutions(ImageFormat.JPEG)
+           ).toList()
+-        val fpsRanges = cameraInfo.supportedFrameRateRanges
+-        val minFps = fpsRanges.minOf { it.lower }
+-        val maxFps = fpsRanges.maxOf { it.upper }
++        // CameraX's supportedFrameRateRanges often caps at 30fps on Samsung devices.
++        // Query Camera2 directly for the real FPS ranges.
++        val cameraXFpsRanges = cameraInfo.supportedFrameRateRanges
++        val camera2AeRanges = camera2Details?.cameraCharacteristicsCompat
++          ?.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)
++        val camera2StreamMap = camera2Details?.cameraCharacteristicsCompat
++          ?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
++        val highSpeedSizes = try { camera2StreamMap?.highSpeedVideoSizes?.toList() } catch (_: Throwable) { null }
 +
-   @OptIn(ExperimentalGetImage::class)
-   override fun analyze(imageProxy: ImageProxy) {
-     val image = imageProxy.image ?: throw InvalidImageTypeError()
-+    analyzeCount++
++        // Build a per-size max FPS map from Camera2 high-speed config
++        val highSpeedFpsForSize = mutableMapOf<String, Int>()
++        highSpeedSizes?.forEach { hsSize ->
++          try {
++            val hsRanges = camera2StreamMap?.getHighSpeedVideoFpsRangesFor(hsSize)
++            val hsMax = hsRanges?.maxOfOrNull { it.upper } ?: 0
++            val key = "${hsSize.width}x${hsSize.height}"
++            highSpeedFpsForSize[key] = max(highSpeedFpsForSize[key] ?: 0, hsMax)
++          } catch (_: Throwable) { /* skip */ }
++        }
++
++        // Global max from Camera2 AE ranges (includes 60fps on most modern devices)
++        val camera2GlobalMax = camera2AeRanges?.maxOfOrNull { it.upper } ?: 0
++        val cameraXGlobalMax = cameraXFpsRanges.maxOfOrNull { it.upper } ?: 30
++        val globalMaxFps = max(cameraXGlobalMax, camera2GlobalMax)
++        val minFps = cameraXFpsRanges.minOfOrNull { it.lower } ?: 7
++
++        Log.i(TAG, "Camera $cameraId CameraX FPS ranges: $cameraXFpsRanges (max=$cameraXGlobalMax)")
++        Log.i(TAG, "Camera $cameraId Camera2 AE FPS ranges: ${camera2AeRanges?.toList()} (max=$camera2GlobalMax)")
++        Log.i(TAG, "Camera $cameraId High-speed sizes: $highSpeedFpsForSize")
++        Log.i(TAG, "Camera $cameraId Effective global max FPS: $globalMaxFps")
  
-     try {
--      val inputImage = InputImage.fromMediaImage(image, imageProxy.imageInfo.rotationDegrees)
-+      val rotation = imageProxy.imageInfo.rotationDegrees
-+      val inputImage = InputImage.fromMediaImage(image, rotation)
-+      if (analyzeCount % 30 == 1L) {
-+        Log.i(TAG, "analyze() called #$analyzeCount — rotation=$rotation size=${inputImage.width}x${inputImage.height}")
-+      }
-       scanner.process(inputImage)
-         .addOnSuccessListener { barcodes ->
-+          Log.i(TAG, "MLKit result: ${barcodes.size} barcodes found (frame #$analyzeCount)")
-           if (barcodes.isNotEmpty()) {
-             callback.onCodeScanned(barcodes, CodeScannerFrame(inputImage.width, inputImage.height))
-           }
+         videoSizes.forEach { videoSize ->
+           try {
+-            // not every size supports the maximum FPS range
+-            val maxFpsForSize = CamcorderProfileUtils.getMaximumFps(cameraId, videoSize) ?: maxFps
++            val sizeKey = "${videoSize.width}x${videoSize.height}"
++            val camcorderMaxFps = CamcorderProfileUtils.getMaximumFps(cameraId, videoSize) ?: 0
++            val highSpeedMax = highSpeedFpsForSize[sizeKey] ?: 0
++            // Use the best FPS from any source: CamcorderProfile, Camera2 AE ranges, or high-speed config
++            val maxFpsForSize = maxOf(camcorderMaxFps, camera2GlobalMax, highSpeedMax)
++            Log.i(TAG, "  $sizeKey: camcorder=$camcorderMaxFps camera2AE=$camera2GlobalMax highSpeed=$highSpeedMax -> maxFpsForSize=$maxFpsForSize")
+             // if the FPS range for this size is even smaller than min FPS, we need to clamp that as well.
+             val minFpsForSize = min(minFps, maxFpsForSize)
+             val fpsRange = Range(minFpsForSize, maxFpsForSize)

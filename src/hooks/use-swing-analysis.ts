@@ -62,6 +62,12 @@ export const useSwingAnalysis = ({
   }, [clipId]);
 
   const analyze = useCallback(async () => {
+    if (!SwingAnalysisModule) {
+      setErrorMessage('Swing analysis is not available on this platform');
+      setStatus('error');
+      return;
+    }
+
     setStatus('analyzing');
     setProgress(0);
     setErrorMessage(null);
@@ -96,7 +102,7 @@ export const useSwingAnalysis = ({
   }, [clipId, clipPath]);
 
   const cancel = useCallback(() => {
-    SwingAnalysisModule.cancelAnalysis();
+    SwingAnalysisModule?.cancelAnalysis();
     setStatus('cancelled');
   }, []);
 

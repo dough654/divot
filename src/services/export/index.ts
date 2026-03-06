@@ -1,5 +1,6 @@
 export {
   buildOverlayCommand,
+  buildCopyCommand,
   exportAnnotatedVideo,
   cancelExport,
   saveExportToGallery,

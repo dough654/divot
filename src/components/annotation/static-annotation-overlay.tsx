@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import { StyleSheet } from 'react-native';
-import Svg, { Polyline, Line, Ellipse, Image as SvgImage } from 'react-native-svg';
+import Svg, { Polyline, Line, Ellipse, Text as SvgText, Image as SvgImage } from 'react-native-svg';
 import type { Annotation, AnnotationLine, EllipseAnnotation, Point } from '@/src/types/annotation';
 import { AngleAnnotationRenderer } from './angle-annotation-renderer';
 
@@ -17,6 +17,9 @@ type StaticAnnotationOverlayProps = {
    *  Used on Android to composite frame + annotations entirely within SVG
    *  so toDataURL produces a single image without needing captureRef. */
   backgroundImageUri?: string;
+  /** Optional watermark text rendered at bottom-center of the SVG.
+   *  Used to brand free-tier video exports (e.g. "recorded with divot"). */
+  watermarkText?: string;
 };
 
 const toSvgPointsString = (
@@ -91,8 +94,9 @@ const EllipseRenderer = ({
  * which can't see SVG content on Android).
  */
 export const StaticAnnotationOverlay = forwardRef<Svg, StaticAnnotationOverlayProps>(
-  ({ annotations, width, height, onReady, backgroundImageUri }, ref) => {
-    if (annotations.length === 0 || width === 0 || height === 0) return null;
+  ({ annotations, width, height, onReady, backgroundImageUri, watermarkText }, ref) => {
+    const hasContent = annotations.length > 0 || !!watermarkText;
+    if (!hasContent || width === 0 || height === 0) return null;
 
     return (
       <Svg
@@ -140,6 +144,19 @@ export const StaticAnnotationOverlay = forwardRef<Svg, StaticAnnotationOverlayPr
             />
           );
         })}
+        {watermarkText && (
+          <SvgText
+            x={width / 2}
+            y={height - 12}
+            textAnchor="middle"
+            fontSize={14}
+            fontWeight="600"
+            fill="white"
+            opacity={0.5}
+          >
+            {watermarkText}
+          </SvgText>
+        )}
       </Svg>
     );
   }

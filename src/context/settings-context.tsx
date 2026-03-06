@@ -26,6 +26,17 @@ export type RecordingFps = 30 | 60 | 120 | 240;
 
 export const RECORDING_FPS_VALUES: RecordingFps[] = [30, 60, 120, 240];
 
+export type RecordingResolution = '480p' | '720p' | '1080p';
+
+export const RECORDING_RESOLUTION_VALUES: RecordingResolution[] = ['480p', '720p', '1080p'];
+
+/** Pixel dimensions for each resolution option. */
+export const RESOLUTION_DIMENSIONS: Record<RecordingResolution, { width: number; height: number }> = {
+  '480p': { width: 854, height: 480 },
+  '720p': { width: 1280, height: 720 },
+  '1080p': { width: 1920, height: 1080 },
+};
+
 export type Settings = {
   /** Whether haptic feedback is enabled. Defaults to true. */
   hapticsEnabled: boolean;
@@ -35,6 +46,10 @@ export type Settings = {
   recordingFps: RecordingFps;
   /** Fps values the current device supports. Null until camera opens. */
   supportedRecordingFps: RecordingFps[] | null;
+  /** Recording resolution target. Defaults to '1080p'. */
+  recordingResolution: RecordingResolution;
+  /** Resolution values the current device supports. Null until camera opens. */
+  supportedRecordingResolutions: RecordingResolution[] | null;
   /** Whether the pose skeleton overlay is shown on camera preview. Defaults to false. */
   poseOverlayEnabled: boolean;
   /** Whether swing auto-detection is enabled. Defaults to false. */
@@ -58,6 +73,8 @@ type SettingsContextValue = {
   setThemeMode: (mode: ThemeMode) => void;
   setRecordingFps: (fps: RecordingFps) => void;
   setSupportedRecordingFps: (fps: RecordingFps[]) => void;
+  setRecordingResolution: (resolution: RecordingResolution) => void;
+  setSupportedRecordingResolutions: (resolutions: RecordingResolution[]) => void;
   setPoseOverlayEnabled: (enabled: boolean) => void;
   setSwingAutoDetectionEnabled: (enabled: boolean) => void;
   setSwingDetectionSensitivity: (sensitivity: number) => void;
@@ -78,6 +95,8 @@ const DEFAULT_SETTINGS: Settings = {
   themeMode: 'system',
   recordingFps: 30,
   supportedRecordingFps: null,
+  recordingResolution: '1080p',
+  supportedRecordingResolutions: null,
   poseOverlayEnabled: false,
   swingAutoDetectionEnabled: false,
   swingDetectionSensitivity: 0.5,
@@ -129,7 +148,7 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
   // Persist settings whenever they change (exclude runtime-only fields)
   const persistSettings = useCallback(async (newSettings: Settings) => {
     try {
-      const { supportedRecordingFps: _, ...persistable } = newSettings;
+      const { supportedRecordingFps: _, supportedRecordingResolutions: _2, ...persistable } = newSettings;
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(persistable));
     } catch (err) {
       console.error('Failed to save settings:', err);
@@ -173,6 +192,25 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
   const setSupportedRecordingFps = useCallback(
     (fps: RecordingFps[]) => {
       setSettings((prev) => ({ ...prev, supportedRecordingFps: fps }));
+    },
+    []
+  );
+
+  const setRecordingResolution = useCallback(
+    (resolution: RecordingResolution) => {
+      setSettings((prev) => {
+        const updated = { ...prev, recordingResolution: resolution };
+        persistSettings(updated);
+        return updated;
+      });
+    },
+    [persistSettings]
+  );
+
+  /** Runtime-only — not persisted to AsyncStorage (hardware-dependent, re-detected each session). */
+  const setSupportedRecordingResolutions = useCallback(
+    (resolutions: RecordingResolution[]) => {
+      setSettings((prev) => ({ ...prev, supportedRecordingResolutions: resolutions }));
     },
     []
   );
@@ -262,6 +300,8 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
       setThemeMode,
       setRecordingFps,
       setSupportedRecordingFps,
+      setRecordingResolution,
+      setSupportedRecordingResolutions,
       setPoseOverlayEnabled,
       setSwingAutoDetectionEnabled,
       setSwingDetectionSensitivity,
@@ -270,7 +310,7 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
       setCameraAngle,
       setCloudBackupEnabled,
     }),
-    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps, setPoseOverlayEnabled, setSwingAutoDetectionEnabled, setSwingDetectionSensitivity, setDebugOverlayEnabled, setSwingClassifierEnabled, setCameraAngle, setCloudBackupEnabled]
+    [settings, isLoaded, setHapticsEnabled, setThemeMode, setRecordingFps, setSupportedRecordingFps, setRecordingResolution, setSupportedRecordingResolutions, setPoseOverlayEnabled, setSwingAutoDetectionEnabled, setSwingDetectionSensitivity, setDebugOverlayEnabled, setSwingClassifierEnabled, setCameraAngle, setCloudBackupEnabled]
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

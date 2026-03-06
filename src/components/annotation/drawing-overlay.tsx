@@ -18,6 +18,8 @@ type DrawingOverlayProps = {
   onLineMove: (point: Point) => void;
   /** Called when the touch ends. */
   onLineEnd: () => void;
+  /** Called on a tap (no drag). Fires alongside drawing gestures. */
+  onTap?: () => void;
 };
 
 /**
@@ -106,6 +108,7 @@ export const DrawingOverlay = ({
   onLineStart,
   onLineMove,
   onLineEnd,
+  onTap,
 }: DrawingOverlayProps) => {
   // State drives re-renders when layout changes (e.g. on rotation).
   // Ref mirrors state for synchronous access inside gesture callbacks.
@@ -121,6 +124,8 @@ export const DrawingOverlay = ({
     };
   }, []);
 
+  const TAP_DISTANCE_THRESHOLD = 10;
+
   const panGesture = Gesture.Pan()
     .runOnJS(true)
     .onStart((event) => {
@@ -131,8 +136,13 @@ export const DrawingOverlay = ({
       const point = normalizePoint(event.x, event.y);
       onLineMove(point);
     })
-    .onEnd(() => {
+    .onEnd((event) => {
       onLineEnd();
+      // If finger barely moved, treat as a tap (toggle controls)
+      const distance = Math.sqrt(event.translationX ** 2 + event.translationY ** 2);
+      if (distance < TAP_DISTANCE_THRESHOLD) {
+        onTap?.();
+      }
     })
     .minDistance(0)
     .enabled(drawingEnabled);

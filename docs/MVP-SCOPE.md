@@ -1,59 +1,50 @@
 # Divot MVP Scope
 
 > Approved: 2026-02-06
-> Status: Draft
+> Last updated: 2026-03-01
+> Status: In Progress
 
 ## Product Vision
 
-Divot is a P2P video streaming app for golfers. Two devices connect directly — one films the swing, the other displays the live feed for a coach or self-review. Record, replay, annotate, and auto-detect swings without cloud infrastructure or third-party video services.
+Divot is a P2P video streaming app for golfers. Two devices connect directly — one films the swing, the other displays the live feed for a coach or self-review. Record, replay, annotate, and auto-detect swings without cloud dependency for the core experience.
 
-**Core differentiator**: Real-time P2P streaming between two devices at the range. No upload-then-review workflow. No cloud dependency for the core experience.
+**Core differentiator**: Real-time P2P streaming between two devices at the range. No upload-then-review workflow. The free experience is fully featured — Pro unlocks advanced analysis and cloud features.
 
 ---
 
 ## Monetization Model
 
 ### Free Tier
-Permanent free access with limits. Free users are the growth engine — golf is social, and "film my swing with this app" is the acquisition loop.
+Generous free tier — the core filming and review experience is fully unlocked. Free users are the growth engine. Golf is social, and "film my swing with this app" is the acquisition loop. The two-device requirement is already a friction point — gating basic features on top kills word-of-mouth.
 
-| Capability | Limit |
-|------------|-------|
+| Capability | Access |
+|------------|--------|
 | P2P streaming | Unlimited |
 | Manual recording | Unlimited |
-| Saved clips | 3 max |
+| Saved clips | Unlimited |
 | Playback (slow-mo, frame step) | Full access |
-| Annotation tools | Not available |
-| Session management | Not available |
-| Auto-detection | Not available |
-| Remote arm/disarm | Not available |
-| Clip sync (P2P transfer) | Not available |
+| Annotation tools | Full (freehand, line, angle, ellipse) |
+| Session management | Yes |
+| Clip sync (P2P transfer) | Yes |
+| Swing auto-detection | Yes (pose + motion) |
+| DTL / face-on camera angle toggle | Yes |
+| Video export | With "recorded with divot" watermark |
 
-**Rationale**: Streaming and basic recording are free to minimize friction. The two-device requirement is already a barrier — adding a paywall on top kills word-of-mouth. Free users experience the core value (live swing view) and hit the clip limit naturally, creating upgrade pressure.
+**Rationale**: Everything needed for a complete practice session is free. Export includes a small watermark — users who share clips become organic marketing. Upgrade pressure comes from wanting advanced analysis tools and clean exports.
 
-### Paid Tier (~$8-10/month)
-The full swing analysis experience.
+### Divot Pro (~$8-10/month)
+Advanced analysis and polish.
 
 | Capability | Access |
 |------------|--------|
 | Everything in Free | Included |
-| Saved clips | Unlimited |
-| Annotation tools | Full (freehand, line, angle, ellipse) |
-| Save annotated frames | Yes |
-| Session management | Yes |
-| Swing auto-detection | Yes (motion-based) |
-| Remote arm/disarm | Yes |
-| Clip sync | Yes |
-
-### Pro Tier (~$15-20/month) — Post-MVP
-Advanced ML-powered analysis. Not in scope for initial launch.
-
-| Capability | Access |
-|------------|--------|
-| Everything in Paid | Included |
-| Skeleton angle detection | Auto-overlay joint angles |
-| Swing plane lines | Automated plane visualization |
-| Swing issue detection | AI-powered diagnostics and suggestions |
+| Cloud backup | Back up clips to the cloud |
+| Share via link | Share clips without both devices present |
+| Swing tempo measurement | Backswing/downswing ratio |
+| Pose overlay on playback | Skeleton overlay with joint angles |
 | Side-by-side comparison | Compare two swings frame-by-frame |
+| Ghost overlay comparison | Overlay a reference swing on playback |
+| Watermark-free video export | Export clips without the divot watermark |
 
 ---
 
@@ -61,11 +52,9 @@ Advanced ML-powered analysis. Not in scope for initial launch.
 
 ### Already Built
 
-These features are complete, tested, and in the codebase today.
-
 **Core Streaming**
 - [x] P2P WebRTC video streaming via VisionCamera + native frame processor
-- [x] Socket.IO signaling server (deployed on Fly.io)
+- [x] Socket.IO signaling server (deployed on Fly.io, rate-limited — GOL-107)
 - [x] QR code pairing with manual code entry fallback
 - [x] Auto-reconnection (ICE restart + signaling rejoin scenarios)
 - [x] Adaptive bitrate (high/medium/low quality presets based on network)
@@ -78,214 +67,152 @@ These features are complete, tested, and in the codebase today.
 - [x] Slow motion (0.25x, 0.5x, 1x speed controls)
 - [x] Frame-by-frame stepping
 - [x] Clip sync via WebRTC data channel (chunked transfer)
+- [x] Swing auto-detection — pose-based (CNN classifier + shoulder rotation) and motion-based pipelines (GOL-40)
+- [x] Rolling recorder with pre/post-roll buffering
+- [x] Remote arm/disarm via data channel (GOL-41)
+- [x] Session management — auto-create on connect, clip tagging, list/detail screens, notes, location (GOL-42)
 
-**Annotation Tools**
-- [x] Freehand drawing
-- [x] Straight line tool
-- [x] Angle measurement with degree label
-- [x] Ellipse/circle tool
-- [x] Color palette (white, red, yellow, blue)
-- [x] Adjustable stroke width
-- [x] Undo/redo
+**Annotation & Export**
+- [x] Freehand drawing, straight line, angle measurement, ellipse/circle
+- [x] Color palette, stroke width, undo/redo
 - [x] Export annotated frame to device gallery
+- [x] Video export with FFmpeg overlay compositing
+- [x] Export watermark for free users ("recorded with divot")
+
+**Swing Analysis**
+- [x] Shaft detection via Apple Vision / ML Kit pose estimation
+- [x] Shaft overlay on playback with trace path
+- [x] Swing phase detection (address, backswing, downswing, follow-through)
+- [x] Shoulder rotation tracking for DTL angle
+
+**Authentication & Backend**
+- [x] Clerk authentication — email/password, Sign in with Apple, Google OAuth (GOL-34)
+- [x] Auth state persistence, account deletion
+- [x] Turso (libSQL) database with user/clip/session schema (GOL-95)
+- [x] Hono API server on Fly.io (GOL-96)
+- [x] Cloudflare R2 cloud storage with presigned uploads (GOL-97)
+- [x] Clerk EAS secrets for cloud builds (GOL-99)
+
+**Subscription Infrastructure**
+- [x] RevenueCat SDK integration (react-native-purchases) (GOL-108)
+- [x] Paywall screen with Pro/Free feature comparison
+- [x] `useProAccess()` hook and `ProGate` component
+- [x] Purchase and restore flows
+- [x] Cross-device subscription sync via Clerk user ID
+
+**Analytics**
+- [x] PostHog integration — event tracking, user identification, feature flags
+- [x] Swing detection analytics, connection quality analytics
 
 **UI & Polish**
 - [x] Design system (Stark palette, Darker Grotesque + Manrope fonts)
 - [x] Full dark/light theme with system preference detection
-- [x] Haptic feedback throughout UI
-- [x] Accessibility labels on all interactive elements
-- [x] Screen reader announcements for connection status
-- [x] Toast notification system
-- [x] Skeleton loaders, empty states
-- [x] Press animations, connection status animations, Android ripple
+- [x] Haptic feedback, accessibility labels, screen reader announcements
+- [x] Toast notification system, skeleton loaders, empty states
 - [x] Landscape layouts for camera, viewer, home, clips, playback
 - [x] Settings screen (theme, haptics, clear data, send feedback)
 - [x] Centralized error messages with recovery actions
 
 **Testing**
-- [x] Unit tests for utilities (angle math, ellipse math, backoff, QR payload, room codes)
-- [x] Mock WebRTC infrastructure for integration tests
-- [x] E2E connection flow tests (28 tests)
-- [x] 130+ total tests
-
-### Needs Building
-
-These features are required for MVP launch.
-
-#### 1. User Authentication (GOL-34)
-**Priority**: Critical — blocks subscriptions, session management
-**Effort**: Large
-
-- Backend/BaaS selection (Firebase Auth, Supabase, or custom)
-- Email/password sign-up and login
-- OAuth providers (Sign in with Apple required for App Store, Google optional)
-- Password reset flow
-- Auth state persistence (stay logged in)
-- Authenticated signaling server (associate rooms with users)
-- Account deletion (App Store requirement)
-
-**Open decision**: Firebase vs Supabase vs custom backend. Firebase has better RN ecosystem support and built-in App Store IAP validation. Supabase is more developer-friendly with direct Postgres access.
-
-#### 2. Subscription & In-App Purchases (NEW)
-**Priority**: Critical — the business model
-**Effort**: Large
-
-- App Store IAP configuration (auto-renewable subscriptions)
-- Play Store billing integration
-- Receipt validation (server-side)
-- Entitlement checking (what tier is this user on?)
-- Free tier enforcement (clip count limit, feature gating)
-- Paywall UI (upgrade prompts when hitting limits)
-- Restore purchases flow
-- Trial period handling (if we add one later)
-- Subscription status sync between devices
-
-**Recommended library**: `react-native-purchases` (RevenueCat SDK) — handles both platforms, receipt validation, and analytics. Avoids building billing infrastructure from scratch.
-
-#### 3. Session Management (GOL-42)
-**Priority**: High — depends on auth
-**Effort**: Medium
-
-- Auto-create session when devices connect
-- Associate clips with the active session
-- Session metadata: start/end time, clip count, duration
-- Session list screen (new route)
-- View clips within a session
-- Session naming (auto-generated, renamable)
-- Persist sessions locally (SQLite or AsyncStorage)
-
-#### 4. Remote Recording Activation (GOL-41)
-**Priority**: High — key UX for the solo golfer use case
-**Effort**: Small
-
-- Viewer sends arm/disarm commands via WebRTC data channel
-- Camera enters armed mode with visual indicator
-- Works with both manual recording and auto-detection
-- Status sync between devices (both show armed/disarmed state)
-
-**Note**: This is mostly data channel messaging over existing infrastructure. Low risk.
-
-#### 5. Swing Auto-Detection (GOL-40)
-**Priority**: High — differentiating feature for paid tier
-**Effort**: Medium-Large
-
-- **Approach for MVP**: Motion-based detection (frame differencing or device accelerometer)
-  - Detect significant motion onset → start recording
-  - Detect motion settling → stop recording
-  - Pre-roll buffer (~2 seconds before trigger) to capture setup
-  - Post-roll buffer (~3 seconds after settling) to capture follow-through
-- Sensitivity threshold (adjustable in settings)
-- Visual indicator when detection is active
-- Works in conjunction with remote arm/disarm
-
-**Explicitly NOT in MVP**: ML pose detection, skeleton tracking, or any model inference. That's Pro tier.
-
-#### 6. First-Time Onboarding (GOL-29)
-**Priority**: Medium — important for retention, not a technical blocker
-**Effort**: Small
-
-- 2-3 screen walkthrough explaining the two-device concept
-- Visual diagrams: camera device placement, viewer device usage
-- "Skip" option for returning users
-- Show once per account (persisted flag)
-
-#### 7. App Store Readiness (NEW)
-**Priority**: Critical — can't ship without it
-**Effort**: Medium
-
-- App icon and splash screen (final designs)
-- App Store screenshots (6.7", 6.5", 5.5" for iPhone; tablet optional)
-- Play Store feature graphic + screenshots
-- App Store description and keywords
-- Privacy policy (hosted URL, linked in app and store listing)
-- Terms of service
-- Production EAS build profile (signing, versioning)
-- Crash reporting integration (Sentry or Bugsnag)
+- [x] 594 tests (unit, integration, E2E connection flow)
 
 ---
 
-## Deferred to Post-MVP
+### Needs Building
 
-These are valuable but not required for a shippable v1.
+These features are required for MVP launch. Tracked in Linear with the `MVP` label.
 
-| Feature | Issue | Rationale |
-|---------|-------|-----------|
-| Cloud storage | GOL-35 | Local storage is fine for v1. Cloud sync is a v1.x retention feature. |
-| Share via link | GOL-36 | Requires cloud storage. Good growth feature for v1.x. |
-| Session history (cross-device) | GOL-37 | Local session history ships with MVP. Cross-device sync needs cloud. |
-| Usage analytics | GOL-38 | Important for business decisions but not user-facing. Add after launch. |
-| Help/FAQ screens | GOL-33 | Onboarding covers the basics. Full help center is a polish item. |
-| Landscape stream rotation | GOL-44 | Workaround: users hold camera in portrait. Fix post-launch. |
-| Landscape UI refinements | GOL-31 | Layouts exist and work. Fine-tuning is post-launch polish. |
+#### Pro Feature Gating
+
+**GOL-111 — Gate pose overlay on playback behind Pro** (Medium)
+Pose/shaft overlay is currently available to all users. Needs Pro gating — show the toggle but disabled for free users with an upgrade prompt.
+
+**GOL-110 — Swing tempo measurement** (High)
+Calculate and display backswing/downswing tempo ratio from existing phase detection timestamps. Pro-only feature. Color-coded ratio display on playback screen.
+
+**GOL-109 — Side-by-side swing comparison** (High)
+Split-screen clip comparison with synchronized scrubbing. Flagship Pro feature. Clip picker, sync-point selection, independent play/pause.
+
+**GOL-114 — Cloud backup & share via link** (High)
+Mobile integration for cloud backup (R2 infra is built). Upload clips, sync session metadata to API, generate shareable web links. Pro-only. Offline-first with upload queue.
+
+#### Free Tier Features
+
+**GOL-115 — DTL / face-on camera angle toggle** (High)
+Add camera angle selector to camera screen. Tag clips with `cameraAngle` metadata. Display angle badge on clip list and session detail. Currently only front/back camera toggle exists — this is conceptual angle tagging, not physical camera selection.
+
+#### Launch Prep
+
+**GOL-102 — Privacy policy & terms of service** (Urgent)
+Required by both app stores. Must address camera/mic usage, local storage, cloud storage, P2P connections, Clerk auth data, analytics.
+
+**GOL-100 — App icon & splash screen** (High)
+Production icon (1024x1024 iOS, 512x512 + adaptive Android) and splash screen with Divot branding.
+
+**GOL-101 — App Store & Play Store listing** (High)
+Store descriptions, keywords, screenshots for all required device sizes, feature graphic.
+
+**GOL-103 — Production build configuration** (High)
+EAS production profile, signing certificates, provisioning, bundle IDs, environment variables, OTA update config.
+
+**GOL-104 — TestFlight & internal testing** (High)
+Beta distribution on both platforms. TestFlight + Play Store internal track. Test on range of real devices.
+
+**GOL-105 — Pre-launch polish pass** (Medium)
+End-to-end UX walkthrough on real devices. Error states, edge cases, navigation flows, accessibility audit.
+
+**GOL-106 — Analytics & crash reporting** (High)
+PostHog analytics is done. Still needs crash reporting (Sentry or similar) — native crashes and JS error capture.
+
+**GOL-29 — First-time onboarding** (High)
+2-3 screen walkthrough explaining the two-device concept. Visual diagrams, skip option, show-once flag.
+
+---
+
+## Decisions Made
+
+| Decision | Resolution |
+|----------|-----------|
+| BaaS provider | Clerk for auth, Turso (libSQL) for database, Hono on Fly.io for API |
+| Cloud storage | Cloudflare R2 (S3-compatible) |
+| IAP library | RevenueCat (react-native-purchases) |
+| Swing detection | Dual pipeline — pose-based (CNN + shoulder rotation) and motion-based |
+| Analytics | PostHog (events, feature flags, user identification) |
+| Session storage | Local persistence with cloud sync via API |
+
+## Open Decisions
+
+| Decision | Options | Notes |
+|----------|---------|-------|
+| Subscription price | $8/mo / $10/mo / $8/mo + $60/yr | Leaning $9.99/month, $59.99/year |
+| Crash reporting | Sentry / Bugsnag | Sentry is the likely choice |
 
 ---
 
 ## Implementation Order
 
-Dependencies drive the sequence. Each phase builds on the previous.
+Remaining work organized by dependency and priority.
 
-### Phase 1: Foundation — Auth & Accounts
-> Unblocks everything else
+### Phase 1: Pro Features
+> Build the features users are paying for
 
-1. Select BaaS (Firebase vs Supabase)
-2. Implement auth (sign up, login, OAuth, password reset)
-3. Account deletion flow
-4. Authenticated signaling server
-5. Auth-gated navigation (logged out → auth screens, logged in → home)
+1. Gate pose overlay behind Pro (GOL-111)
+2. Swing tempo measurement (GOL-110)
+3. DTL / face-on camera angle toggle (GOL-115)
+4. Side-by-side swing comparison (GOL-109)
+5. Cloud backup & share via link (GOL-114)
 
-### Phase 2: Monetization — Subscriptions & Paywalls
-> Unblocks feature gating
+### Phase 2: Launch Prep
+> Everything needed for store submission
 
-1. RevenueCat SDK integration
-2. Configure subscription products (App Store Connect + Play Console)
-3. Entitlement checking
-4. Free tier enforcement (3 clip limit, feature gates)
-5. Paywall UI (contextual upgrade prompts)
-6. Restore purchases
-
-### Phase 3: Session Management
-> Depends on auth (sessions belong to a user)
-
-1. Session data model and local persistence
-2. Auto-create session on connection
-3. Associate clips with sessions
-4. Session list screen + session detail view
-5. Session naming and metadata
-
-### Phase 4: Recording Enhancements
-> Independent of auth, but tier-gated
-
-1. Remote arm/disarm via data channel (GOL-41)
-2. Motion-based swing detection (GOL-40)
-3. Pre/post-roll buffering
-4. Sensitivity settings
-5. Integration: arm → detect → record → sync flow
-
-### Phase 5: Onboarding & Store Submission
-> Do last — features need to be stable first
-
-1. First-time onboarding flow
-2. App icon, splash screen, store assets
-3. Privacy policy and terms of service
-4. Crash reporting (Sentry)
-5. Production build configuration
-6. Beta testing (TestFlight + internal Play Store track)
-7. Store submission
-
----
-
-## Open Decisions
-
-These need resolution before or during implementation:
-
-| Decision | Options | Recommendation |
-|----------|---------|----------------|
-| BaaS provider | Firebase / Supabase / Custom | Firebase — better RN support, built-in Apple/Google auth, established IAP validation patterns |
-| IAP library | react-native-purchases (RevenueCat) / react-native-iap / Custom | RevenueCat — handles cross-platform billing, receipt validation, analytics out of the box |
-| Subscription price | $8/mo / $10/mo / $8/mo + $60/yr | Start at $9.99/month, $59.99/year (annual discount drives LTV) |
-| Swing detection approach | Frame differencing / Accelerometer / Audio | Accelerometer — simplest, works regardless of camera angle, lowest battery impact |
-| Local database for sessions | AsyncStorage / SQLite (expo-sqlite) / MMKV | SQLite — structured queries for session/clip relationships, scales better than AsyncStorage |
-| Crash reporting | Sentry / Bugsnag / Firebase Crashlytics | Sentry if standalone, Crashlytics if already on Firebase |
+1. Privacy policy & terms of service (GOL-102)
+2. App icon & splash screen (GOL-100)
+3. Crash reporting integration (GOL-106)
+4. Production build configuration (GOL-103)
+5. First-time onboarding (GOL-29)
+6. Store listing content (GOL-101)
+7. Pre-launch polish pass (GOL-105)
+8. TestFlight & internal testing (GOL-104)
 
 ---
 
@@ -293,14 +220,15 @@ These need resolution before or during implementation:
 
 MVP is shippable when:
 
-- [ ] New user can sign up, log in, and recover password
-- [ ] Free user can stream and record up to 3 clips
-- [ ] Free user sees upgrade prompt when hitting clip limit
-- [ ] Paid user has unlimited clips, annotations, sessions, auto-detection
-- [ ] Subscription purchase works on both iOS and Android
-- [ ] Sessions are created automatically and clips are grouped correctly
-- [ ] Viewer can remotely arm/disarm recording on camera
-- [ ] Motion-based auto-detection captures swings with pre/post-roll
+- [x] New user can sign up, log in, and recover password
+- [x] Free user can stream, record unlimited clips, annotate, and manage sessions
+- [x] Free user can export video clips with "recorded with divot" watermark
+- [x] Subscription paywall infrastructure is in place
+- [x] Sessions are created automatically and clips are grouped correctly
+- [x] Pose-based and motion-based auto-detection capture swings with pre/post-roll
+- [ ] Free user sees upgrade prompt when accessing Pro features (pose overlay, tempo, etc.)
+- [ ] Pro user has watermark-free export, cloud backup, tempo, side-by-side, ghost overlay
+- [ ] Subscription products configured in App Store Connect and Play Console
 - [ ] First-time user understands the two-device concept from onboarding
 - [ ] App passes App Store and Play Store review
 - [ ] Crash reporting is active and collecting data

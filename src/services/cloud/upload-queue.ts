@@ -36,6 +36,9 @@ export const setTokenGetter = (getter: () => Promise<string | null>): void => {
   tokenGetter = getter;
 };
 
+/** Get the current token getter (for reuse by other modules like storage usage). */
+export const getTokenGetter = (): (() => Promise<string | null>) | null => tokenGetter;
+
 /** Configure the Pro subscription checker. */
 export const setProChecker = (checker: () => boolean): void => {
   proChecker = checker;

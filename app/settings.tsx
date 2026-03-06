@@ -9,10 +9,11 @@ import { useTheme, useSettings, useSubscription } from '@/src/context';
 import { useThemedStyles, makeThemedStyles, useHaptics } from '@/src/hooks';
 import { useScreenOrientation } from '@/src/hooks/use-screen-orientation';
 import { useCloudSync } from '@/src/hooks/use-cloud-sync';
+import { useStorageUsage } from '@/src/hooks/use-storage-usage';
 import { useToast } from '@/src/context';
 import { clearAllClips, listClips } from '@/src/services/recording/clip-storage';
 import { formatFileSize } from '@/src/utils/format';
-import type { Theme, ThemeMode, RecordingFps } from '@/src/context';
+import type { Theme, ThemeMode, RecordingFps, RecordingResolution } from '@/src/context';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'system', label: 'System' },
@@ -25,6 +26,12 @@ const FPS_OPTIONS: { value: RecordingFps; label: string }[] = [
   { value: 60, label: '60' },
   { value: 120, label: '120' },
   { value: 240, label: '240' },
+];
+
+const RESOLUTION_OPTIONS: { value: RecordingResolution; label: string }[] = [
+  { value: '480p', label: '480p' },
+  { value: '720p', label: '720p' },
+  { value: '1080p', label: '1080p' },
 ];
 
 const FEEDBACK_EMAIL = 'feedback@divotgolf.app';
@@ -43,6 +50,7 @@ export default function SettingsScreen() {
     setHapticsEnabled,
     setThemeMode,
     setRecordingFps,
+    setRecordingResolution,
     setPoseOverlayEnabled,
     setSwingAutoDetectionEnabled,
     setSwingDetectionSensitivity,
@@ -58,6 +66,7 @@ export default function SettingsScreen() {
   const { signOut } = useClerk();
   const { isPro, isLoading: subscriptionLoading, restorePurchases } = useSubscription();
   const { isSyncing, pendingCount } = useCloudSync();
+  const { usedBytes, quotaBytes, clipCount: cloudClipCount, isLoading: storageLoading } = useStorageUsage({ enabled: isPro });
 
   const handleHapticsToggle = (value: boolean) => {
     // Trigger haptic before potentially disabling
@@ -75,6 +84,11 @@ export default function SettingsScreen() {
   const handleRecordingFpsChange = (fps: RecordingFps) => {
     haptics.selection();
     setRecordingFps(fps);
+  };
+
+  const handleRecordingResolutionChange = (resolution: RecordingResolution) => {
+    haptics.selection();
+    setRecordingResolution(resolution);
   };
 
   const handlePoseOverlayToggle = (value: boolean) => {
@@ -332,20 +346,44 @@ export default function SettingsScreen() {
                 accessibilityHint={settings.cloudBackupEnabled ? 'Disable cloud backup' : 'Enable cloud backup'}
               />
             </View>
+
+            <View style={styles.divider} />
+
+            {/* Storage usage bar */}
+            <View style={styles.settingRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.settingLabel}>STORAGE</Text>
+                <View style={styles.storageBarTrack}>
+                  <View
+                    style={[
+                      styles.storageBarFill,
+                      { width: quotaBytes > 0 ? `${Math.min((usedBytes / quotaBytes) * 100, 100)}%` : '0%' },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.settingDescription}>
+                  {storageLoading
+                    ? 'checking...'
+                    : `${formatFileSize(usedBytes)} / ${formatFileSize(quotaBytes)} used · ${cloudClipCount} clip${cloudClipCount === 1 ? '' : 's'}`}
+                </Text>
+              </View>
+            </View>
           </>
         ) : (
-          <Pressable
-            style={styles.actionRow}
-            onPress={() => router.push('/paywall')}
-            accessibilityRole="button"
-            accessibilityLabel="Upgrade to Pro for cloud backup"
-          >
-            <View style={styles.settingText}>
-              <Text style={styles.settingLabel}>AUTO-SYNC</Text>
-              <Text style={styles.settingDescription}>upgrade to pro for cloud backup</Text>
-            </View>
-            <Text style={styles.actionArrow}>&rarr;</Text>
-          </Pressable>
+          <>
+            <Pressable
+              style={styles.actionRow}
+              onPress={() => router.push('/paywall')}
+              accessibilityRole="button"
+              accessibilityLabel="Upgrade to Pro for cloud backup"
+            >
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>AUTO-SYNC</Text>
+                <Text style={styles.settingDescription}>upgrade to pro for cloud backup</Text>
+              </View>
+              <Text style={styles.actionArrow}>&rarr;</Text>
+            </Pressable>
+          </>
         )}
       </View>
 
@@ -431,6 +469,48 @@ export default function SettingsScreen() {
                 accessibilityRole="radio"
                 accessibilityState={{ selected: isSelected, disabled: !isSupported }}
                 accessibilityLabel={`${option.label} fps${!isSupported ? ' (not supported)' : ''}`}
+              >
+                <Text
+                  style={[
+                    styles.themeOptionText,
+                    isSelected && styles.themeOptionTextSelected,
+                    !isSupported && styles.themeOptionTextDisabled,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Recording Resolution Selector */}
+        <View style={styles.settingRow}>
+          <View style={styles.settingText}>
+            <Text style={styles.settingLabel}>RECORDING RESOLUTION</Text>
+            <Text style={styles.settingDescription}>lower resolution for smaller file sizes</Text>
+          </View>
+        </View>
+
+        <View style={styles.themeOptions}>
+          {RESOLUTION_OPTIONS.map((option) => {
+            const isSupported = !settings.supportedRecordingResolutions || settings.supportedRecordingResolutions.includes(option.value);
+            const isSelected = settings.recordingResolution === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                style={[
+                  styles.themeOption,
+                  isSelected && styles.themeOptionSelected,
+                  !isSupported && styles.themeOptionDisabled,
+                ]}
+                onPress={() => handleRecordingResolutionChange(option.value)}
+                disabled={!isSupported}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected, disabled: !isSupported }}
+                accessibilityLabel={`${option.label} resolution${!isSupported ? ' (not supported)' : ''}`}
               >
                 <Text
                   style={[
@@ -685,6 +765,19 @@ const createStyles = makeThemedStyles((theme: Theme) => ({
   },
   themeOptionTextDisabled: {
     color: theme.colors.textTertiary,
+  },
+  storageBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.border,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+    overflow: 'hidden' as const,
+  },
+  storageBarFill: {
+    height: '100%' as const,
+    borderRadius: 3,
+    backgroundColor: theme.colors.accent,
   },
   slider: {
     width: '100%' as const,
